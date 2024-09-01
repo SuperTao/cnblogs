@@ -1,0 +1,135 @@
+<div class="cnblogs_code">
+<pre><span style="color: #800080;">1</span><span style="color: #000000;">、基本概念：
+
+CGI（Common Gate Interface，通用网关接口）
+
+HTML均是静态网页，它无法实现一些复杂的功能，而CGI可以为我们实现。
+
+get方式提交表单：
+
+当表单被发送到服务器断后，表单中的数据被保存在服务器上一个叫做QUERY_STRING的环境变量中。这种表单的处理相对简单，只要读取环境变量就可以了。
+
+post方式提交表单：
+
+对于POST类型的表单，其内容被送到CGI程序的标准输入，而被传送的长度被放在环境变量 CONTENT_LENGTH中。因而我们要做的就是，在标准输入中读入CONTENT_LENGTH长度的字符串。
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">、http
+
+</span><span style="color: #800080;">2.1</span><span style="color: #000000;">  http协议
+
+HTTP是Hyper Text Transfer Protocol（超文本传输协议），其结构如下图所示。</span></pre>
+</div>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images0.cnblogs.com/blog2015/745188/201508/182333568005452.jpg" alt="" /></p>
+<div class="cnblogs_code">
+<pre><span style="color: #800080;">2.2</span><span style="color: #000000;">  HTTP组成
+
+http请求由三部分组成，分别是：请求行、消息报头、请求正文
+
+HTTP请求数据举例：</span></pre>
+</div>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images0.cnblogs.com/blog2015/745188/201508/182330285351578.jpg" alt="" /></p>
+<div class="cnblogs_code">
+<pre>HTTP应答数据举例</pre>
+</div>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images0.cnblogs.com/blog2015/745188/201508/182331127854459.jpg" alt="" /></p>
+<div class="cnblogs_code">
+<pre><span style="color: #800080;">2.3</span><span style="color: #000000;">  http编码<br />
+form的enctype属性为编码方式，常用有两种：application</span>/x-www-form-urlencoded和multipart/form-data，默认为application/x-www-form-urlencoded。<br />当action为get时候，浏览器用x-www-form-urlencoded的编码方式把form数据转换成一个字串（name1=value1&amp;name2=value2...），然后把这个字串append到url<br />后面，用?<span style="color: #000000;">分割，加载这个新的url。当action为post时候，浏览器把form数据封装到http body中，然后发送到server。<br />
+在网页中将表单进行上传的时候，就会进行编码，例如我们点击保存的时候。下图就是我是使用colasoft，科来抓包软件抓取的结构，当然你也可以使用wireshark进行抓取。</span></pre>
+</div>
+<p>&nbsp;</p>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images0.cnblogs.com/blog2015/745188/201508/182333186285280.jpg" alt="" /></p>
+<div class="cnblogs_code">
+<pre><span style="color: #800080;">3</span><span style="color: #000000;">、网页设计
+
+在javascript中，完成中英文切换，并且在实现同一个框架中不同页面之间的访问。
+
+ 
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">标志位，用于后面的判断</span>
+
+<span style="color: #0000ff;">var</span> isEng=<span style="color: #0000ff;">false</span><span style="color: #000000;">;
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">创建中文和英文数组</span>
+<span style="color: #000000;">
+tree_en</span>=<span style="color: #0000ff;">new</span><span style="color: #000000;"> Arrary(&ldquo;hello world&rdquo;，&rdquo;welcome to China&rdquo;);
+
+tree_en</span>=<span style="color: #0000ff;">new</span><span style="color: #000000;"> Arrary(&ldquo;你好&rdquo;，&rdquo;欢迎&rdquo;);
+
+ 
+
+function changeLanguage()
+
+{
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">获取表单</span>
+
+<span style="color: #0000ff;">var</span> cf = document.forms[<span style="color: #800080;">0</span><span style="color: #000000;">];
+
+isEng </span>= !<span style="color: #000000;">isEng;
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">更改框架中顶层按键中的按键值</span>
+<span style="color: #000000;">
+document.all.language.value</span>= isEng ? <span style="color: #800000;">"</span><span style="color: #800000;">中文</span><span style="color: #800000;">"</span> : <span style="color: #800000;">"</span><span style="color: #800000;">English</span><span style="color: #800000;">"</span><span style="color: #000000;">;
+
+</span><span style="color: #0000ff;">var</span> i=<span style="color: #800080;">0</span>,j=<span style="color: #800080;">0</span><span style="color: #000000;">;
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">chrome浏览器不支持在本地使用parent.xxx类似的操作，而firefox支持。
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">在服务器中两种浏览器都支持该操作。下面的语句作用是获取父框架左边的的网页。
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">下面几条语句都可以在一个框架中的网页中访问另外一个框架中的数据。
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">var frame_left = window.parent["left"];</span>
+
+<span style="color: #0000ff;">var</span> obj=<span style="color: #000000;">window.parent.frame_left;
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">var obj=parent.frame_left;</span>
+
+<span style="color: #0000ff;">var</span> cf=<span style="color: #000000;">obj.contentWindow.document;
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">cf.getElementById("AllOpen_1").innerHTML="hello";
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">更改tree</span>
+
+<span style="color: #0000ff;">var</span> tree_arr=cf.getElementsByTagName(<span style="color: #800000;">"</span><span style="color: #800000;">a</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+</span><span style="color: #0000ff;">var</span> length=<span style="color: #000000;">tree_arr.length;
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">tree_text引用，这里就完成了中英文切换。tree_text根据isEng这个标志位的不同指向 </span><span style="color: #008000;">//</span><span style="color: #008000;">不同的数组，在更改网页中的内容就行了。后面要怎么操作就随自己了。</span>
+
+<span style="color: #0000ff;">var</span> tree_text=isEng?<span style="color: #000000;">tree_en:tree_ch;
+
+</span><span style="color: #0000ff;">for</span>(i=<span style="color: #800080;">0</span>;i&lt;length;i++<span style="color: #000000;">)
+
+{
+
+tree_arr[i].innerHTML</span>=<span style="color: #000000;">tree_text[i];
+
+}
+
+ 
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">获取url中的文件名称</span>
+<span style="color: #000000;">
+function getFileName(hr){
+
+　　</span><span style="color: #0000ff;">var</span> url =<span style="color: #000000;"> hr.location.href
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">　　var url = this.location.href</span>
+
+　　<span style="color: #0000ff;">var</span> pos = url.lastIndexOf(<span style="color: #800000;">"</span><span style="color: #800000;">/</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+　　</span><span style="color: #0000ff;">if</span>(pos == -<span style="color: #800080;">1</span><span style="color: #000000;">){
+
+　　 pos </span>= url.lastIndexOf(<span style="color: #800000;">"</span><span style="color: #800000;">\\</span><span style="color: #800000;">"</span><span style="color: #000000;">)
+
+　　}
+
+　　</span><span style="color: #0000ff;">var</span> filename = url.substr(pos +<span style="color: #800080;">1</span><span style="color: #000000;">)
+
+　　</span><span style="color: #0000ff;">return</span><span style="color: #000000;"> filename;
+
+}</span></pre>
+</div>
+<p>&nbsp;</p>

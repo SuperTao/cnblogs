@@ -1,0 +1,15 @@
+<p>ping<span style="font-family: 宋体;">命令发出的</span><span style="font-family: Times New Roman;">icmp</span><span style="font-family: 宋体;">回显请求，接收方发出</span><span style="font-family: Times New Roman;">icmp</span><span style="font-family: 宋体;">回显应答。</span></p>
+<p>1、实验</p>
+<p>电脑的<span style="font-family: Times New Roman;">ip</span><span style="font-family: 宋体;">如下所示：</span></p>
+<p>&nbsp;<img src="http://images2015.cnblogs.com/blog/745188/201512/745188-20151203213506283-1913991175.png" alt="" /></p>
+<p>服务器<span style="font-family: Times New Roman;">ip</span><span style="font-family: 宋体;">，</span><span style="font-family: Times New Roman;">192.168.8.180</span><span style="font-family: 宋体;">。不在一个网段，</span><span style="font-family: Times New Roman;">192.168.8.0</span><span style="font-family: 宋体;">网络地址与</span><span style="font-family: Times New Roman;">192.168.3.0</span><span style="font-family: 宋体;">通过三层交换机连接（有路由的功能，相当于路由器）。</span></p>
+<p>在<span style="font-family: Times New Roman;">windows</span><span style="font-family: 宋体;">系统命令提示符上，运行</span><span style="font-family: Times New Roman;">ping</span><span style="font-family: 宋体;">命令，并加上</span><span style="font-family: Times New Roman;">-r</span><span style="font-family: 宋体;">选项，指定记录路由表。下图中记录了数据帧所经过的路由。</span></p>
+<p>&nbsp;<img src="http://images2015.cnblogs.com/blog/745188/201512/745188-20151203213516986-2057309995.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>2<span style="font-family: 宋体;">、抓包分析</span></p>
+<p>本地电脑发送<span style="font-family: Times New Roman;">icmp</span><span style="font-family: 宋体;">回显请求。</span></p>
+<p>&nbsp;<img src="http://images2015.cnblogs.com/blog/745188/201512/745188-20151203213543049-1936234881.png" alt="" width="1478" height="860" /></p>
+<p>通过<span style="font-family: Times New Roman;">wireshark</span><span style="font-family: 宋体;">分析，可以发现</span><span style="font-family: Times New Roman;">icmp</span><span style="font-family: 宋体;">应答数据包中记录了路由表。</span></p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201512/745188-20151203213531830-1913188530.png" alt="" width="1480" height="922" /></p>
+<p>用于记录经过的路由。由于路由信息是记录在<span style="font-family: Times New Roman;">IP</span><span style="font-family: 宋体;">的首部的选项字段，</span><span style="font-family: Times New Roman;">IP</span><span style="font-family: 宋体;">首部最长为</span><span style="font-family: Times New Roman;">60</span><span style="font-family: 宋体;">字符。</span>由于&nbsp;I&nbsp;P首部固定长度为&nbsp;2&nbsp;0字节，&nbsp;R&nbsp;R选项用去&nbsp;3个字节（下面我们再讨论），这样只剩下3&nbsp;7个字节（6&nbsp;0-&nbsp;2&nbsp;0-3）来存放&nbsp;I&nbsp;P&nbsp;地址清单，也就是说只能存放&nbsp;9个I&nbsp;P&nbsp;地址。因此在ping&nbsp;的时候，最长也就只能指定记录9个路由的ip地址。</p>
+<p>&nbsp;</p>

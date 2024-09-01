@@ -1,0 +1,11 @@
+<p>使用vlc media player发送多播数据，验证交换机igmp的设置是否成功。</p>
+<p>链接</p>
+<p><a href="http://peakdrive.com/?p=440">http://peakdrive.com/?p=440</a></p>
+<p><a href="http://www.dasblinkenlichten.com/setting-up-a-multicast-lab-using-vlc-2-0-5/">http://www.dasblinkenlichten.com/setting-up-a-multicast-lab-using-vlc-2-0-5/</a></p>
+<p>&nbsp;</p>
+<p>多播的ip地址是D类地址，验证的时候需要发送多播。按照链接设置，使用vlc player设置多播，播放选中的时评。其他电脑上设置好vlc mplayer连接指定的多播地址，就可以在其他电脑上观看在自己电脑上的视频。</p>
+<p>使用一个视频文件进行发送之后。将交换机的2个端口都加入多播组，并设置好多播地址。其中一个端口连接自己的电脑，另一个端口连接另外一台电脑。交换机设置如下。</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201602/745188-20160217140444269-1782916116.png" alt="" width="712" height="92" /></p>
+<p>自己电脑上打开vlc meida player视频文件。抓包如下。</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201602/745188-20160217135922550-1010599878.png" alt="" width="709" height="412" /></p>
+<p>在另外一台电脑上也进行抓包，可以看到源地址是设定的255.1.2.3。在另一台电脑上运行vlc mplayer,设置为打开网络串流，就可以观看到视频。</p>

@@ -1,0 +1,54 @@
+<div class="cnblogs_code">
+<pre><span style="color: #800080;">1</span><span style="color: #000000;">、编译动态库
+
+将写完的snmp代理程序编译生成动态库
+
+gcc </span>-c -fpic telnetConfig.c -o telnetConfig.o -I/usr/local/net-snmp/<span style="color: #000000;">include
+
+gcc </span>-shared telnetConfig.o -<span style="color: #000000;">o libtelnetConfig.so
+
+其中</span>/usr/local/net-<span style="color: #000000;">snmp是安装目录，里面有include目录，包含了使用的头文件。
+
+通过下面两条命令，查看安装目录，找到配置文件
+
+net</span>-snmp-config --<span style="color: #0000ff;">default</span>-<span style="color: #000000;">mibdirs
+
+snmptranslate </span>-<span style="color: #000000;">Dinit_mib
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">、更改配置文件
+
+找到安装目录中的snmp配置文件，snmpd.conf:
+
+vim </span>/usr/local/share/snmp/<span style="color: #000000;">snmpd.conf
+
+在最后添加
+
+dlmod telnetConfig </span>/home/tony/.snmp/mibs/<span style="color: #000000;">libtelnetConfig.so
+
+表示动态添加库，后面的</span>/home/tony/.snmp/mibs/<span style="color: #000000;">libtelnetConfig.so是产生的so文件的目录。<br />
+</span><span style="color: #800080;">3</span><span style="color: #000000;">、启动snmp
+
+snmpd  或者  sudo snmpd
+
+调试启动:  </span>&lt;install&gt;/snmpd &ndash;d &ndash;f &ndash;Lo &ndash;c  &lt;install&gt;/<span style="color: #000000;">snmpd.conf
+
+一般启动  </span>&lt;install&gt;/snmpd  &ndash;c  &lt;install&gt;/<span style="color: #000000;">snmpd.conf
+
+</span><span style="color: #800080;">4</span><span style="color: #000000;">、snmp移植到交换机中
+
+如果要移植到交换机中，在第一步就要使用交叉编译工具进行编译。
+
+将arm</span>-linux-<span style="color: #000000;">gcc所在的目录添加到环境变量中
+
+export PATH</span>=$PATH:/home/liutao/proj/<span style="color: #0000ff;">switch</span>/brcm/platform/iproc/buildroot/output/host/usr/<span style="color: #000000;">bin
+
+将生成的.so文件添加到目标板中，例如</span>/lib/。（记住从ftp从服务器下载到目标板的过程中，需要使用bin模式进行下载，否则文件不完整，会有丢失）。<br />然后将snmpd.conf配置文件也下载到目标板中，例如放在/usr/share/<span style="color: #000000;">。
+
+在snmpd.conf文件的最后添加
+
+dlmod telnetConfig </span>/lib/<span style="color: #000000;">libtelnetConfig.so
+
+</span><span style="color: #800080;">5</span><span style="color: #000000;">、启动snmpd并指定配置文件。
+
+.</span>/snmpd -c /usr/share/snmpd.conf</pre>
+</div>

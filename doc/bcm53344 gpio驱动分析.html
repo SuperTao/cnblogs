@@ -1,0 +1,545 @@
+<p>&nbsp;</p>
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">********************************************************************************
+ *    1.查看代码是在vim下,使用ctags进行的。也可以使用SourceInsight
+ *    2.为方便查找,使用&ldquo;-------&gt;&gt;&gt;"加数字/字母进行标记,表示后面会进行详解。
+ *      使用&ldquo;&lt;&lt;&lt;------"加数字/字母，表示详解或相同的地方，
+ *        查看时找到相同的标记进行阅读<br />&nbsp;* &nbsp; &nbsp;本文主要内容：<br />&nbsp;* &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #800080;">　　　　1<span style="color: #000000;">.总结 <br />&nbsp;*　　　　　<span style="color: #800080;">　　　　2<span style="color: #000000;">.结构体介绍 <br />&nbsp;*　　　　　　　　　<span style="color: #800080;">3<span style="color: #000000;">.gpio_direction_output等函数的调用过程 <br />&nbsp;*　　　　　　　　　<span style="color: #800080;">4<span style="color: #000000;">.bcm53344初始化过程<br /></span></span></span></span></span></span></span></span> *　　　　　　　　　　<br /> *　　　　　　　　　　　　　　　　　　                  Tony Liu, 2015-11-7, Shenzhen
+ *****************************************************************************</span><span style="color: #008000;">*/<br /></span><span style="color: #800080;">1</span><span style="color: #000000;">   总结
+</span><span style="color: #800080;">　　1.1</span><span style="color: #000000;"> BCM53344共有16个GPIO,是由几个寄存器分开控制的。
+</span><span style="color: #800080;">　　1.2</span> GPIO <span style="color: #800080;">0</span>-3来自CMICD,GPIO <span style="color: #800080;">4</span>-15来自ChipcommonA的GPIO引脚0-<span style="color: #800080;">11</span>
+<span style="color: #800080;">　　1.3</span> GPIO <span style="color: #800080;">8</span>-<span style="color: #000000;">15与MII或者LED共享,在设置复用功能使，需要硬件进行配置成不同的功能，软件不能配置
+　　　　参考硬件手册，了解需要将LED_MII_GPIO</span>-SPI_SEL[<span style="color: #800080;">1</span>:<span style="color: #800080;">0</span><span style="color: #000000;">]进行配置，
+</span><span style="color: #800080;">　　1.4</span><span style="color: #000000;"> 三个重要的结构体
+    　　gpio_desc          : 内核中提供的公共结构体，内核中会定义一个结构提数组.
+                      每一个GPIO口会对应一个.
+    　　gpio_chip          : 内核中提供的公共结构体, 内核中会定义一个结构体数组.
+                      每一个GPIO口会对应一个.启动定义了输入输出等各种处理函数
+    　　iproc_gpio_chip : 不同的芯片，不同的平台自己定义的结构体
+                      其中记录了芯片的寄存器地址，物理地址映射的虚拟地址等<br />　　1.5.</span><span style="color: #008000;">内核采用面向对象的思想，定义共有的接口gpio_desc,而gpio_desc中的chip指针指向iproc_gpio_chip中的chip。<br />　　　　这样就可以通过共有接口访问不同芯片的数据。例如，gpio_direction_output/gpio_request等，会使用gpio_desc，<br />　　　　调用其中的gpio_chip,间接调用其中的  direction_input/request函数，如下所示。而request, free,direction_input,<br />　　　　get,direction_output等已经在初始化的时候进行了。例如上面的direction_input指向  iproc_gpiolib_input, <br />　　　　这样就可以访问平台的数据。<br />　　　　初始化函数所做的工作就是将 gpio_desc和 gpio_chip以及平台自己定义的结构提 iproc_gpio_chip结构提联系起来。<br />　　　　并将gpio_chip中的函数指针指向处理函数。将物理地址转化为虚拟地址，保存到iproc_gpio_chip中。
+ </span>
+<span style="color: #800080;">2</span><span style="color: #000000;">.结构体介绍
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> 所有芯片都有的结构结构 </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">struct</span><span style="color: #000000;"> gpio_desc {
+    </span><span style="color: #0000ff;">struct</span> gpio_chip    *chip;       <span style="color: #008000;">//</span><span style="color: #008000;"> --------------------------&gt;&gt;&gt; chip</span>
+    unsigned <span style="color: #0000ff;">long</span><span style="color: #000000;">        flags;
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> flag symbols are bit numbers </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">#define</span> FLAG_REQUESTED    0
+<span style="color: #0000ff;">#define</span> FLAG_IS_OUT    1
+<span style="color: #0000ff;">#define</span> FLAG_RESERVED    2
+<span style="color: #0000ff;">#define</span> FLAG_EXPORT    3    /* protected by sysfs_lock */
+<span style="color: #0000ff;">#define</span> FLAG_SYSFS    4    /* exported via /sys/class/gpio/control */
+<span style="color: #0000ff;">#define</span> FLAG_TRIG_FALL    5    /* trigger on falling edge */
+<span style="color: #0000ff;">#define</span> FLAG_TRIG_RISE    6    /* trigger on rising edge */
+<span style="color: #0000ff;">#define</span> FLAG_ACTIVE_LOW    7    /* sysfs value has active low */
+<span style="color: #0000ff;">#define</span> FLAG_OPEN_DRAIN    8    /* Gpio is open drain type */
+<span style="color: #0000ff;">#define</span> FLAG_OPEN_SOURCE 9    /* Gpio is open source type */
+
+<span style="color: #0000ff;">#define</span> ID_SHIFT    16    /* add new flags before this one */
+
+<span style="color: #0000ff;">#define</span> GPIO_FLAGS_MASK        ((1 &lt;&lt; ID_SHIFT) - 1)
+<span style="color: #0000ff;">#define</span> GPIO_TRIGGER_MASK    (BIT(FLAG_TRIG_FALL) | BIT(FLAG_TRIG_RISE))<span style="color: #000000;">
+
+#ifdef CONFIG_DEBUG_FS
+    </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span>        *<span style="color: #000000;">label;
+</span><span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+};
+
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> 通过container_of找到iproc_gpio_chip的首地址,就可以访问iproc_gpio_chip里面的数据了 </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">static</span> inline <span style="color: #0000ff;">struct</span> iproc_gpio_chip *to_iproc_gpio(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">gpc)
+{
+    </span><span style="color: #0000ff;">return</span> container_of(gpc, <span style="color: #0000ff;">struct</span><span style="color: #000000;"> iproc_gpio_chip, chip);
+}
+
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> 不同公司芯片自己定义的结构提 </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">struct</span><span style="color: #000000;"> iproc_gpio_chip {
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> id; 
+    </span><span style="color: #0000ff;">struct</span> gpio_chip    chip;                            <span style="color: #008000;">//</span><span style="color: #008000;"> &lt;&lt;&lt;----------------------- chip</span>
+    <span style="color: #0000ff;">struct</span> iproc_gpio_cfg   *<span style="color: #000000;">config;
+    </span><span style="color: #0000ff;">void</span> __iomem        *<span style="color: #000000;">ioaddr;
+    </span><span style="color: #0000ff;">void</span> __iomem        *<span style="color: #000000;">intr_ioaddr;
+    </span><span style="color: #0000ff;">void</span> __iomem        *<span style="color: #000000;">dmu_ioaddr;
+    spinlock_t       </span><span style="color: #0000ff;">lock</span><span style="color: #000000;">;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> irq_base;
+    </span><span style="color: #0000ff;">struct</span> resource *<span style="color: #000000;"> resource;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> irq;
+    </span><span style="color: #0000ff;">struct</span> iproc_gpio_irqcfg    *<span style="color: #000000;">irqcfg;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> pin_offset;
+};
+
+</span><span style="color: #0000ff;">struct</span><span style="color: #000000;"> gpio_chip {
+    </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span>      *<span style="color: #000000;">label;
+    </span><span style="color: #0000ff;">struct</span> device       *<span style="color: #000000;">dev;
+    </span><span style="color: #0000ff;">struct</span> module       *<span style="color: #000000;">owner;
+
+    </span><span style="color: #0000ff;">int</span>         (*request)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                        unsigned offset);
+    </span><span style="color: #0000ff;">void</span>            (*<span style="color: #0000ff;">free</span>)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                        unsigned offset);
+
+    </span><span style="color: #0000ff;">int</span>         (*direction_input)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                        unsigned offset);
+    </span><span style="color: #0000ff;">int</span>         (*<span style="color: #0000ff;">get</span>)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                        unsigned offset);
+    </span><span style="color: #0000ff;">int</span>         (*direction_output)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                        unsigned offset, </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> value);
+    </span><span style="color: #0000ff;">int</span>         (*set_debounce)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                        unsigned offset, unsigned debounce);
+
+    </span><span style="color: #0000ff;">void</span>            (*<span style="color: #0000ff;">set</span>)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                        unsigned offset, </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> value);
+
+    </span><span style="color: #0000ff;">int</span>         (*to_irq)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                        unsigned offset);
+
+    </span><span style="color: #0000ff;">void</span>            (*dbg_show)(<span style="color: #0000ff;">struct</span> seq_file *<span style="color: #000000;">s,
+                        </span><span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip);
+    </span><span style="color: #0000ff;">int</span>         <span style="color: #0000ff;">base</span><span style="color: #000000;">;
+    u16         ngpio;
+    </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span>      *<span style="color: #0000ff;">const</span> *<span style="color: #000000;">names;
+    unsigned        can_sleep:</span><span style="color: #800080;">1</span><span style="color: #000000;">;
+    unsigned        exported:</span><span style="color: #800080;">1</span><span style="color: #000000;">;
+
+</span><span style="color: #0000ff;">#if</span> defined(CONFIG_OF_GPIO)
+    <span style="color: #008000;">/*</span><span style="color: #008000;">
+     * If CONFIG_OF is enabled, then all GPIO controllers described in the
+     * device tree automatically may have an OF translation
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">struct</span> device_node *<span style="color: #000000;">of_node;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> of_gpio_n_cells;
+    </span><span style="color: #0000ff;">int</span> (*of_xlate)(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">gc,
+                </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> of_phandle_args *gpiospec, u32 *<span style="color: #000000;">flags);
+</span><span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+};<br />
+</span><span style="color: #800080;">3</span><span style="color: #000000;">.gpio_direction_output等函数的调用过程<br />3.1 大致过程
+gpio_direction_output {
+    </span><span style="color: #0000ff;">struct</span> gpio_chip    *<span style="color: #000000;">chip;
+    gpio_desc    </span>*desc = &amp;<span style="color: #000000;">gpio_desc[gpio];
+    chip </span>= desc-&gt;<span style="color: #000000;">chip;
+    chip</span>-&gt;<span style="color: #000000;">direction_output(chip, gpio, value);
+}                </span>|
+                &nbsp;|<span style="color: #000000;">
+               &nbsp; V
+iproc_gpiolib_output(</span><span style="color: #0000ff;">struct</span> gpio_chip *chip,unsigned gpio, <span style="color: #0000ff;">int</span><span style="color: #000000;"> value)
+这样就可以调用平台的自己的数据了。
+3.2 详解：
+</span><span style="color: #0000ff;">int</span> gpio_direction_output(unsigned gpio, <span style="color: #0000ff;">int</span><span style="color: #000000;"> value)
+{
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;">        flags;
+    </span><span style="color: #0000ff;">struct</span> gpio_chip    *<span style="color: #000000;">chip;
+    </span><span style="color: #0000ff;">struct</span> gpio_desc    *desc = &amp;<span style="color: #000000;">gpio_desc[gpio];
+    </span><span style="color: #0000ff;">int</span>            status = -<span style="color: #000000;">EINVAL;
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Open drain pin should not be driven to 1 </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (value &amp;&amp; test_bit(FLAG_OPEN_DRAIN,  &amp;desc-&gt;<span style="color: #000000;">flags))
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> gpio_direction_input(gpio);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Open source pin should not be driven to 0 </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (!value &amp;&amp; test_bit(FLAG_OPEN_SOURCE,  &amp;desc-&gt;<span style="color: #000000;">flags))
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> gpio_direction_input(gpio);
+
+    spin_lock_irqsave(</span>&amp;<span style="color: #000000;">gpio_lock, flags);
+
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">gpio_is_valid(gpio))
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail;
+    chip </span>= desc-&gt;<span style="color: #000000;">chip;
+    </span><span style="color: #0000ff;">if</span> (!chip || !chip-&gt;<span style="color: #0000ff;">set</span> || !chip-&gt;<span style="color: #000000;">direction_output)
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail;
+    gpio </span>-= chip-&gt;<span style="color: #0000ff;">base</span><span style="color: #000000;">;
+    </span><span style="color: #0000ff;">if</span> (gpio &gt;= chip-&gt;<span style="color: #000000;">ngpio)
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail;
+    status </span>=<span style="color: #000000;"> gpio_ensure_requested(desc, gpio);
+    </span><span style="color: #0000ff;">if</span> (status &lt; <span style="color: #800080;">0</span><span style="color: #000000;">)
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail;
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> now we know the gpio is valid and chip won't vanish </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+    spin_unlock_irqrestore(</span>&amp;<span style="color: #000000;">gpio_lock, flags);
+
+    might_sleep_if(chip</span>-&gt;<span style="color: #000000;">can_sleep);
+
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (status) {
+        status </span>= chip-&gt;<span style="color: #000000;">request(chip, gpio);
+        </span><span style="color: #0000ff;">if</span> (status &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+            pr_debug(</span><span style="color: #800000;">"</span><span style="color: #800000;">GPIO-%d: chip request fail, %d\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+                chip</span>-&gt;<span style="color: #0000ff;">base</span> +<span style="color: #000000;"> gpio, status);
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> and it's not available to anyone else ...
+             * gpio_request() is the fully clean solution.
+             </span><span style="color: #008000;">*/</span>
+            <span style="color: #0000ff;">goto</span><span style="color: #000000;"> lose;
+        }
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 这里就是不同GPIO对应的函数，
+     * BCM53344对应那个的接口函数就是iproc_gpiolib_output
+     * 在iproc_gpiolib_add中指定 </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> 再通过这个函数调用不同的平台私有的数据 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    status </span>= chip-&gt;<span style="color: #000000;">direction_output(chip, gpio, value);
+    </span><span style="color: #0000ff;">if</span> (status == <span style="color: #800080;">0</span><span style="color: #000000;">)
+        set_bit(FLAG_IS_OUT, </span>&amp;desc-&gt;<span style="color: #000000;">flags);
+    trace_gpio_value(chip</span>-&gt;<span style="color: #0000ff;">base</span> + gpio, <span style="color: #800080;">0</span><span style="color: #000000;">, value);
+    trace_gpio_direction(chip</span>-&gt;<span style="color: #0000ff;">base</span> + gpio, <span style="color: #800080;">0</span><span style="color: #000000;">, status);
+lose:
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> status;
+fail:
+    spin_unlock_irqrestore(</span>&amp;<span style="color: #000000;">gpio_lock, flags);
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (status)
+        pr_debug(</span><span style="color: #800000;">"</span><span style="color: #800000;">%s: gpio-%d status %d\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+            __func__, gpio, status);
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> status;
+}
+EXPORT_SYMBOL_GPL(gpio_direction_output);
+
+</span><span style="color: #0000ff;">int</span> iproc_gpiolib_output(<span style="color: #0000ff;">struct</span> gpio_chip *<span style="color: #000000;">chip,
+                  unsigned gpio, </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> value)
+{
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 找到不同平台自己定义的结构体 </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">struct</span> iproc_gpio_chip *ourchip =<span style="color: #000000;"> to_iproc_gpio(chip);
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;"> flags;
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;"> val;
+    unsigned </span><span style="color: #0000ff;">int</span> pin_offset = gpio + ourchip-&gt;<span style="color: #000000;">pin_offset;
+    unsigned </span><span style="color: #0000ff;">int</span>  nBitMask = <span style="color: #800080;">1</span> &lt;&lt;<span style="color: #000000;"> pin_offset;
+
+    iproc_gpio_lock(ourchip, flags);
+
+    val </span>=<span style="color: #000000;"> _iproc_gpio_readl(ourchip, REGOFFSET_GPIO_EN);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 置1，输出使能 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    val </span>|=<span style="color: #000000;"> nBitMask;
+    _iproc_gpio_writel(ourchip, val, REGOFFSET_GPIO_EN);
+
+    iproc_gpio_unlock(ourchip, flags);
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+
+</span><span style="color: #800080;">4</span><span style="color: #000000;">.bcm53344初始化过程
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init gpio_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{    
+    iproc_gpiolib_init();
+    
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+
+</span><span style="color: #0000ff;">int</span> iproc_gpiolib_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 根据宏定义的情况直到，iproc_gpios_config
+     * CONFIFG_MACH_HR
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">struct</span> iproc_gpio_chip *chip = iproc_gpios_config;  <span style="color: #008000;">//</span><span style="color: #008000;"> ---------------------------&gt;&gt;&gt;  1</span>
+    <span style="color: #0000ff;">int</span><span style="color: #000000;"> gpn;                                                                 
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> temp_base;                                                                                
+                                                                                    
+    ...... (省略）
+                                                                            
+    temp_base </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                         
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 根据iproc_gpios_config知道for循环值执行一次 </span><span style="color: #008000;">*/</span>                            
+    <span style="color: #0000ff;">for</span> (gpn = <span style="color: #800080;">0</span>; gpn &lt; ARRAY_SIZE(iproc_gpios_config); gpn++, chip++<span style="color: #000000;">) {
+        </span><span style="color: #0000ff;">if</span> (gpn &gt;=<span style="color: #000000;"> MAX_NS_GPIO){                                                
+            printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">Unavailabe to add gpiolib\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                
+            </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;                                                                
+        }                                                                                        
+                                                                                    
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> gpioA : chip.base = 0 
+         </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (chip-&gt;chip.<span style="color: #0000ff;">base</span> == -<span style="color: #000000;">EINVAL) {
+            chip</span>-&gt;chip.<span style="color: #0000ff;">base</span> =<span style="color: #000000;"> temp_base;
+        }
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 虚拟地址映射，设置中断 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        iproc_gpiolib_add(chip);                     </span><span style="color: #008000;">//</span><span style="color: #008000;"> ------------------------------&gt;&gt;&gt;    2</span>
+        temp_base = chip-&gt;chip.<span style="color: #0000ff;">base</span> + chip-&gt;<span style="color: #000000;">chip.ngpio;
+    }
+
+
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">                    iproc_gpios_config             </span><span style="color: #008000;">//</span><span style="color: #008000;"> &lt;&lt;&lt;------------------------------------   1</span>
+<span style="color: #000000;">根据不同平台确定结构体,我的平台的hurricane2
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> 
+ * 注意下面的注释中说明
+ * GPIO 0-3来自CMICD
+ * GPIO 4-15来自ChipcommonA的GPIO引脚0-11
+ * GPIO 8-15与MII或者LED共享
+ * 因此base是4，个数使12 
+ </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+所以在配置寄存器的时候就要去找CMICD，ChipcommonA,MII,LED相关的寄存器
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> GPIO 8-15是功能复用引脚，需要硬件进行配置成不同的功能，软件不能配置
+ * 参考硬件手册，了解需要将LED_MII_GPIO-SPI_SEL[1:0]进行配置，
+ * 找到对应的引脚，检查硬件是否连接正确，配置为GPIO功能 </span><span style="color: #008000;">*/</span>
+
+<span style="color: #0000ff;">#elif</span> defined(CONFIG_MACH_HR2)  
+<span style="color: #008000;">/*</span><span style="color: #008000;"> 
+ * Chip level GPIO 0-3 from CMICD, 
+ * GPIO 4-15 are from ChipcommonA gpio pin 0 - 11
+ * where GPIO 8-15 are shared with MII or LED depends on strap pin
+ * Hence the base is 4 and the number is 12.
+ </span><span style="color: #008000;">*/</span>
+<span style="color: #008000;">//</span><span style="color: #008000;">原来的</span>
+<span style="color: #0000ff;">struct</span> iproc_gpio_chip iproc_gpios_config[] =<span style="color: #000000;"> {
+    [</span><span style="color: #800080;">0</span>] =<span style="color: #000000;"> {
+        .id   </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_ID,
+        .chip   </span>=<span style="color: #000000;"> {
+            .</span><span style="color: #0000ff;">base</span>           = <span style="color: #800080;">4</span><span style="color: #000000;">,
+            .label          </span>= <span style="color: #800000;">"</span><span style="color: #800000;">GPIOA</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+            .ngpio          </span>= <span style="color: #800080;">12</span><span style="color: #000000;">,
+        },
+        .irq_base </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_IRQ_BASE,
+        .resource </span>= &amp;iproc_gpio_resources[<span style="color: #800080;">0</span><span style="color: #000000;">],
+        .irq </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_INT,
+        .irqcfg </span>= &amp;<span style="color: #000000;">cca_gpio_irqcfg,
+        .pin_offset </span>= <span style="color: #800080;">0</span><span style="color: #000000;">,
+    },
+}
+</span><span style="color: #008000;">//</span><span style="color: #008000;">更改为</span>
+<span style="color: #0000ff;">struct</span> iproc_gpio_chip iproc_gpios_config[] =<span style="color: #000000;"> {
+    [</span><span style="color: #800080;">0</span>] =<span style="color: #000000;"> {
+        .id   </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_ID,
+        .chip   </span>=<span style="color: #000000;"> {
+            .</span><span style="color: #0000ff;">base</span>           = <span style="color: #800080;">0</span><span style="color: #000000;">,
+            .label          </span>= <span style="color: #800000;">"</span><span style="color: #800000;">GPIOA</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+            .ngpio          </span>= <span style="color: #800080;">4</span><span style="color: #000000;">,
+        },
+        .resource </span>= &amp;iproc_gpio_resources[<span style="color: #800080;">0</span><span style="color: #000000;">],
+        .pin_offset </span>= <span style="color: #800080;">0</span><span style="color: #000000;">,
+    },
+    [</span><span style="color: #800080;">1</span>] =<span style="color: #000000;"> {
+        .id   </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_ID,
+        .chip   </span>=<span style="color: #000000;"> {
+            .</span><span style="color: #0000ff;">base</span>           = <span style="color: #800080;">4</span><span style="color: #000000;">,
+            .label          </span>= <span style="color: #800000;">"</span><span style="color: #800000;">GPIOA</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+            .ngpio          </span>= <span style="color: #800080;">12</span><span style="color: #000000;">,
+        },
+        .irq_base </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_IRQ_BASE,
+        .resource </span>= &amp;iproc_gpio_resources[<span style="color: #800080;">1</span><span style="color: #000000;">],
+        .irq </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_INT,
+        .irqcfg </span>= &amp;<span style="color: #000000;">cca_gpio_irqcfg,
+        .pin_offset </span>= <span style="color: #800080;">0</span><span style="color: #000000;">,
+    },
+};
+</span><span style="color: #008000;">//</span><span style="color: #008000;">还需要更改resource里面的地址。</span>
+<span style="color: #0000ff;">#else</span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> resource iproc_gpio_resources[] =<span style="color: #000000;"> {
+    [</span><span style="color: #800080;">0</span>] =<span style="color: #000000;"> {
+        .start  </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_BASE,
+        .end    </span>= IPROC_GPIO_CCA_BASE + IPROC_GPIO_REG_SIZE - <span style="color: #800080;">1</span><span style="color: #000000;">,
+        .flags  </span>=<span style="color: #000000;"> IORESOURCE_MEM,
+        .child </span>=<span style="color: #000000;"> iproc_gpio_cca_config_resource,
+    },
+    [</span><span style="color: #800080;">1</span>] =<span style="color: #000000;"> {
+        .start  </span>=<span style="color: #000000;"> IPROC_GPIO_CCB_BASE,
+        .end    </span>= IPROC_GPIO_CCB_BASE + IPROC_GPIO_REG_SIZE -<span style="color: #800080;">1</span><span style="color: #000000;">, 
+        .flags  </span>=<span style="color: #000000;"> IORESOURCE_MEM,
+    }   
+};
+</span><span style="color: #008000;">//</span><span style="color: #008000;">CMIC_GP_DATA_IN 寄存器地址    0x48002000
+</span><span style="color: #008000;">//</span><span style="color: #008000;">CMIC_GP_DATA_OUT 寄存器地址    0x48002004
+</span><span style="color: #008000;">//</span><span style="color: #008000;">CMIC_GP_DATA_EN 寄存器地址    0x48002008</span>
+<span style="color: #0000ff;">#else</span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> resource iproc_gpio_resources[] =<span style="color: #000000;"> { 
+    [</span><span style="color: #800080;">0</span>] =<span style="color: #000000;"> { 
+        .start  </span>= <span style="color: #800080;">0x48002000</span><span style="color: #000000;">,
+        .end    </span>= <span style="color: #800080;">0x48002000</span> + IPROC_GPIO_REG_SIZE - <span style="color: #800080;">1</span><span style="color: #000000;">,
+        .flags  </span>=<span style="color: #000000;"> IORESOURCE_MEM,
+    },
+    [</span><span style="color: #800080;">1</span>] =<span style="color: #000000;"> {
+
+        .start  </span>=<span style="color: #000000;"> IPROC_GPIO_CCA_BASE,
+        .end    </span>= IPROC_GPIO_CCA_BASE + IPROC_GPIO_REG_SIZE - <span style="color: #800080;">1</span><span style="color: #000000;">,
+        .flags  </span>=<span style="color: #000000;"> IORESOURCE_MEM,
+        .child </span>=<span style="color: #000000;"> iproc_gpio_cca_config_resource,
+    }
+};
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">iproc_gpiolib_init(void) 的最后调用   iproc_gpiolib_add(chip);  </span>
+
+<span style="color: #0000ff;">void</span> __init  iproc_gpiolib_add(<span style="color: #0000ff;">struct</span> iproc_gpio_chip *chip)    <span style="color: #008000;">//</span><span style="color: #008000;"> &lt;&lt;&lt;------------------------- 2</span>
+<span style="color: #000000;">{
+    </span><span style="color: #0000ff;">struct</span> resource *<span style="color: #000000;">res;
+    </span><span style="color: #0000ff;">struct</span> gpio_chip *gc = &amp;chip-&gt;<span style="color: #000000;">chip;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret, i;    
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 系统定义的宏，用于检查lable,ngpio是否为空，空的话报错，并提示异常 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    BUG_ON(</span>!gc-&gt;<span style="color: #000000;">label);
+    BUG_ON(</span>!gc-&gt;<span style="color: #000000;">ngpio);
+    
+    spin_lock_init(</span>&amp;chip-&gt;<span style="color: #0000ff;">lock</span><span style="color: #000000;">);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 指定处理函数 </span><span style="color: #008000;">*/</span> 
+    <span style="color: #0000ff;">if</span> (!gc-&gt;direction_input)                                 <span style="color: #008000;">//</span><span style="color: #008000;"> -----------------------------&gt;&gt;&gt; 3</span>
+        gc-&gt;direction_input =<span style="color: #000000;"> iproc_gpiolib_input;
+    </span><span style="color: #0000ff;">if</span> (!gc-&gt;<span style="color: #000000;">direction_output)
+        gc</span>-&gt;direction_output =<span style="color: #000000;"> iproc_gpiolib_output;
+    </span><span style="color: #0000ff;">if</span> (!gc-&gt;<span style="color: #0000ff;">set</span><span style="color: #000000;">)
+        gc</span>-&gt;<span style="color: #0000ff;">set</span> =<span style="color: #000000;"> iproc_gpiolib_set;
+    </span><span style="color: #0000ff;">if</span> (!gc-&gt;<span style="color: #0000ff;">get</span><span style="color: #000000;">)
+        gc</span>-&gt;<span style="color: #0000ff;">get</span> =<span style="color: #000000;"> iproc_gpiolib_get;
+    </span><span style="color: #0000ff;">if</span> (!gc-&gt;<span style="color: #000000;">to_irq)
+        gc</span>-&gt;to_irq =<span style="color: #000000;"> iproc_gpiolib_to_irq;
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> gpiochip_add() prints own failure message on error. </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> 给每一个gpio分配一个gpio_desc结构体 </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> gpio_desc是每一款芯片都有的结构体,并且其中的内容相同 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    ret </span>= gpiochip_add(gc);                              <span style="color: #008000;">//</span><span style="color: #008000;"> ------------------------------&gt;&gt;&gt; 4</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> 同一个寄存器控制的GPIO,iproc_gpio指针指向同一个iproc_gpio_chip </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> iproc_gpio是bcm自己定义的结构体,里面有自己寄存器地址等信息 </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (ret &gt;= <span style="color: #800080;">0</span><span style="color: #000000;">)
+        iproc_gpiolib_track(chip);
+
+    printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">iproc gpiochip add %s\n</span><span style="color: #800000;">"</span>, gc-&gt;<span style="color: #000000;">label);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> io remap </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    res </span>= chip-&gt;<span style="color: #000000;">resource;
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 虚拟地址映射,GPIO的基地址开始映射 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    chip</span>-&gt;ioaddr = ioremap_nocache(res-&gt;start, (res-&gt;end - res-&gt;start) + <span style="color: #800080;">1</span><span style="color: #000000;">);
+    printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">%s:ioaddr %p \n</span><span style="color: #800000;">"</span>, gc-&gt;label, chip-&gt;<span style="color: #000000;">ioaddr);
+    chip</span>-&gt;intr_ioaddr =<span style="color: #000000;"> NULL;
+    chip</span>-&gt;dmu_ioaddr =<span style="color: #000000;"> NULL;
+    </span><span style="color: #0000ff;">if</span>(res-&gt;<span style="color: #000000;">child){
+        </span><span style="color: #0000ff;">for</span> (i=<span style="color: #800080;">0</span>; i&lt; <span style="color: #800080;">2</span>; i++<span style="color: #000000;">){        
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 虚拟地址映射,CCA的基地址开始映射 </span><span style="color: #008000;">*/</span>
+            <span style="color: #0000ff;">if</span> (!strcmp(<span style="color: #800000;">"</span><span style="color: #800000;">intr</span><span style="color: #800000;">"</span>, res-&gt;<span style="color: #000000;">child[i].name)){
+                chip</span>-&gt;intr_ioaddr =<span style="color: #000000;"> 
+                    ioremap_nocache(res</span>-&gt;<span style="color: #000000;">child[i].start, 
+                    (res</span>-&gt;child[i].end - res-&gt;child[i].start) + <span style="color: #800080;">1</span><span style="color: #000000;">);
+            }
+            </span><span style="color: #0000ff;">if</span> (!strcmp(<span style="color: #800000;">"</span><span style="color: #800000;">dmu</span><span style="color: #800000;">"</span>, res-&gt;<span style="color: #000000;">child[i].name)){
+                chip</span>-&gt;dmu_ioaddr =<span style="color: #000000;"> 
+                    ioremap_nocache(res</span>-&gt;<span style="color: #000000;">child[i].start, 
+                    (res</span>-&gt;child[i].end - res-&gt;child[i].start) + <span style="color: #800080;">1</span><span style="color: #000000;">);
+            }
+        }
+        printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">%s:intr_ioaddr %p dmu_ioaddr %p\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+            gc</span>-&gt;label, chip-&gt;intr_ioaddr,chip-&gt;<span style="color: #000000;">dmu_ioaddr);
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 中断 </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (chip-&gt;<span style="color: #000000;">irq_base) {
+        </span><span style="color: #0000ff;">for</span> (i = chip-&gt;irq_base; i &lt; (chip-&gt;irq_base + gc-&gt;ngpio); i++<span style="color: #000000;">) {
+            irq_set_chip(i, </span>&amp;<span style="color: #000000;">iproc_gpio_irq_chip);
+            irq_set_chip_data(i,chip);
+            irq_set_handler(i, handle_level_irq);
+            set_irq_flags(i, IRQF_VALID);                            
+    
+        }
+</span><span style="color: #0000ff;">#if</span> defined(IPROC_GPIO_CCA)    
+        <span style="color: #0000ff;">if</span> (chip-&gt;id ==<span style="color: #000000;"> IPROC_GPIO_CCA_ID ){
+            unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> val;
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> enable the GPIO in CCA interrupt mask </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+            val </span>= readl(chip-&gt;intr_ioaddr +<span style="color: #000000;"> IPROC_CCA_INT_MASK);
+            val </span>|=<span style="color: #000000;"> IPROC_CCA_INT_F_GPIOINT;
+            writel(val, chip</span>-&gt;intr_ioaddr +<span style="color: #000000;"> IPROC_CCA_INT_MASK);
+        }
+</span><span style="color: #0000ff;">#endif</span>    
+    <span style="color: #0000ff;">if</span> (chip-&gt;<span style="color: #000000;">irqcfg) {
+        </span><span style="color: #0000ff;">struct</span> iproc_gpio_irqcfg *irqcfg = chip-&gt;<span style="color: #000000;">irqcfg;
+        </span><span style="color: #0000ff;">if</span> (irqcfg-&gt;<span style="color: #000000;">handler) {
+                ret </span>= request_irq(chip-&gt;irq, irqcfg-&gt;handler, irqcfg-&gt;<span style="color: #000000;">flags, 
+            gc</span>-&gt;<span style="color: #000000;">label, chip);
+            </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret)
+            printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">Unable to request IRQ%d: %d\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+                chip</span>-&gt;<span style="color: #000000;">irq, ret);
+        }
+        </span><span style="color: #0000ff;">else</span><span style="color: #000000;">
+            printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">%s is added without isr!\n</span><span style="color: #800000;">"</span>, chip-&gt;<span style="color: #000000;">chip.label);
+    }
+    }
+    iproc_gpio_dev[dev] </span>=<span style="color: #000000;"> chip;
+    dev</span>++<span style="color: #000000;">;
+}
+
+</span><span style="color: #0000ff;">int</span> gpiochip_add(<span style="color: #0000ff;">struct</span> gpio_chip *chip)      <span style="color: #008000;">//</span><span style="color: #008000;"> &lt;&lt;&lt;-----------------------------   4</span>
+<span style="color: #000000;">{
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;">    flags;
+    </span><span style="color: #0000ff;">int</span>        status = <span style="color: #800080;">0</span><span style="color: #000000;">;
+    unsigned    id;
+    </span><span style="color: #0000ff;">int</span>        <span style="color: #0000ff;">base</span> = chip-&gt;<span style="color: #0000ff;">base</span><span style="color: #000000;">;
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 判断GPIO的序号是否在合理的为内 </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> ((!gpio_is_valid(<span style="color: #0000ff;">base</span>) || !gpio_is_valid(<span style="color: #0000ff;">base</span> + chip-&gt;ngpio - <span style="color: #800080;">1</span><span style="color: #000000;">))
+            </span>&amp;&amp; <span style="color: #0000ff;">base</span> &gt;= <span style="color: #800080;">0</span><span style="color: #000000;">) {
+        status </span>= -<span style="color: #000000;">EINVAL;
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail;
+    }
+
+    spin_lock_irqsave(</span>&amp;<span style="color: #000000;">gpio_lock, flags);
+
+    </span><span style="color: #0000ff;">if</span> (<span style="color: #0000ff;">base</span> &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+        </span><span style="color: #0000ff;">base</span> = gpiochip_find_base(chip-&gt;<span style="color: #000000;">ngpio);
+        </span><span style="color: #0000ff;">if</span> (<span style="color: #0000ff;">base</span> &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+            status </span>= <span style="color: #0000ff;">base</span><span style="color: #000000;">;
+            </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> unlock;
+        }
+        chip</span>-&gt;<span style="color: #0000ff;">base</span> = <span style="color: #0000ff;">base</span><span style="color: #000000;">;
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> these GPIO numbers must not be managed by another gpio_chip </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">for</span> (id = <span style="color: #0000ff;">base</span>; id &lt; <span style="color: #0000ff;">base</span> + chip-&gt;ngpio; id++<span style="color: #000000;">) {
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 判断结构体数组原始是否被别的gpio_chip使用，如果有使用,那么status进行标记 </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (gpio_desc[id].chip !=<span style="color: #000000;"> NULL) {
+            status </span>= -<span style="color: #000000;">EBUSY;
+            </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+        }
+    }
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 如果都没有使用，那么就进行初始化 </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (status == <span style="color: #800080;">0</span><span style="color: #000000;">) {
+        </span><span style="color: #0000ff;">for</span> (id = <span style="color: #0000ff;">base</span>; id &lt; <span style="color: #0000ff;">base</span> + chip-&gt;ngpio; id++<span style="color: #000000;">) {
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 都指向统一个chip结构 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+            gpio_desc[id].chip </span>=<span style="color: #000000;"> chip;
+
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> REVISIT:  most hardware initializes GPIOs as
+             * inputs (often with pullups enabled) so power
+             * usage is minimized.  Linux code should set the
+             * gpio direction first thing; but until it does,
+             * we may expose the wrong direction in sysfs.
+             </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+            gpio_desc[id].flags </span>= !chip-&gt;<span style="color: #000000;">direction_input
+                </span>? (<span style="color: #800080;">1</span> &lt;&lt;<span style="color: #000000;"> FLAG_IS_OUT)
+                : </span><span style="color: #800080;">0</span><span style="color: #000000;">;
+        }
+    }
+
+    of_gpiochip_add(chip);
+
+unlock:
+    spin_unlock_irqrestore(</span>&amp;<span style="color: #000000;">gpio_lock, flags);
+
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (status)
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail;
+
+    status </span>=<span style="color: #000000;"> gpiochip_export(chip);
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (status)
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail;
+
+    pr_debug(</span><span style="color: #800000;">"</span><span style="color: #800000;">gpiochip_add: registered GPIOs %d to %d on device: %s\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+        chip</span>-&gt;<span style="color: #0000ff;">base</span>, chip-&gt;<span style="color: #0000ff;">base</span> + chip-&gt;ngpio - <span style="color: #800080;">1</span><span style="color: #000000;">,
+        chip</span>-&gt;label ? : <span style="color: #800000;">"</span><span style="color: #800000;">generic</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+fail:
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> failures here can mean systems won't boot... </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    pr_err(</span><span style="color: #800000;">"</span><span style="color: #800000;">gpiochip_add: gpios %d..%d (%s) failed to register\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+        chip</span>-&gt;<span style="color: #0000ff;">base</span>, chip-&gt;<span style="color: #0000ff;">base</span> + chip-&gt;ngpio - <span style="color: #800080;">1</span><span style="color: #000000;">,
+        chip</span>-&gt;label ? : <span style="color: #800000;">"</span><span style="color: #800000;">generic</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> status;
+}
+EXPORT_SYMBOL_GPL(gpiochip_add);
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> 制定的处理函数举例</span>
+<span style="color: #0000ff;">int</span> iproc_gpiolib_input(<span style="color: #0000ff;">struct</span> gpio_chip *chip, unsigned gpio)     <span style="color: #008000;">//</span><span style="color: #008000;"> &lt;&lt;&lt;--------------------- 3</span>
+<span style="color: #000000;">{
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 由于有16个GPIO，并且是由不同的寄存器控制
+     * 所以GPIO0-GPIO3的iproc_gpio_chip结构体与4-15是不同的 </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">struct</span> iproc_gpio_chip *ourchip =<span style="color: #000000;"> to_iproc_gpio(chip);
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;"> flags;
+    unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;">  val;
+    unsigned </span><span style="color: #0000ff;">int</span> pin_offset = gpio + ourchip-&gt;<span style="color: #000000;">pin_offset;
+    unsigned </span><span style="color: #0000ff;">int</span>  nBitMask = <span style="color: #800080;">1</span> &lt;&lt;<span style="color: #000000;"> pin_offset;
+
+    iproc_gpio_lock(ourchip, flags);
+
+    val </span>=<span style="color: #000000;"> _iproc_gpio_readl(ourchip, REGOFFSET_GPIO_EN);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 输入使能,清0 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    val </span>&amp;= ~<span style="color: #000000;">nBitMask;
+    _iproc_gpio_writel(ourchip, val, REGOFFSET_GPIO_EN);
+
+    iproc_gpio_unlock(ourchip, flags);
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}</span></pre>
+</div>
+<p>&nbsp;</p>

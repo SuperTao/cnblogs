@@ -1,0 +1,45 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">imx6使用电容屏时需要获取对应的usb的event。其中用到了shell的一些命令。分析如下。
+#   inputCheckLine</span>=`cat /proc/bus/input/devices | grep -n <span style="color: #800000;">"</span><span style="color: #800000;">Vendor=0eef</span><span style="color: #800000;">"</span> | grep <span style="color: #800000;">"</span><span style="color: #800000;">Product=0020 Version=0001</span><span style="color: #800000;">"</span>| awk -F: <span style="color: #800000;">'</span><span style="color: #800000;">{print $1}</span><span style="color: #800000;">'</span><span style="color: #000000;">`
+#   touchEvent</span>=`sed -n <span style="color: #800000;">"</span><span style="color: #800000;">$((${inputCheckLine}+5))p</span><span style="color: #800000;">"</span> /proc/bus/input/devices | grep -o <span style="color: #800000;">"</span><span style="color: #800000;">event.</span><span style="color: #800000;">"</span><span style="color: #000000;">`
+    inputCheckLine</span>=`cat /proc/bus/input/devices | grep -n <span style="color: #800000;">"</span><span style="color: #800000;">AR1020 Touchscreen</span><span style="color: #800000;">"</span> | awk -F: <span style="color: #800000;">'</span><span style="color: #800000;">{print $1}</span><span style="color: #800000;">'</span><span style="color: #000000;">`
+    touchEvent</span>=`sed -n <span style="color: #800000;">"</span><span style="color: #800000;">$((${inputCheckLine}+4))p</span><span style="color: #800000;">"</span> /proc/bus/input/devices | grep -o <span style="color: #800000;">"</span><span style="color: #800000;">event.</span><span style="color: #800000;">"</span><span style="color: #000000;">`
+
+root@freescale </span>~$ cat /proc/bus/input/<span style="color: #000000;">devices 
+I: Bus</span>=<span style="color: #800080;">0019</span> Vendor=<span style="color: #800080;">0001</span> Product=<span style="color: #800080;">0001</span> Version=<span style="color: #800080;">0100</span><span style="color: #000000;">
+N: Name</span>=<span style="color: #800000;">"</span><span style="color: #800000;">gpio-keys</span><span style="color: #800000;">"</span><span style="color: #000000;">
+P: Phys</span>=gpio-keys/<span style="color: #000000;">input0
+S: Sysfs</span>=/devices/platform/gpio-keys/input/<span style="color: #000000;">input0
+U: Uniq</span>=<span style="color: #000000;">
+H: Handlers</span>=<span style="color: #000000;">kbd event0 
+B: PROP</span>=<span style="color: #800080;">0</span><span style="color: #000000;">
+B: EV</span>=<span style="color: #800080;">3</span><span style="color: #000000;">
+B: KEY</span>=<span style="color: #800080;">100000</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span><span style="color: #000000;">
+
+I: Bus</span>=<span style="color: #800080;">0000</span> Vendor=<span style="color: #800080;">0000</span> Product=<span style="color: #800080;">0000</span> Version=<span style="color: #800080;">0000</span><span style="color: #000000;">
+N: Name</span>=<span style="color: #800000;">"</span><span style="color: #800000;">AR1020 Touchscreen</span><span style="color: #800000;">"</span><span style="color: #000000;">
+P: Phys</span>=<span style="color: #000000;">
+S: Sysfs</span>=/devices/<span style="color: #0000ff;">virtual</span>/input/<span style="color: #000000;">input1
+U: Uniq</span>=<span style="color: #000000;">
+H: Handlers</span>=<span style="color: #000000;">cpufreq_interactive mouse0 event1 
+B: PROP</span>=<span style="color: #800080;">0</span><span style="color: #000000;">
+B: EV</span>=<span style="color: #000000;">b
+B: KEY</span>=<span style="color: #800080;">400</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span> <span style="color: #800080;">0</span><span style="color: #000000;">
+B: ABS</span>=<span style="color: #800080;">3</span><span style="color: #000000;">
+......
+
+grep </span>-<span style="color: #000000;">n匹配并打印行号
+root@freescale </span>~$ cat /proc/bus/input/devices | grep -n <span style="color: #800000;">"</span><span style="color: #800000;">AR1020 Touchscreen</span><span style="color: #800000;">"</span>
+<span style="color: #800080;">12</span>:N: Name=<span style="color: #800000;">"</span><span style="color: #800000;">AR1020 Touchscreen</span><span style="color: #800000;">"</span><span style="color: #000000;">
+这样获得了AR1020 Touchscreen所在的行。所需要的event1在16行
+root@freescale </span>~$ sed -n <span style="color: #800000;">"</span><span style="color: #800000;">16p</span><span style="color: #800000;">"</span> /proc/bus/input/<span style="color: #000000;">devices                      
+H: Handlers</span>=<span style="color: #000000;">cpufreq_interactive mouse0 event1 
+
+root@freescale </span>~$ sed -n <span style="color: #800000;">"</span><span style="color: #800000;">16p</span><span style="color: #800000;">"</span> /proc/bus/input/devices | grep -o <span style="color: #800000;">"</span><span style="color: #800000;">event.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+event1
+
+sed </span>-<span style="color: #000000;">n    : 不输出到终端
+sed </span><span style="color: #800000;">'</span><span style="color: #800000;">16p</span><span style="color: #800000;">'</span><span style="color: #000000;"> : 打印第16行
+grep </span>-o   : only match</pre>
+</div>
+<p>&nbsp;</p>

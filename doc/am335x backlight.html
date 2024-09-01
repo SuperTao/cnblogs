@@ -1,0 +1,359 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">*****************************************************************************
+ *                     am335x backlight                                                              
+ * 本文主要分析TI的am335x处理器，backlight注册过程。                                                                            
+ *                                                                                                 
+ *                                       Tony Liu, 2016-4-21, Shenzhen                             
+******************************************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">                
+kernel</span>/arcm/arm/omap2/board-<span style="color: #000000;">am335xevm.c                                                             
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init backlight_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)                                                              
+{                                                                                                   
+    </span><span style="color: #0000ff;">int</span> index = <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                                  
+                                                                                                    
+</span><span style="color: #0000ff;">#if</span> defined(CONFIG_OK335XD)                                                                         <span style="color: #000000;">
+    index </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                                      
+    am335x_backlight.dev.platform_data </span>= &amp;am335x_backlight_data0; ------+                           
+<span style="color: #0000ff;">#elif</span> defined(CONFIG_OK335XS)                                           |                           <span style="color: #000000;">
+    index </span>= <span style="color: #800080;">2</span>;                                                          |<span style="color: #000000;">                           
+    am335x_backlight.dev.platform_data </span>= &amp;am335x_backlight_data2;       |                           
+<span style="color: #0000ff;">#endif</span>                                                                  |                           
+                                                                        |<span style="color: #000000;">                           
+    am33xx_register_ecap(index, </span>&amp;pwm_pdata[index]);  -------------------|----+<span style="color: #000000;">                      
+    platform_device_register(</span>&amp;am335x_backlight);                        |    |                      
+                                      |                                 |    |                      
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                         |                                 |    |<span style="color: #000000;">                      
+}                                     </span>+---------------------------------|-+  |<span style="color: #000000;">                      
+late_initcall(backlight_init);                                          </span>| |  |                      
+                                                                        | |  |                      
+                                                                        | |  |                      
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_pwm_backlight_data am335x_backlight_data0 = { &lt;--+ |  |<span style="color: #000000;">                      
+    .pwm_id         </span>= <span style="color: #800000;">"</span><span style="color: #800000;">ecap.0</span><span style="color: #800000;">"</span>,                                           |  |<span style="color: #000000;">                      
+    .ch             </span>= -<span style="color: #800080;">1</span>,                                                 |  |<span style="color: #000000;">                      
+    .lth_brightness    </span>= <span style="color: #800080;">21</span>,                                              |  |<span style="color: #000000;">                      
+    .max_brightness </span>= AM335X_BACKLIGHT_MAX_BRIGHTNESS,                    |  |<span style="color: #000000;">                      
+    .dft_brightness </span>= AM335X_BACKLIGHT_DEFAULT_BRIGHTNESS,                |  |<span style="color: #000000;">                      
+    .pwm_period_ns  </span>= AM335X_PWM_PERIOD_NANO_SECONDS,                     |  |<span style="color: #000000;">                      
+};                                                                        </span>|  |                      
+                                                                          |  |                      
+<span style="color: #0000ff;">#define</span> AM335X_BACKLIGHT_MAX_BRIGHTNESS        100                        |  |                      
+<span style="color: #0000ff;">#define</span> AM335X_BACKLIGHT_DEFAULT_BRIGHTNESS    60                         |  |                      
+                                                                          |  |                      
+<span style="color: #0000ff;">#define</span> AM335X_PWM_PERIOD_NANO_SECONDS        (5000 * 10 * 100)           |  |                      
+                                                                          |  |                      
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_device am335x_backlight = {        &lt;---------------+  |<span style="color: #000000;">                      
+    .name           </span>= <span style="color: #800000;">"</span><span style="color: #800000;">pwm-backlight</span><span style="color: #800000;">"</span>,                                       |<span style="color: #000000;">                      
+    .id             </span>= -<span style="color: #800080;">1</span>,                                                    |<span style="color: #000000;">                      
+};                                                                           </span>|                      
+                                                                             |                      
+<span style="color: #0000ff;">#define</span> PWM_STR_LEN 10                                                       |                      
+<span style="color: #0000ff;">int</span> __init am33xx_register_ecap(<span style="color: #0000ff;">int</span> id, <span style="color: #0000ff;">struct</span> pwmss_platform_data *pdata) &lt;-+<span style="color: #000000;">                      
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> platform_device *<span style="color: #000000;">pdev;                                                                   
+    </span><span style="color: #0000ff;">struct</span> omap_hwmod *<span style="color: #000000;">oh;                                                                          
+    </span><span style="color: #0000ff;">char</span> *oh_name = <span style="color: #800000;">"</span><span style="color: #800000;">ecap</span><span style="color: #800000;">"</span><span style="color: #000000;">;                                                                         
+    </span><span style="color: #0000ff;">char</span><span style="color: #000000;"> dev_name[PWM_STR_LEN];                                                                     
+                                                                                                    
+    sprintf(dev_name, </span><span style="color: #800000;">"</span><span style="color: #800000;">ecap.%d</span><span style="color: #800000;">"</span><span style="color: #000000;">, id);                                                               
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">查找链表中是否有同名的设备的寄存器信息                                                    </span>
+    oh = omap_hwmod_lookup(dev_name);          -------------------+                                 
+    <span style="color: #0000ff;">if</span> (!oh) {                                                    |<span style="color: #000000;">                                 
+        pr_err(</span><span style="color: #800000;">"</span><span style="color: #800000;">Could not look up %s hwmod\n</span><span style="color: #800000;">"</span>, dev_name);         |                                 
+        <span style="color: #0000ff;">return</span> -ENODEV;                                           |<span style="color: #000000;">                                 
+    }                                                             </span>|                                 
+    <span style="color: #008000;">//</span><span style="color: #008000;">注册设备                                                    |                             </span>
+    pdev = omap_device_build(oh_name, id, oh, pdata,    ----------|---+                             
+            <span style="color: #0000ff;">sizeof</span>(*pdata), NULL, <span style="color: #800080;">0</span>, <span style="color: #800080;">0</span>);                          |   |                             
+                                                                  |   |                             
+    <span style="color: #0000ff;">if</span> (IS_ERR(pdev)) {                                           |   |<span style="color: #000000;">                             
+        WARN(</span><span style="color: #800080;">1</span>, <span style="color: #800000;">"</span><span style="color: #800000;">Can't build omap_device for %s:%s.\n</span><span style="color: #800000;">"</span>,           |   |<span style="color: #000000;">                             
+            dev_name, oh</span>-&gt;name);                                  |   |                             
+        <span style="color: #0000ff;">return</span> PTR_ERR(pdev);                                     |   |<span style="color: #000000;">                             
+    }                                                             </span>|   |                             
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                     |   |<span style="color: #000000;">                             
+}                                                                 </span>|   |                             
+<span style="color: #008000;">//</span><span style="color: #008000;">查找设备注册时的链表中是否有设备                                |   |             </span>
+<span style="color: #0000ff;">struct</span> omap_hwmod *omap_hwmod_lookup(<span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *name)    &lt;-------+   |<span style="color: #000000;">                             
+{                                                                     </span>|                             
+    <span style="color: #0000ff;">struct</span> omap_hwmod *oh;                                            |                             
+                                                                      |                             
+    <span style="color: #0000ff;">if</span> (!name)                                                        |                             
+        <span style="color: #0000ff;">return</span> NULL;                                                  |                             
+                                                                      |<span style="color: #000000;">                             
+    oh </span>= _lookup(name);   ----+                                       |                             
+                              |                                       |                             
+    <span style="color: #0000ff;">return</span> oh;                |                                       |<span style="color: #000000;">                             
+}                             </span>|                                       |<span style="color: #000000;">                             
+                              V                                       </span>|                             
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> omap_hwmod *_lookup(<span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *name)                   |<span style="color: #000000;">                             
+{                                                                     </span>|              
+    <span style="color: #0000ff;">struct</span> omap_hwmod *oh, *temp_oh;                                  |                 
+                                                                      |<span style="color: #000000;">                 
+    oh </span>= NULL;                                                        |                    
+    <span style="color: #008000;">//</span><span style="color: #008000;">查找                                                            |              </span>
+    list_for_each_entry(temp_oh, &amp;omap_hwmod_list, node) {            |                  
+        <span style="color: #0000ff;">if</span> (!strcmp(name, temp_oh-&gt;name)) {                           |<span style="color: #000000;">            
+            oh </span>= temp_oh;                                             |          
+            <span style="color: #0000ff;">break</span>;                                                    |<span style="color: #000000;">                
+        }                                                             </span>|<span style="color: #000000;">               
+    }                       </span>+-----------------------------------------+            
+                            |                                                      
+    <span style="color: #0000ff;">return</span> oh;              |<span style="color: #000000;">                                                       
+}                           </span>|<span style="color: #000000;">                                                        
+                            V                                                        
+</span><span style="color: #0000ff;">struct</span> platform_device *omap_device_build(<span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *pdev_name, <span style="color: #0000ff;">int</span><span style="color: #000000;"> pdev_id,                       
+                      </span><span style="color: #0000ff;">struct</span> omap_hwmod *oh, <span style="color: #0000ff;">void</span> *<span style="color: #000000;">pdata,                                           
+                      </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> pdata_len,                                                                
+                      </span><span style="color: #0000ff;">struct</span> omap_device_pm_latency *<span style="color: #000000;">pm_lats,                                       
+                      </span><span style="color: #0000ff;">int</span> pm_lats_cnt, <span style="color: #0000ff;">int</span><span style="color: #000000;"> is_early_device)                                         
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> omap_hwmod *ohs[] =<span style="color: #000000;"> { oh };                                                              
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">oh)                                                                                        
+        </span><span style="color: #0000ff;">return</span> ERR_PTR(-<span style="color: #000000;">EINVAL);                                                                    
+                                                                                                    
+    </span><span style="color: #0000ff;">return</span> omap_device_build_ss(pdev_name, pdev_id, ohs, <span style="color: #800080;">1</span><span style="color: #000000;">, pdata,                                  
+                    pdata_len, pm_lats, pm_lats_cnt,                                                
+                    is_early_device);                                                               
+}                           </span>|<span style="color: #000000;">                                                                       
+                            V                                                                       
+</span><span style="color: #0000ff;">struct</span> platform_device *omap_device_build_ss(<span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *pdev_name, <span style="color: #0000ff;">int</span><span style="color: #000000;"> pdev_id,                    
+                     </span><span style="color: #0000ff;">struct</span> omap_hwmod **ohs, <span style="color: #0000ff;">int</span><span style="color: #000000;"> oh_cnt,                                           
+                     </span><span style="color: #0000ff;">void</span> *pdata, <span style="color: #0000ff;">int</span><span style="color: #000000;"> pdata_len,                                                    
+                     </span><span style="color: #0000ff;">struct</span> omap_device_pm_latency *<span style="color: #000000;">pm_lats,                                        
+                     </span><span style="color: #0000ff;">int</span> pm_lats_cnt, <span style="color: #0000ff;">int</span><span style="color: #000000;"> is_early_device)                                          
+{                                                                                                   
+    </span><span style="color: #0000ff;">int</span> ret = -<span style="color: #000000;">ENOMEM;                                                                              
+    </span><span style="color: #0000ff;">struct</span> platform_device *<span style="color: #000000;">pdev;                                                                   
+    </span><span style="color: #0000ff;">struct</span> omap_device *<span style="color: #000000;">od;                                                                         
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (!ohs || oh_cnt == <span style="color: #800080;">0</span> || !<span style="color: #000000;">pdev_name)                                                          
+        </span><span style="color: #0000ff;">return</span> ERR_PTR(-<span style="color: #000000;">EINVAL);                                                                    
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (!pdata &amp;&amp; pdata_len &gt; <span style="color: #800080;">0</span><span style="color: #000000;">)                                                                    
+        </span><span style="color: #0000ff;">return</span> ERR_PTR(-<span style="color: #000000;">EINVAL);                                                                    
+                                                                                                    
+    pdev </span>=<span style="color: #000000;"> platform_device_alloc(pdev_name, pdev_id);                                               
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">pdev) {                                                                                    
+        ret </span>= -<span style="color: #000000;">ENOMEM;                                                                              
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> odbs_exit;                                                                             
+    }                                                                                               
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Set the dev_name early to allow dev_xxx in omap_device_alloc </span><span style="color: #008000;">*/</span>                              
+    <span style="color: #0000ff;">if</span> (pdev-&gt;id != -<span style="color: #800080;">1</span><span style="color: #000000;">)                                                                             
+        dev_set_name(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">%s.%d</span><span style="color: #800000;">"</span>, pdev-&gt;name,  pdev-&gt;<span style="color: #000000;">id);                                   
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;">                                                                                            
+        dev_set_name(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">%s</span><span style="color: #800000;">"</span>, pdev-&gt;<span style="color: #000000;">name);                                                 
+                                                                                                    
+    od </span>=<span style="color: #000000;"> omap_device_alloc(pdev, ohs, oh_cnt, pm_lats, pm_lats_cnt);                                
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">od)                                                                                        
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> odbs_exit1;                                                                            
+                                                                                                    
+    ret </span>=<span style="color: #000000;"> platform_device_add_data(pdev, pdata, pdata_len);                                         
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret)                                                                                        
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> odbs_exit2;                                                                            
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (is_early_device)                                                                            
+        ret </span>=<span style="color: #000000;"> omap_early_device_register(pdev);                                                     
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;">                                                                                            
+        ret </span>=<span style="color: #000000;"> omap_device_register(pdev);                                                           
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret)                                                                                        
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> odbs_exit2;                                                                            
+                                                                                                    
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> pdev;                                                                                    
+                                                                                                    
+odbs_exit2:                                                                                         
+    omap_device_delete(od);                                                                         
+odbs_exit1:                                                                                         
+    platform_device_put(pdev);                                                                      
+odbs_exit:                                                                                          
+                                                                                                    
+    pr_err(</span><span style="color: #800000;">"</span><span style="color: #800000;">omap_device: %s: build failed (%d)\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, pdev_name, ret);                                 
+                                                                                                    
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ERR_PTR(ret);                                                                            
+}                                                                                                   
+                                                                                                    
+</span><span style="color: #008000;">//</span><span style="color: #008000;">驱动注册                                                                                            </span>
+kernel/driver/video/backlight/<span style="color: #000000;">pwm_bl.c                                                          
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init pwm_backlight_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)                                                          
+{                                                                                                   
+    </span><span style="color: #0000ff;">return</span> platform_driver_register(&amp;<span style="color: #000000;">pwm_backlight_driver);                                         
+}                                      </span>|<span style="color: #000000;">                                                            
+                                       V                                                            
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_driver pwm_backlight_driver =<span style="color: #000000;"> {                                              
+    .driver        </span>=<span style="color: #000000;"> {                                                                              
+        .name    </span>= <span style="color: #800000;">"</span><span style="color: #800000;">pwm-backlight</span><span style="color: #800000;">"</span><span style="color: #000000;">,                                                                 
+        .owner    </span>=<span style="color: #000000;"> THIS_MODULE,                                                                    
+    },                                                                                              
+    .probe        </span>= pwm_backlight_probe,           --------------+<span style="color: #000000;">                                  
+    .remove        </span>= pwm_backlight_remove,                       |<span style="color: #000000;">                                  
+    .suspend    </span>= pwm_backlight_suspend,                         |<span style="color: #000000;">                                  
+    .resume        </span>= pwm_backlight_resume,                       |<span style="color: #000000;">                                  
+};                                                               </span>|                                  
+                                                                 |                                  
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> pwm_backlight_probe(<span style="color: #0000ff;">struct</span> platform_device *pdev) &lt;---+<span style="color: #000000;">                                  
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span><span style="color: #000000;"> backlight_properties props;                                                              
+    </span><span style="color: #0000ff;">struct</span> platform_pwm_backlight_data *data = pdev-&gt;<span style="color: #000000;">dev.platform_data;                             
+    </span><span style="color: #0000ff;">struct</span> backlight_device *<span style="color: #000000;">bl;                                                                    
+    </span><span style="color: #0000ff;">struct</span> pwm_bl_data *<span style="color: #000000;">pb;                                                                         
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;                                                                                        
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">data) {                                                                                    
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">failed to find platform data\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                      
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;                                                                             
+    }                                                                                               
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (data-&gt;<span style="color: #000000;">init) {                                                                               
+        ret </span>= data-&gt;init(&amp;pdev-&gt;<span style="color: #000000;">dev);                                                               
+        </span><span style="color: #0000ff;">if</span> (ret &lt; <span style="color: #800080;">0</span><span style="color: #000000;">)                                                                                
+            </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;                                                                             
+    }                                                                                               
+                                                                                                    
+    pb </span>= kzalloc(<span style="color: #0000ff;">sizeof</span>(*<span style="color: #000000;">pb), GFP_KERNEL);                                                          
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">pb) {                                                                                      
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">no memory for state\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                               
+        ret </span>= -<span style="color: #000000;">ENOMEM;                                                                              
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> err_alloc;                                                                             
+    }                                                                                               
+                                                                                                    
+    pb</span>-&gt;period = data-&gt;<span style="color: #000000;">pwm_period_ns;                                                               
+    pb</span>-&gt;notify = data-&gt;<span style="color: #000000;">notify;                                                                      
+    pb</span>-&gt;notify_after = data-&gt;<span style="color: #000000;">notify_after;                                                          
+    pb</span>-&gt;check_fb = data-&gt;<span style="color: #000000;">check_fb;                                                                  
+    pb</span>-&gt;lth_brightness = data-&gt;lth_brightness *<span style="color: #000000;">                                                     
+        (data</span>-&gt;pwm_period_ns / data-&gt;<span style="color: #000000;">max_brightness);                                               
+    pb</span>-&gt;dev = &amp;pdev-&gt;<span style="color: #000000;">dev;                                                                           
+                                                                                                    
+    pb</span>-&gt;pwm = pwm_request(data-&gt;pwm_id, data-&gt;ch, <span style="color: #800000;">"</span><span style="color: #800000;">backlight</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                     
+    </span><span style="color: #0000ff;">if</span> (IS_ERR(pb-&gt;<span style="color: #000000;">pwm)) {                                                                          
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">unable to request PWM for backlight\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                               
+        ret </span>= PTR_ERR(pb-&gt;<span style="color: #000000;">pwm);                                                                     
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> err_pwm;                                                                               
+    } </span><span style="color: #0000ff;">else</span><span style="color: #000000;">                                                                                          
+        dev_dbg(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">got pwm for backlight\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                             
+                                                                                                    
+    memset(</span>&amp;props, <span style="color: #800080;">0</span>, <span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span><span style="color: #000000;"> backlight_properties));                                         
+    props.type </span>=<span style="color: #000000;"> BACKLIGHT_RAW;                                                                     
+    props.max_brightness </span>= data-&gt;<span style="color: #000000;">max_brightness;                                                    
+    bl </span>= backlight_device_register(dev_name(&amp;pdev-&gt;dev), &amp;pdev-&gt;dev, pb,   ---+                     
+                       &amp;pwm_backlight_ops, &amp;props);                           |                     
+                                ----------------------------------------------|--+                  
+    <span style="color: #0000ff;">if</span> (IS_ERR(bl)) {                                                         |  |<span style="color: #000000;">                  
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">failed to register backlight\n</span><span style="color: #800000;">"</span>);                |  |<span style="color: #000000;">                  
+        ret </span>= PTR_ERR(bl);                                                    |  |                  
+        <span style="color: #0000ff;">goto</span> err_bl;                                                          |  |<span style="color: #000000;">                  
+    }                                                                         </span>|  |                  
+                                                                              |  |<span style="color: #000000;">                  
+    bl</span>-&gt;props.brightness = data-&gt;dft_brightness;                              |  |<span style="color: #000000;">                  
+    backlight_update_status(bl);                                              </span>|  | 
+                                                                              |  |<span style="color: #000000;"> 
+    platform_set_drvdata(pdev, bl);                                           </span>|  |                  
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                                 |  |                  
+                                                                              |  |<span style="color: #000000;">                  
+err_bl:                                                                       </span>|  |<span style="color: #000000;">                  
+    pwm_release(pb</span>-&gt;pwm);                                                     |  |<span style="color: #000000;">                  
+err_pwm:                                                                      </span>|  |<span style="color: #000000;">                  
+    kfree(pb);                                                                </span>|  |<span style="color: #000000;">                  
+err_alloc:                                                                    </span>|  |                  
+    <span style="color: #0000ff;">if</span> (data-&gt;exit)                                                           |  |<span style="color: #000000;">                  
+        data</span>-&gt;exit(&amp;pdev-&gt;dev);                                               |  |                  
+    <span style="color: #0000ff;">return</span> ret;                                                               |  |<span style="color: #000000;">                  
+}                                                                             </span>|  |                  
+                                                                              |  |                  
+<span style="color: #0000ff;">struct</span> backlight_device *backlight_device_register(<span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *name,    &lt;-----+  |                  
+    <span style="color: #0000ff;">struct</span> device *parent, <span style="color: #0000ff;">void</span> *devdata, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> backlight_ops *ops,       |                  
+    <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> backlight_properties *props)                                    |<span style="color: #000000;">                  
+{                                                                                </span>|                  
+    <span style="color: #0000ff;">struct</span> backlight_device *new_bd;                                             |                  
+    <span style="color: #0000ff;">int</span> rc;                                                                      |                  
+                                                                                 |<span style="color: #000000;">                  
+    pr_debug(</span><span style="color: #800000;">"</span><span style="color: #800000;">backlight_device_register: name=%s\n</span><span style="color: #800000;">"</span>, name);                      |                  
+                                                                                 |<span style="color: #000000;">                  
+    new_bd </span>= kzalloc(<span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span> backlight_device), GFP_KERNEL);               |                  
+    <span style="color: #0000ff;">if</span> (!new_bd)                                                                 |                  
+        <span style="color: #0000ff;">return</span> ERR_PTR(-ENOMEM);                                                 |                  
+                                                                                 |<span style="color: #000000;">                  
+    mutex_init(</span>&amp;new_bd-&gt;update_lock);                                            |<span style="color: #000000;">                  
+    mutex_init(</span>&amp;new_bd-&gt;ops_lock);                                               |                  
+                                                                                 |<span style="color: #000000;">                  
+    new_bd</span>-&gt;dev.<span style="color: #0000ff;">class</span> = backlight_class;                                         |<span style="color: #000000;">                  
+    new_bd</span>-&gt;dev.parent = parent;                                                 |<span style="color: #000000;">                  
+    new_bd</span>-&gt;dev.release = bl_device_release;                                     |<span style="color: #000000;">                  
+    dev_set_name(</span>&amp;new_bd-&gt;dev, name);                                            |<span style="color: #000000;">                  
+    dev_set_drvdata(</span>&amp;new_bd-&gt;dev, devdata);                                      |                  
+                                                                                 |                  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set default properties </span><span style="color: #008000;">*/</span>                                                 |                  
+    <span style="color: #0000ff;">if</span> (props) {                                                                 |<span style="color: #000000;">                  
+        memcpy(</span>&amp;new_bd-&gt;props, props,                                            |                  
+               <span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span> backlight_properties));                             |                  
+        <span style="color: #0000ff;">if</span> (props-&gt;type &lt;= <span style="color: #800080;">0</span> || props-&gt;type &gt;= BACKLIGHT_TYPE_MAX) {             |<span style="color: #000000;">                  
+            WARN(</span><span style="color: #800080;">1</span>, <span style="color: #800000;">"</span><span style="color: #800000;">%s: invalid backlight type</span><span style="color: #800000;">"</span>, name);                         |<span style="color: #000000;">                  
+            new_bd</span>-&gt;props.type = BACKLIGHT_RAW;                                  |<span style="color: #000000;">                  
+        }                                                                        </span>|<span style="color: #000000;">                  
+    } </span><span style="color: #0000ff;">else</span> {                                                                     |<span style="color: #000000;">                  
+        new_bd</span>-&gt;props.type = BACKLIGHT_RAW;                                      |<span style="color: #000000;">                  
+    }                                                                            </span>|                  
+                                                                                 |<span style="color: #000000;">                  
+    rc </span>= device_register(&amp;new_bd-&gt;dev);                                          |                  
+    <span style="color: #0000ff;">if</span> (rc) {                                                                    |<span style="color: #000000;">                  
+        kfree(new_bd);                                                           </span>|                  
+        <span style="color: #0000ff;">return</span> ERR_PTR(rc);                                                      |<span style="color: #000000;">                  
+    }                                                                            </span>|                  
+                                                                                 |<span style="color: #000000;">                  
+    rc </span>= backlight_register_fb(new_bd);                                          |                  
+    <span style="color: #0000ff;">if</span> (rc) {                                                                    |<span style="color: #000000;">                  
+        device_unregister(</span>&amp;new_bd-&gt;dev);                                         |                  
+        <span style="color: #0000ff;">return</span> ERR_PTR(rc);                                                      |<span style="color: #000000;">                  
+    }                                                                            </span>|                  
+                                                                                 |<span style="color: #000000;">                  
+    new_bd</span>-&gt;ops = ops;                                                           |                  
+                                                                                 |<span style="color: #000000;">                  
+#ifdef CONFIG_PMAC_BACKLIGHT                                                     </span>|<span style="color: #000000;">                  
+    mutex_lock(</span>&amp;pmac_backlight_mutex);                                           |                  
+    <span style="color: #0000ff;">if</span> (!pmac_backlight)                                                         |<span style="color: #000000;">                  
+        pmac_backlight </span>= new_bd;                                                 |<span style="color: #000000;">                  
+    mutex_unlock(</span>&amp;pmac_backlight_mutex);                                         |                  
+<span style="color: #0000ff;">#endif</span>                                                                           |                  
+                                                                                 |                  
+    <span style="color: #0000ff;">return</span> new_bd;                                                               |<span style="color: #000000;">                  
+}                                                                                </span>|                  
+                                                                                 |                  
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> backlight_ops pwm_backlight_ops = {          &lt;---------------+<span style="color: #000000;">                  
+    .update_status    </span>= pwm_backlight_update_status,            -----------+<span style="color: #000000;">                        
+    .get_brightness    </span>= pwm_backlight_get_brightness,                     |<span style="color: #000000;">                        
+    .check_fb    </span>= pwm_backlight_check_fb,                                 |<span style="color: #000000;">                        
+};                                                                         </span>|                        
+<span style="color: #008000;">//</span><span style="color: #008000;">每次设置pwm都会调用下面的函数                                            |                        </span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> pwm_backlight_update_status(<span style="color: #0000ff;">struct</span> backlight_device *bl)  &lt;-----+<span style="color: #000000;">                        
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> pwm_bl_data *pb = dev_get_drvdata(&amp;bl-&gt;<span style="color: #000000;">dev);                                             
+    </span><span style="color: #0000ff;">int</span> brightness = bl-&gt;<span style="color: #000000;">props.brightness;                                                          
+    </span><span style="color: #0000ff;">int</span> max = bl-&gt;<span style="color: #000000;">props.max_brightness;                                                             
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (bl-&gt;props.power !=<span style="color: #000000;"> FB_BLANK_UNBLANK)                                                        
+        brightness </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                             
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (bl-&gt;props.fb_blank !=<span style="color: #000000;"> FB_BLANK_UNBLANK)                                                     
+        brightness </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                             
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (pb-&gt;<span style="color: #000000;">notify)                                                                                 
+        brightness </span>= pb-&gt;notify(pb-&gt;<span style="color: #000000;">dev, brightness);                                               
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (brightness == <span style="color: #800080;">0</span><span style="color: #000000;">) {                                                                          
+        pwm_set_duty_ns(pb</span>-&gt;pwm, <span style="color: #800080;">0</span><span style="color: #000000;">);                                                                
+        pwm_stop(pb</span>-&gt;<span style="color: #000000;">pwm);                                                                          
+    } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {                                                                                        
+        brightness </span>= pb-&gt;lth_brightness +<span style="color: #000000;">                                                           
+            (brightness </span>* (pb-&gt;period - pb-&gt;lth_brightness) /<span style="color: #000000;"> max);                                 
+        pwm_set_period_ns(pb</span>-&gt;pwm, pb-&gt;<span style="color: #000000;">period);                                                     
+        pwm_set_duty_ns(pb</span>-&gt;<span style="color: #000000;">pwm, brightness);                                                       
+        pwm_start(pb</span>-&gt;<span style="color: #000000;">pwm);                                                                         
+    }                                                                                               
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (pb-&gt;<span style="color: #000000;">notify_after)                                                                           
+        pb</span>-&gt;notify_after(pb-&gt;<span style="color: #000000;">dev, brightness);                                                      
+                                                                                                    
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                                       
+}                                                                                                   </span></pre>
+</div>
+<p>&nbsp;</p>

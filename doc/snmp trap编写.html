@@ -1,0 +1,222 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">1、MIB库<br />查看net</span>-snmp的安装目录。/usr/share/snmp/<span style="color: #000000;">mibs目录下：
+NET</span>-SNMP-EXAMPLES-<span style="color: #000000;">MIB.mib本件部分内容如下：
+netSnmpExampleHeartbeatRate OBJECT</span>-<span style="color: #000000;">TYPE
+    SYNTAX      Integer32
+    MAX</span>-ACCESS  accessible-<span style="color: #0000ff;">for</span>-<span style="color: #000000;">notify
+    STATUS      current
+    DESCRIPTION
+        </span><span style="color: #800000;">"</span><span style="color: #800000;">A simple integer object, to act as a payload for the</span>
+<span style="color: #000000;">         netSnmpExampleHeartbeatNotification.  The value has
+         no real meaning, but </span><span style="color: #0000ff;">is</span> nominally the interval (<span style="color: #0000ff;">in</span><span style="color: #000000;">
+         seconds) between successive heartbeat notifications.</span><span style="color: #800000;">"
+</span>::= { netSnmpExampleNotificationObjects <span style="color: #800080;">1</span><span style="color: #000000;"> }
+netSnmpExampleHeartbeatName OBJECT</span>-<span style="color: #000000;">TYPE
+    SYNTAX      SnmpAdminString
+    MAX</span>-ACCESS  accessible-<span style="color: #0000ff;">for</span>-<span style="color: #000000;">notify
+    STATUS      current
+    DESCRIPTION
+        </span><span style="color: #800000;">"</span><span style="color: #800000;">A simple string object, to act as an optional payload</span>
+         <span style="color: #0000ff;">for</span><span style="color: #000000;"> the netSnmpExampleHeartbeatNotification.  This varbind
+         </span><span style="color: #0000ff;">is</span> not part of the notification definition, so <span style="color: #0000ff;">is</span><span style="color: #000000;"> optional
+         and need not be included </span><span style="color: #0000ff;">in</span><span style="color: #000000;"> the notification payload. 
+         The value has no real meaning, but the romantically inclined
+         may take it to be the </span><span style="color: #0000ff;">object</span> of the sender<span style="color: #800000;">'</span><span style="color: #800000;">s affection,</span>
+         and hence the cause of the heart beating faster.<span style="color: #800000;">"
+</span>::= { netSnmpExampleNotificationObjects <span style="color: #800080;">2</span><span style="color: #000000;"> }
+
+netSnmpExampleHeartbeatNotification NOTIFICATION</span>-<span style="color: #000000;">TYPE
+    OBJECTS     { netSnmpExampleHeartbeatRate }
+    STATUS      current
+    DESCRIPTION
+        </span><span style="color: #800000;">"</span><span style="color: #800000;">An example notification, used to illustrate the</span>
+<span style="color: #000000;">         definition and generation of trap and inform PDUs
+         (including the use of both standard and additional
+         varbinds </span><span style="color: #0000ff;">in</span><span style="color: #000000;"> the notification payload).
+         This notification will typically be sent every
+     </span><span style="color: #800080;">30</span> seconds, <span style="color: #0000ff;">using</span> the code found <span style="color: #0000ff;">in</span><span style="color: #000000;"> the example module
+             agent</span>/mibgroup/examples/notification.c<span style="color: #800000;">"
+</span>::= { netSnmpExampleNotificationPrefix <span style="color: #800080;">1</span><span style="color: #000000;"> }
+    
+netSnmpExampleNotification OBJECT</span>-<span style="color: #000000;">TYPE
+    SYNTAX      SnmpAdminString
+    MAX</span>-ACCESS  accessible-<span style="color: #0000ff;">for</span>-<span style="color: #000000;">notify
+    STATUS      obsolete
+    DESCRIPTION
+        </span><span style="color: #800000;">"</span><span style="color: #800000;">This object was improperly defined for its original purpose,</span>
+         and should no longer be used.<span style="color: #800000;">"
+</span>::= { netSnmpExampleNotifications <span style="color: #800080;">1</span><span style="color: #000000;"> }
+<br />2、源文件
+其对应的测试代码在：net</span>-snmp-<span style="color: #800080;">5.7</span>.<span style="color: #800080;">2</span>/agent/mibgroup/examples/<span style="color: #000000;">notification.c
+如果要自己编写的话，那么按照NET</span>-SNMP-EXAMPLES-<span style="color: #000000;">MIB.mib文件中trap的编写方法编写trap，<br />再<span style="color: #000000;">通过mib生成.c和.h的工具使用mib2c.nofity.conf这个配置文件</span>生成.c和.h文件。<br />，再修改一下函数的返回值和参数等，更改成与nofification.c类似就可以运行。
+<br /></span></pre>
+<pre><span style="color: #000000;">notification.c如下所示，每个30秒发送一个trap给mib browser。<br /><br />#include </span>&lt;net-snmp/net-snmp-config.h&gt;<span style="color: #000000;">
+#include </span>&lt;net-snmp/net-snmp-includes.h&gt;<span style="color: #000000;">
+#include </span>&lt;net-snmp/agent/net-snmp-agent-includes.h&gt;
+
+<span style="color: #008000;">/*</span><span style="color: #008000;">
+ * contains prototypes 
+ </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+#include </span><span style="color: #800000;">"</span><span style="color: #800000;">notification.h</span><span style="color: #800000;">"</span>
+
+<span style="color: #008000;">/*</span><span style="color: #008000;">
+ * our initialization routine
+ * (to get called, the function name must match init_FILENAME() 
+ </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">void</span><span style="color: #000000;">
+init_notification(</span><span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    DEBUGMSGTL((</span><span style="color: #800000;">"</span><span style="color: #800000;">example_notification</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">initializing (setting callback alarm)\n</span><span style="color: #800000;">"</span><span style="color: #000000;">));
+    snmp_alarm_register(</span><span style="color: #800080;">30</span>,     <span style="color: #008000;">/*</span><span style="color: #008000;"> seconds </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+                        SA_REPEAT,      </span><span style="color: #008000;">/*</span><span style="color: #008000;"> repeat (every 30 seconds). </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+                        send_example_notification,      </span><span style="color: #008000;">/*</span><span style="color: #008000;"> our callback </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+                        NULL    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> no callback data needed </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        );
+}
+</span><span style="color: #0000ff;">void</span><span style="color: #000000;">
+send_example_notification(unsigned </span><span style="color: #0000ff;">int</span> clientreg, <span style="color: #0000ff;">void</span> *<span style="color: #000000;">clientarg)
+{
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * define the OID for the notification we're going to send
+     * NET-SNMP-EXAMPLES-MIB::netSnmpExampleHeartbeatNotification 
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    oid             notification_oid[] </span>=<span style="color: #000000;">
+        { </span><span style="color: #800080;">1</span>, <span style="color: #800080;">3</span>, <span style="color: #800080;">6</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">4</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">8072</span>, <span style="color: #800080;">2</span>, <span style="color: #800080;">3</span>, <span style="color: #800080;">0</span>, <span style="color: #800080;">1</span><span style="color: #000000;"> };
+    size_t          notification_oid_len </span>=<span style="color: #000000;"> OID_LENGTH(notification_oid);
+    </span><span style="color: #0000ff;">static</span> u_long count = <span style="color: #800080;">0</span><span style="color: #000000;">;
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * In the notification, we have to assign our notification OID to
+     * the snmpTrapOID.0 object. Here is it's definition. 
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    oid             objid_snmptrap[] </span>= { <span style="color: #800080;">1</span>, <span style="color: #800080;">3</span>, <span style="color: #800080;">6</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">6</span>, <span style="color: #800080;">3</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">4</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">0</span><span style="color: #000000;"> };
+    size_t          objid_snmptrap_len </span>=<span style="color: #000000;"> OID_LENGTH(objid_snmptrap);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * define the OIDs for the varbinds we're going to include
+     *  with the notification -
+     * NET-SNMP-EXAMPLES-MIB::netSnmpExampleHeartbeatRate  and
+     * NET-SNMP-EXAMPLES-MIB::netSnmpExampleHeartbeatName 
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    oid      hbeat_rate_oid[]   </span>= { <span style="color: #800080;">1</span>, <span style="color: #800080;">3</span>, <span style="color: #800080;">6</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">4</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">8072</span>, <span style="color: #800080;">2</span>, <span style="color: #800080;">3</span>, <span style="color: #800080;">2</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">0</span><span style="color: #000000;"> };
+    size_t   hbeat_rate_oid_len </span>=<span style="color: #000000;"> OID_LENGTH(hbeat_rate_oid);
+    oid      hbeat_name_oid[]   </span>= { <span style="color: #800080;">1</span>, <span style="color: #800080;">3</span>, <span style="color: #800080;">6</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">4</span>, <span style="color: #800080;">1</span>, <span style="color: #800080;">8072</span>, <span style="color: #800080;">2</span>, <span style="color: #800080;">3</span>, <span style="color: #800080;">2</span>, <span style="color: #800080;">2</span>, <span style="color: #800080;">0</span><span style="color: #000000;"> };
+    size_t   hbeat_name_oid_len </span>=<span style="color: #000000;"> OID_LENGTH(hbeat_name_oid);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * here is where we store the variables to be sent in the trap 
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    netsnmp_variable_list </span>*notification_vars =<span style="color: #000000;"> NULL;
+    </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *heartbeat_name = <span style="color: #800000;">"</span><span style="color: #800000;">A girl named Maria</span><span style="color: #800000;">"</span><span style="color: #000000;">;
+#ifdef  RANDOM_HEARTBEAT
+    </span><span style="color: #0000ff;">int</span>  heartbeat_rate = rand() % <span style="color: #800080;">60</span><span style="color: #000000;">;
+</span><span style="color: #0000ff;">#else</span>
+    <span style="color: #0000ff;">int</span>  heartbeat_rate = <span style="color: #800080;">30</span><span style="color: #000000;">;
+</span><span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+
+    DEBUGMSGTL((</span><span style="color: #800000;">"</span><span style="color: #800000;">example_notification</span><span style="color: #800000;">"</span>, <span style="color: #800000;">"</span><span style="color: #800000;">defining the trap\n</span><span style="color: #800000;">"</span><span style="color: #000000;">));
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * add in the trap definition object 
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    snmp_varlist_add_variable(</span>&amp;<span style="color: #000000;">notification_vars,
+                              </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+                               * the snmpTrapOID.0 variable 
+                               </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+                              objid_snmptrap, objid_snmptrap_len,
+                              </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+                               * value type is an OID 
+                               </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+                              ASN_OBJECT_ID,
+                              </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+                               * value contents is our notification OID 
+                               </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+                              (u_char </span>*<span style="color: #000000;">) notification_oid,
+                              </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+                               * size in bytes = oid length * sizeof(oid) 
+                               </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+                              notification_oid_len </span>* <span style="color: #0000ff;">sizeof</span><span style="color: #000000;">(oid));
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * add in the additional objects defined as part of the trap
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+    snmp_varlist_add_variable(</span>&amp;<span style="color: #000000;">notification_vars,
+                               hbeat_rate_oid, hbeat_rate_oid_len,
+                               ASN_INTEGER,
+                              (u_char </span>*)&amp;<span style="color: #000000;">heartbeat_rate,
+                                  </span><span style="color: #0000ff;">sizeof</span><span style="color: #000000;">(heartbeat_rate));
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * if we want to insert additional objects, we do it here 
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (heartbeat_rate &lt; <span style="color: #800080;">30</span><span style="color: #000000;"> ) {
+        snmp_varlist_add_variable(</span>&amp;<span style="color: #000000;">notification_vars,
+                               hbeat_name_oid, hbeat_name_oid_len,
+                               ASN_OCTET_STR,
+                               heartbeat_name, strlen(heartbeat_name));
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * send the trap out.  This will send it to all registered
+     * receivers (see the "SETTING UP TRAP AND/OR INFORM DESTINATIONS"
+     * section of the snmpd.conf manual page. 
+     </span><span style="color: #008000;">*/</span>
+    ++<span style="color: #000000;">count;
+    DEBUGMSGTL((</span><span style="color: #800000;">"</span><span style="color: #800000;">example_notification</span><span style="color: #800000;">"</span>, <span style="color: #800000;">"</span><span style="color: #800000;">sending trap %ld\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,count));
+    send_v2trap(notification_vars);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * free the created notification variable list 
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    DEBUGMSGTL((</span><span style="color: #800000;">"</span><span style="color: #800000;">example_notification</span><span style="color: #800000;">"</span>, <span style="color: #800000;">"</span><span style="color: #800000;">cleaning up\n</span><span style="color: #800000;">"</span><span style="color: #000000;">));
+    snmp_free_varbind(notification_vars);
+}<br /><br /></span></pre>
+<pre>mg-soft软件的安装目录中也包含了一些关于trap的mib库.例如UPS-MIB.my。其中有关于snmp trap的mib库编写方法。关键字，NOTIFICATION-<span style="color: #000000;">TYPE。
+upsTrapOnBattery NOTIFICATION-<span style="color: #000000;">TYPE
+       OBJECTS { upsEstimatedMinutesRemaining, upsSecondsOnBattery,
+                 upsConfigLowBattTime }
+       STATUS  current
+       DESCRIPTION
+               <span style="color: #800000;">"<span style="color: #800000;">The UPS is operating on battery power.  This trap is
+               persistent and <span style="color: #0000ff;">is<span style="color: #000000;"> resent at one minute intervals until
+               the UPS either turns off or <span style="color: #0000ff;">is<span style="color: #000000;"> no longer running on
+               battery.<span style="color: #800000;">"
+     ::= { upsTraps <span style="color: #800080;">1<span style="color: #000000;"> }
+
+   upsTrapTestCompleted NOTIFICATION-<span style="color: #000000;">TYPE
+       OBJECTS { upsTestId, upsTestSpinLock,
+                 upsTestResultsSummary, upsTestResultsDetail,
+                 upsTestStartTime, upsTestElapsedTime }
+       STATUS  current
+       DESCRIPTION
+               <span style="color: #800000;">"<span style="color: #800000;">This trap is sent upon completion of a UPS diagnostic
+               test.<span style="color: #800000;">"
+     ::= { upsTraps <span style="color: #800080;">2<span style="color: #000000;"> }
+
+   upsTrapAlarmEntryAdded NOTIFICATION-<span style="color: #000000;">TYPE
+       OBJECTS {
+            --<span style="color: #000000;"> upsAlarmId,
+            upsAlarmDescr }
+       STATUS  current
+       DESCRIPTION
+               <span style="color: #800000;">"<span style="color: #800000;">This trap is sent each time an alarm is inserted into
+               to the alarm table.  It <span style="color: #0000ff;">is<span style="color: #000000;"> sent on the insertion of
+               all alarms except <span style="color: #0000ff;">for<span style="color: #000000;"> upsAlarmOnBattery and
+               upsAlarmTestInProgress.<span style="color: #800000;">"
+     ::= { upsTraps <span style="color: #800080;">3<span style="color: #000000;"> }
+
+   upsTrapAlarmEntryRemoved NOTIFICATION-<span style="color: #000000;">TYPE
+       OBJECTS {
+            --<span style="color: #000000;"> upsAlarmId,
+            upsAlarmDescr }
+       STATUS  current
+       DESCRIPTION
+               <span style="color: #800000;">"<span style="color: #800000;">This trap is sent each time an alarm is removed from
+               the alarm table.  It <span style="color: #0000ff;">is<span style="color: #000000;"> sent on the removal of all
+               alarms except <span style="color: #0000ff;">for upsAlarmTestInProgress.<span style="color: #800000;">"
+     ::= { upsTraps <span style="color: #800080;">4<span style="color: #000000;"> }
+</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></pre>
+</div>
+<p>&nbsp;</p>

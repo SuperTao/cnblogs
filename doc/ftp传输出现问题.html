@@ -1,0 +1,6 @@
+<p>将文件打包压缩之后，从ftp服务器下载到本地，进行解压，出现下面的问题。</p>
+<p>&nbsp;<img src="http://images2015.cnblogs.com/blog/745188/201508/745188-20150829155418781-854053624.png" alt="" width="723" height="223" /></p>
+<p align="left">原来是传输文件的时候是默认按照netascii的格式进行传输的，没有按照二进制文件的形式传输。</p>
+<p align="left">再传输之前，使用bin指定传输格式可以解决上述这个问题，即：</p>
+<p>&nbsp;<img src="http://images2015.cnblogs.com/blog/745188/201508/745188-20150829155450062-2038653811.png" alt="" width="714" height="140" /></p>
+<p>之后进行解压就不会有问题。</p>

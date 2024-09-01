@@ -1,0 +1,669 @@
+<div class="cnblogs_code">
+<pre><span style="color: #800080;">本文主要分析：<br />　　　　　　1. i2c设备注册<br />　　　　　　2. i2c驱动注册<br />　　　　　　3. 上层调用过程<br />参考：<br />　　http://www.cnblogs.com/helloworldtoyou/p/5126618.html<br /><br />1</span><span style="color: #000000;">. i2c设备注册
+kernel</span>/arch/arm/mach-mx6/board-<span style="color: #000000;">mx6q_sabresd.c                                   
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __init mx6_sabresd_board_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)                                 
+{                                                                               
+    mxc_iomux_v3_setup_multiple_pads(mx6q_sabresd_pads, </span>---------------+<span style="color: #000000;">        
+        ARRAY_SIZE(mx6q_sabresd_pads));                                </span>|<span style="color: #000000;">        
+    ... ...                                                            </span>|<span style="color: #000000;">        
+    strcpy(mxc_i2c0_board_info[</span><span style="color: #800080;">0</span>].type, <span style="color: #800000;">"</span><span style="color: #800000;">wm8962</span><span style="color: #800000;">"</span>);                     |<span style="color: #000000;">        
+        mxc_i2c0_board_info[</span><span style="color: #800080;">0</span>].platform_data = &amp;wm8962_config_data;    |        
+                                                                       |        
+    <span style="color: #008000;">//</span><span style="color: #008000;">注册i2c总线                                                       |        </span>
+    imx6q_add_imx_i2c(<span style="color: #800080;">0</span>, &amp;mx6q_sabresd_i2c_data); ------------+        |<span style="color: #000000;">        
+    imx6q_add_imx_i2c(</span><span style="color: #800080;">1</span>, &amp;mx6q_sabresd_i2c_data); ----+       |        |<span style="color: #000000;">        
+    imx6q_add_imx_i2c(</span><span style="color: #800080;">2</span>, &amp;mx6q_sabresd_i2c_data);     |       |        |        
+                                                      |       |        |<span style="color: #000000;">        
+    i2c_register_board_info(</span><span style="color: #800080;">0</span>, mxc_i2c0_board_info, ----------------+  |<span style="color: #000000;">        
+            ARRAY_SIZE(mxc_i2c0_board_info));         </span>|       |     |  |<span style="color: #000000;">        
+    i2c_register_board_info(</span><span style="color: #800080;">1</span>, mxc_i2c1_board_info,   |       |     |  |<span style="color: #000000;">        
+            ARRAY_SIZE(mxc_i2c1_board_info));         </span>|       |     |  |<span style="color: #000000;">        
+    i2c_register_board_info(</span><span style="color: #800080;">2</span>, mxc_i2c2_board_info,   |       |     |  |<span style="color: #000000;">        
+            ARRAY_SIZE(mxc_i2c2_board_info));         </span>|       |     |  |<span style="color: #000000;">        
+    ... ...                                           </span>|       |     |  |<span style="color: #000000;">        
+}                                                     </span>|       |     |  |        
+                                                      |       |     |  |        
+<span style="color: #0000ff;">static</span> iomux_v3_cfg_t mx6q_sabresd_pads[] = {      &lt;----------|-----|--+        
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> I2C1, WM8958 </span><span style="color: #008000;">*/</span>                                |       |     |<span style="color: #000000;">           
+    MX6Q_PAD_CSI0_DAT8__I2C1_SDA,                     </span>|       |     |<span style="color: #000000;">           
+    MX6Q_PAD_CSI0_DAT9__I2C1_SCL,                     </span>|       |     |           
+                                                      |       |     |           
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> I2C2, Camera, MIPI </span><span style="color: #008000;">*/</span>                          |       |     |<span style="color: #000000;">           
+    MX6Q_PAD_KEY_COL3__I2C2_SCL,                      </span>|       |     |<span style="color: #000000;">           
+    MX6Q_PAD_KEY_ROW3__I2C2_SDA,                      </span>|       |     |           
+                                                      |       |     |<span style="color: #000000;">           
+#ifdef CONFIG_MX6_ENET_IRQ_TO_GPIO                    </span>|       |     |<span style="color: #000000;">           
+    MX6Q_PAD_GPIO_6__OBSERVE_MUX_OBSRV_INT_OUT1,      </span>|       |     |           
+<span style="color: #0000ff;">#else</span>                                                 |       |     |           
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> I2C3 </span><span style="color: #008000;">*/</span>                                        |       |     |<span style="color: #000000;">           
+    MX6Q_PAD_GPIO_3__I2C3_SCL,    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> GPIO1[3] </span><span style="color: #008000;">*/</span>      |       |     |<span style="color: #000000;">           
+    MX6Q_PAD_GPIO_6__I2C3_SDA,                        </span>|       |     |           
+<span style="color: #0000ff;">#endif</span>                                                |       |     |           <span style="color: #000000;">
+};                                                    </span>|       |     |           
+                                                      |       |     |           
+<span style="color: #008000;">//</span><span style="color: #008000;">总线速率                                             V       |     |       </span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> imxi2c_platform_data mx6q_sabresd_i2c_data = {  |     |<span style="color: #000000;">           
+    .bitrate </span>= <span style="color: #800080;">100000</span>,                                        |     |<span style="color: #000000;">           
+};                                                            </span>|     |           
+                                                              |     |           
+<span style="color: #0000ff;">#define</span> imx6q_add_imx_i2c(id, pdata)    \         &lt;-----------+     |           <span style="color: #000000;">
+    imx_add_imx_i2c(</span>&amp;imx6q_imx_i2c_data[id], pdata)           |     |           
+                                                              |     |           
+<span style="color: #0000ff;">struct</span> platform_device *__init imx_add_imx_i2c(   &lt;-----------+     |           
+        <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> imx_imx_i2c_data *data,                        |           
+        <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> imxi2c_platform_data *pdata)                   |<span style="color: #000000;">           
+{                                                                   </span>|           
+    <span style="color: #0000ff;">struct</span> resource res[] = {                                       |<span style="color: #000000;">           
+        {                                                           </span>|<span style="color: #000000;">           
+            .start </span>= data-&gt;iobase,                                  |<span style="color: #000000;">           
+            .end </span>= data-&gt;iobase + data-&gt;iosize - <span style="color: #800080;">1</span>,                 |<span style="color: #000000;">           
+            .flags </span>= IORESOURCE_MEM,                                |<span style="color: #000000;">           
+        }, {                                                        </span>|<span style="color: #000000;">           
+            .start </span>= data-&gt;irq,                                     |<span style="color: #000000;">           
+            .end </span>= data-&gt;irq,                                       |<span style="color: #000000;">           
+            .flags </span>= IORESOURCE_IRQ,                                |<span style="color: #000000;">           
+        },                                                          </span>|<span style="color: #000000;">           
+    };                                                              </span>|           
+                                                                    |           
+    <span style="color: #0000ff;">return</span> imx_add_platform_device(<span style="color: #800000;">"</span><span style="color: #800000;">imx-i2c</span><span style="color: #800000;">"</span>, data-&gt;id,             |<span style="color: #000000;">           
+            res, ARRAY_SIZE(res),                                   </span>|<span style="color: #000000;">           
+            pdata, </span><span style="color: #0000ff;">sizeof</span>(*pdata));                                 |<span style="color: #000000;">           
+}                                                                   </span>|           
+                                                                    |           
+<span style="color: #008000;">//</span><span style="color: #008000;">指定i2c链接设备的名称，和地址                                         |          </span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> i2c_board_info mxc_i2c0_board_info[] __initdata = { &lt;-+<span style="color: #000000;">           
+    {                                                               </span>|<span style="color: #000000;">           
+        I2C_BOARD_INFO(</span><span style="color: #800000;">"</span><span style="color: #800000;">wm89**</span><span style="color: #800000;">"</span>, <span style="color: #800080;">0x1a</span>),                             |<span style="color: #000000;">           
+    },                                                              </span>|           
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                              |           
+    {                                                               |           
+        I2C_BOARD_INFO("ov564x", 0x3c),                             |           
+        .platform_data = (void *)&amp;camera_data,                      |           
+    },                                                              |           
+    {                                                               |           
+        I2C_BOARD_INFO("mma8451", 0x1d),                            |           
+        .platform_data = (void *)&amp;mma8451_position,                 |           
+    },                                                              |           
+    {                                                               |           
+        I2C_BOARD_INFO("isl1208", 0x6f),                            |           
+    },                                                              |           
+    </span><span style="color: #008000;">*/</span>                                                              |<span style="color: #000000;">           
+};                                                                  </span>|           
+                                                                    |           
+<span style="color: #0000ff;">int</span> __init                                                          |<span style="color: #000000;">           
+i2c_register_board_info(</span><span style="color: #0000ff;">int</span> busnum,              &lt;------------------+           
+    <span style="color: #0000ff;">struct</span> i2c_board_info <span style="color: #0000ff;">const</span> *<span style="color: #000000;">info, unsigned len)                            
+{                                                                               
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> status;                                                                 
+                                                                                
+    down_write(</span>&amp;<span style="color: #000000;">__i2c_board_lock);                                              
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">动态更新总线个数                                                  </span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> dynamic bus numbers will be assigned after the last static one </span><span style="color: #008000;">*/</span>        
+    <span style="color: #0000ff;">if</span> (busnum &gt;=<span style="color: #000000;"> __i2c_first_dynamic_bus_num)                                  
+        __i2c_first_dynamic_bus_num </span>= busnum + <span style="color: #800080;">1</span><span style="color: #000000;">;                               
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">将同一个i2c接口的所有设备都添加到一个链表中           </span>
+    <span style="color: #0000ff;">for</span> (status = <span style="color: #800080;">0</span>; len; len--, info++<span style="color: #000000;">) {                                      
+        </span><span style="color: #0000ff;">struct</span> i2c_devinfo    *<span style="color: #000000;">devinfo;                                         
+                                                                                
+        devinfo </span>= kzalloc(<span style="color: #0000ff;">sizeof</span>(*<span style="color: #000000;">devinfo), GFP_KERNEL);                        
+        </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">devinfo) {                                                         
+            pr_debug(</span><span style="color: #800000;">"</span><span style="color: #800000;">i2c-core: can't register boardinfo!\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                  
+            status </span>= -<span style="color: #000000;">ENOMEM;                                                   
+            </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                              
+        }                                                                       
+                                                                                
+        devinfo</span>-&gt;busnum =<span style="color: #000000;"> busnum;                                               
+        devinfo</span>-&gt;board_info = *<span style="color: #000000;">info;                                            
+        list_add_tail(</span>&amp;devinfo-&gt;list, &amp;<span style="color: #000000;">__i2c_board_list);                       
+    }                                                                           
+                                                                                
+    up_write(</span>&amp;<span style="color: #000000;">__i2c_board_lock);                                                
+                                                                                
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> status;                                                              
+}                                                                               
+                                                                                
+</span><span style="color: #800080;">2</span><span style="color: #000000;">. i2c驱动注册
+kernel</span>/drivers/i2c/busses/i2c-<span style="color: #000000;">imx.c                                             
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init i2c_adap_imx_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)                                       
+{                                                                               
+    </span><span style="color: #0000ff;">return</span> platform_driver_probe(&amp;i2c_imx_driver, i2c_imx_probe); ----------+<span style="color: #000000;">   
+}                                                                           </span>|   
+                                                                            |   
+<span style="color: #0000ff;">int</span> __init_or_module platform_driver_probe(<span style="color: #0000ff;">struct</span> platform_driver *drv,     |   
+        <span style="color: #0000ff;">int</span> (*probe)(<span style="color: #0000ff;">struct</span> platform_device *))                             |<span style="color: #000000;">   
+{                                                                           </span>|   
+    <span style="color: #0000ff;">int</span> retval, code;                                                       |   
+                                                                            |<span style="color: #000000;">   
+    drv</span>-&gt;driver.suppress_bind_attrs = <span style="color: #0000ff;">true</span>;                                 |   
+    <span style="color: #008000;">//</span><span style="color: #008000;">指定驱动的probe函数                                                     |   </span>
+    drv-&gt;probe = probe;                                                     |   
+    <span style="color: #008000;">//</span><span style="color: #008000;">注册平台驱动                                                            |   </span>
+    retval = code = platform_driver_register(drv);                          |   
+                                                                            |<span style="color: #000000;">   
+    spin_lock(</span>&amp;drv-&gt;driver.bus-&gt;p-&gt;klist_drivers.k_lock);                   |<span style="color: #000000;">   
+    drv</span>-&gt;probe = NULL;                                                      |   
+    <span style="color: #0000ff;">if</span> (code == <span style="color: #800080;">0</span> &amp;&amp; list_empty(&amp;drv-&gt;driver.p-&gt;klist_devices.k_list))      |<span style="color: #000000;">   
+        retval </span>= -ENODEV;                                                   |<span style="color: #000000;">   
+    drv</span>-&gt;driver.probe = platform_drv_probe_fail;                            |<span style="color: #000000;">   
+    spin_unlock(</span>&amp;drv-&gt;driver.bus-&gt;p-&gt;klist_drivers.k_lock);                 |   
+                                                                            |   
+    <span style="color: #0000ff;">if</span> (code != retval)                                                     |<span style="color: #000000;">   
+        platform_driver_unregister(drv);                                    </span>|   
+    <span style="color: #0000ff;">return</span> retval;                                                          |<span style="color: #000000;">   
+}                                                                           </span>|<span style="color: #000000;">   
+EXPORT_SYMBOL_GPL(platform_driver_probe);                                   </span>|   
+                                                                            |   
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_driver i2c_imx_driver = {          &lt;-----------------+<span style="color: #000000;">   
+    .remove        </span>= __exit_p(i2c_imx_remove),                              |<span style="color: #000000;">   
+    .driver    </span>= {                                                          |<span style="color: #000000;">   
+        .name    </span>= DRIVER_NAME,         <span style="color: #008000;">//</span><span style="color: #008000;"> "imx-i2c"                        |   </span>
+        .owner    = THIS_MODULE,                                            |<span style="color: #000000;">   
+    }                                                                       </span>|<span style="color: #000000;">   
+};                                                                          </span>|   
+                                                                            |   
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init i2c_imx_probe(<span style="color: #0000ff;">struct</span> platform_device *pdev)     &lt;---------+<span style="color: #000000;">   
+{                                                                               
+    </span><span style="color: #0000ff;">struct</span> imx_i2c_struct *<span style="color: #000000;">i2c_imx;                                             
+    </span><span style="color: #0000ff;">struct</span> resource *<span style="color: #000000;">res;                                                       
+    </span><span style="color: #0000ff;">struct</span> imxi2c_platform_data *<span style="color: #000000;">pdata;                                         
+    </span><span style="color: #0000ff;">void</span> __iomem *<span style="color: #0000ff;">base</span><span style="color: #000000;">;                                                         
+    resource_size_t res_size;                                                   
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> irq;                                                                    
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;                                                                    
+                                                                                
+    dev_dbg(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">&lt;%s&gt;\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, __func__);                                    
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">获得i2c寄存器地址的信息                                         </span>
+    res = platform_get_resource(pdev, IORESOURCE_MEM, <span style="color: #800080;">0</span><span style="color: #000000;">);                       
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">res) {                                                                 
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't get device resources\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                    
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENOENT;                                                         
+    }                                                                           
+    irq </span>= platform_get_irq(pdev, <span style="color: #800080;">0</span><span style="color: #000000;">);                                            
+    </span><span style="color: #0000ff;">if</span> (irq &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {                                                              
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't get irq number\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                          
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENOENT;                                                         
+    }                                                                           
+                                                                                
+    pdata </span>= pdev-&gt;<span style="color: #000000;">dev.platform_data;                                            
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (pdata &amp;&amp; pdata-&gt;<span style="color: #000000;">init) {                                                 
+        ret </span>= pdata-&gt;init(&amp;pdev-&gt;<span style="color: #000000;">dev);                                          
+        </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret)                                                                
+            </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;                                                         
+    }                                                                           
+                                                                                
+    res_size </span>=<span style="color: #000000;"> resource_size(res);                                              
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (!request_mem_region(res-&gt;<span style="color: #000000;">start, res_size, DRIVER_NAME)) {               
+        ret </span>= -<span style="color: #000000;">EBUSY;                                                           
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail0;                                                             
+    }                                                                           
+                                                                                
+    </span><span style="color: #0000ff;">base</span> = ioremap(res-&gt;<span style="color: #000000;">start, res_size);                                       
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #0000ff;">base</span><span style="color: #000000;">) {                                                                
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">ioremap failed\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                
+        ret </span>= -<span style="color: #000000;">EIO;                                                             
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail1;                                                             
+    }                                                                           
+                                                                                
+    i2c_imx </span>= kzalloc(<span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span><span style="color: #000000;"> imx_i2c_struct), GFP_KERNEL);               
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">i2c_imx) {                                                             
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't allocate interface\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                      
+        ret </span>= -<span style="color: #000000;">ENOMEM;                                                          
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> fail2;                                                             
+    }                                                                           
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Setup i2c_imx driver structure </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                        
+    strcpy(i2c_imx</span>-&gt;adapter.name, pdev-&gt;<span style="color: #000000;">name);                                  
+    i2c_imx</span>-&gt;adapter.owner        =<span style="color: #000000;"> THIS_MODULE;                                
+    i2c_imx</span>-&gt;adapter.algo        = &amp;i2c_imx_algo; <span style="color: #008000;">//</span><span style="color: #008000;"> i2c算法   ---------------+</span>
+    i2c_imx-&gt;adapter.dev.parent    = &amp;pdev-&gt;dev;                             |<span style="color: #000000;">  
+    i2c_imx</span>-&gt;adapter.nr         = pdev-&gt;id;                                  |<span style="color: #000000;">  
+    i2c_imx</span>-&gt;irq            = irq;                                           |<span style="color: #000000;">  
+    i2c_imx</span>-&gt;<span style="color: #0000ff;">base</span>            = <span style="color: #0000ff;">base</span>;                                         |<span style="color: #000000;">  
+    i2c_imx</span>-&gt;res            = res;                                           |  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Get I2C clock </span><span style="color: #008000;">*/</span>                                                      |<span style="color: #000000;">  
+    i2c_imx</span>-&gt;clk = clk_get(&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">i2c_clk</span><span style="color: #800000;">"</span>);                           |  
+    <span style="color: #0000ff;">if</span> (IS_ERR(i2c_imx-&gt;clk)) {                                              |<span style="color: #000000;">  
+        ret </span>= PTR_ERR(i2c_imx-&gt;clk);                                         |<span style="color: #000000;">  
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't get I2C clock\n</span><span style="color: #800000;">"</span>);                        |  
+        <span style="color: #0000ff;">goto</span> fail3;                                                          |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Request IRQ </span><span style="color: #008000;">*/</span>                                                        |<span style="color: #000000;">  
+    ret </span>= request_irq(i2c_imx-&gt;irq, i2c_imx_isr, <span style="color: #800080;">0</span>, pdev-&gt;name, i2c_imx);    |  
+    <span style="color: #0000ff;">if</span> (ret) {                                                               |<span style="color: #000000;">  
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't claim irq %d\n</span><span style="color: #800000;">"</span>, i2c_imx-&gt;irq);           |  
+        <span style="color: #0000ff;">goto</span> fail4;                                                          |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Init queue </span><span style="color: #008000;">*/</span>                                                         |<span style="color: #000000;">  
+    init_waitqueue_head(</span>&amp;i2c_imx-&gt;queue);                                    |  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set up adapter data </span><span style="color: #008000;">*/</span>                                                |<span style="color: #000000;">  
+    i2c_set_adapdata(</span>&amp;i2c_imx-&gt;adapter, i2c_imx);                            |  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set up clock divider </span><span style="color: #008000;">*/</span>                                               |  
+    <span style="color: #0000ff;">if</span> (pdata &amp;&amp; pdata-&gt;bitrate)                                             |<span style="color: #000000;">  
+        i2c_imx_set_clk(i2c_imx, pdata</span>-&gt;bitrate);                            |  
+    <span style="color: #0000ff;">else</span>                                                                     |<span style="color: #000000;">  
+        i2c_imx_set_clk(i2c_imx, IMX_I2C_BIT_RATE);                          </span>|  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set up chip registers to defaults </span><span style="color: #008000;">*/</span>                                  |<span style="color: #000000;">  
+    writeb(</span><span style="color: #800080;">0</span>, i2c_imx-&gt;<span style="color: #0000ff;">base</span> + IMX_I2C_I2CR);                                 |<span style="color: #000000;">  
+    writeb(</span><span style="color: #800080;">0</span>, i2c_imx-&gt;<span style="color: #0000ff;">base</span> + IMX_I2C_I2SR);                                 |  
+    <span style="color: #008000;">//</span><span style="color: #008000;">添加adapter，一个i2c对应一个adapter                                       |   </span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Add I2C adapter </span><span style="color: #008000;">*/</span>                                                    |<span style="color: #000000;">  
+    ret </span>= i2c_add_numbered_adapter(&amp;i2c_imx-&gt;adapter);   -----------------+  |  
+    <span style="color: #0000ff;">if</span> (ret &lt; <span style="color: #800080;">0</span>) {                                                        |  |<span style="color: #000000;">  
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">registration failed\n</span><span style="color: #800000;">"</span>);                     |  |  
+        <span style="color: #0000ff;">goto</span> fail5;                                                       |  |<span style="color: #000000;">  
+    }                                                                     </span>|  |  
+                                                                          |  |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set up platform driver data </span><span style="color: #008000;">*/</span>                                     |  |<span style="color: #000000;">  
+    platform_set_drvdata(pdev, i2c_imx);                                  </span>|  |  
+                                                                          |  |<span style="color: #000000;">  
+    dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev, <span style="color: #800000;">"</span><span style="color: #800000;">claimed irq %d\n</span><span style="color: #800000;">"</span>, i2c_imx-&gt;irq);     |  |<span style="color: #000000;">  
+    dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev, <span style="color: #800000;">"</span><span style="color: #800000;">device resources from 0x%x to 0x%x\n</span><span style="color: #800000;">"</span>,|  |<span style="color: #000000;">  
+        i2c_imx</span>-&gt;res-&gt;start, i2c_imx-&gt;res-&gt;end);                          |  |<span style="color: #000000;">  
+    dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev, <span style="color: #800000;">"</span><span style="color: #800000;">allocated %d bytes at 0x%x \n</span><span style="color: #800000;">"</span>,       |  |<span style="color: #000000;">  
+        res_size, i2c_imx</span>-&gt;res-&gt;start);                                   |  |<span style="color: #000000;">  
+    dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev, <span style="color: #800000;">"</span><span style="color: #800000;">adapter name: \"%s\"\n</span><span style="color: #800000;">"</span>,              |  |<span style="color: #000000;">  
+        i2c_imx</span>-&gt;adapter.name);                                           |  |<span style="color: #000000;">  
+    dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev, <span style="color: #800000;">"</span><span style="color: #800000;">IMX I2C adapter registered\n</span><span style="color: #800000;">"</span>);       |  |  
+                                                                          |  |  
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;   <span style="color: #008000;">/*</span><span style="color: #008000;"> Return OK </span><span style="color: #008000;">*/</span>                                           |  |  
+                                                                          |  |<span style="color: #000000;">  
+fail5:                                                                    </span>|  |<span style="color: #000000;">  
+    free_irq(i2c_imx</span>-&gt;irq, i2c_imx);                                      |  |<span style="color: #000000;">  
+fail4:                                                                    </span>|  |<span style="color: #000000;">  
+    clk_put(i2c_imx</span>-&gt;clk);                                                |  |<span style="color: #000000;">  
+fail3:                                                                    </span>|  |<span style="color: #000000;">  
+    kfree(i2c_imx);                                                       </span>|  |<span style="color: #000000;">  
+fail2:                                                                    </span>|  |<span style="color: #000000;">  
+    iounmap(</span><span style="color: #0000ff;">base</span>);                                                        |  |<span style="color: #000000;">  
+fail1:                                                                    </span>|  |<span style="color: #000000;">  
+    release_mem_region(res</span>-&gt;start, resource_size(res));                   |  |<span style="color: #000000;">  
+fail0:                                                                    </span>|  |  
+    <span style="color: #0000ff;">if</span> (pdata &amp;&amp; pdata-&gt;exit)                                             |  |<span style="color: #000000;">  
+        pdata</span>-&gt;exit(&amp;pdev-&gt;dev);                                          |  |  
+    <span style="color: #0000ff;">return</span> ret; <span style="color: #008000;">/*</span><span style="color: #008000;"> Return error number </span><span style="color: #008000;">*/</span>                                 |  |<span style="color: #000000;">  
+}                                                                         |  |<br />                                                                          </span>|  |  
+kernel/drivers/i2c/i2c-core.c                                             |  |  
+<span style="color: #0000ff;">int</span> i2c_add_numbered_adapter(<span style="color: #0000ff;">struct</span> i2c_adapter *adap)         &lt;----------+  |<span style="color: #000000;">  
+{                                                                            </span>|  
+    <span style="color: #0000ff;">int</span>    id;                                                               |  
+    <span style="color: #0000ff;">int</span>    status;                                                           |  
+                                                                             |  
+    <span style="color: #0000ff;">if</span> (adap-&gt;nr &amp; ~MAX_ID_MASK)                                             |  
+        <span style="color: #0000ff;">return</span> -EINVAL;                                                      |  
+                                                                             |<span style="color: #000000;">  
+retry:                                                                       </span>|  
+    <span style="color: #0000ff;">if</span> (idr_pre_get(&amp;i2c_adapter_idr, GFP_KERNEL) == <span style="color: #800080;">0</span>)                      |  
+        <span style="color: #0000ff;">return</span> -ENOMEM;                                                      |  
+                                                                             |<span style="color: #000000;">  
+    mutex_lock(</span>&amp;core_lock);                                                  |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> "above" here means "above or equal to", sigh;                         |  
+     * we need the "equal to" result to force the result                     |  
+     </span><span style="color: #008000;">*/</span>                                                                      |<span style="color: #000000;">  
+    status </span>= idr_get_new_above(&amp;i2c_adapter_idr, adap, adap-&gt;nr, &amp;id);       |  
+    <span style="color: #0000ff;">if</span> (status == <span style="color: #800080;">0</span> &amp;&amp; id != adap-&gt;nr) {                                     |<span style="color: #000000;">  
+        status </span>= -EBUSY;                                                     |<span style="color: #000000;">  
+        idr_remove(</span>&amp;i2c_adapter_idr, id);                                    |<span style="color: #000000;">  
+    }                                                                        </span>|<span style="color: #000000;">  
+    mutex_unlock(</span>&amp;core_lock);                                                |  
+    <span style="color: #0000ff;">if</span> (status == -EAGAIN)                                                   |  
+        <span style="color: #0000ff;">goto</span> retry;                                                          |  
+                                                                             |  
+    <span style="color: #0000ff;">if</span> (status == <span style="color: #800080;">0</span>)                                                         |<span style="color: #000000;">  
+        status </span>= i2c_register_adapter(adap);   ---------------+              |  
+    <span style="color: #0000ff;">return</span> status;                                            |              |<span style="color: #000000;">  
+}                                                             </span>|              |<span style="color: #000000;">  
+EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);                  </span>|              |  
+                                                              |              |  
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> i2c_register_adapter(<span style="color: #0000ff;">struct</span> i2c_adapter *adap)  &lt;--+              |<span style="color: #000000;">  
+{                                                                            </span>|  
+    <span style="color: #0000ff;">int</span> res = <span style="color: #800080;">0</span>;                                                             |  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Can't register until after driver model init </span><span style="color: #008000;">*/</span>                       |  
+    <span style="color: #0000ff;">if</span> (unlikely(WARN_ON(!i2c_bus_type.p))) {                                |<span style="color: #000000;">  
+        res </span>= -EAGAIN;                                                       |  
+        <span style="color: #0000ff;">goto</span> out_list;                                                       |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Sanity checks </span><span style="color: #008000;">*/</span>                                                      |  
+    <span style="color: #0000ff;">if</span> (unlikely(adap-&gt;name[<span style="color: #800080;">0</span>] == <span style="color: #800000;">'</span><span style="color: #800000;">\0</span><span style="color: #800000;">'</span>)) {                                   |<span style="color: #000000;">  
+        pr_err(</span><span style="color: #800000;">"</span><span style="color: #800000;">i2c-core: Attempt to register an adapter with </span><span style="color: #800000;">"</span>              |  
+               <span style="color: #800000;">"</span><span style="color: #800000;">no name!\n</span><span style="color: #800000;">"</span>);                                                |  
+        <span style="color: #0000ff;">return</span> -EINVAL;                                                      |<span style="color: #000000;">  
+    }                                                                        </span>|  
+    <span style="color: #0000ff;">if</span> (unlikely(!adap-&gt;algo)) {                                             |<span style="color: #000000;">  
+        pr_err(</span><span style="color: #800000;">"</span><span style="color: #800000;">i2c-core: Attempt to register adapter '%s' with </span><span style="color: #800000;">"</span>            |  
+               <span style="color: #800000;">"</span><span style="color: #800000;">no algo!\n</span><span style="color: #800000;">"</span>, adap-&gt;name);                                    |  
+        <span style="color: #0000ff;">return</span> -EINVAL;                                                      |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |<span style="color: #000000;">  
+    rt_mutex_init(</span>&amp;adap-&gt;bus_lock);                                          |<span style="color: #000000;">  
+    mutex_init(</span>&amp;adap-&gt;userspace_clients_lock);                               |<span style="color: #000000;">  
+    INIT_LIST_HEAD(</span>&amp;adap-&gt;userspace_clients);                                |  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set default timeout to 1 second if not already set </span><span style="color: #008000;">*/</span>                 |  
+    <span style="color: #0000ff;">if</span> (adap-&gt;timeout == <span style="color: #800080;">0</span>)                                                  |<span style="color: #000000;">  
+        adap</span>-&gt;timeout = HZ;                                                  |  
+    <span style="color: #008000;">//</span><span style="color: #008000;">设置设备名，这里就是/dev显示的 /dev/i2c-1, /dev/i2c-2...                   |   </span>
+    dev_set_name(&amp;adap-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">i2c-%d</span><span style="color: #800000;">"</span>, adap-&gt;nr);                            |<span style="color: #000000;">  
+    adap</span>-&gt;dev.bus = &amp;i2c_bus_type;                                           |<span style="color: #000000;">  
+    adap</span>-&gt;dev.type = &amp;i2c_adapter_type;                                      |<span style="color: #000000;">  
+    res </span>= device_register(&amp;adap-&gt;dev);                                       |  
+    <span style="color: #0000ff;">if</span> (res)                                                                 |  
+        <span style="color: #0000ff;">goto</span> out_list;                                                       |  
+                                                                             |<span style="color: #000000;">  
+    dev_dbg(</span>&amp;adap-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">adapter [%s] registered\n</span><span style="color: #800000;">"</span>, adap-&gt;name);            |  
+                                                                             |<span style="color: #000000;">  
+#ifdef CONFIG_I2C_COMPAT                                                     </span>|<span style="color: #000000;">  
+    res </span>= class_compat_create_link(i2c_adapter_compat_class, &amp;adap-&gt;dev,     |<span style="color: #000000;">  
+                       adap</span>-&gt;dev.parent);                                    |  
+    <span style="color: #0000ff;">if</span> (res)                                                                 |<span style="color: #000000;">  
+        dev_warn(</span>&amp;adap-&gt;dev,                                                 |  
+             <span style="color: #800000;">"</span><span style="color: #800000;">Failed to create compatibility class link\n</span><span style="color: #800000;">"</span>);                 |  
+<span style="color: #0000ff;">#endif</span>                                                                       |  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> create pre-declared device nodes </span><span style="color: #008000;">*/</span>                                   |  
+    <span style="color: #0000ff;">if</span> (adap-&gt;nr &lt; __i2c_first_dynamic_bus_num)                              |<span style="color: #000000;">  
+        i2c_scan_static_board_info(adap);                                    </span>|  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Notify drivers </span><span style="color: #008000;">*/</span>                                                     |<span style="color: #000000;">  
+    mutex_lock(</span>&amp;core_lock);                                                  |<span style="color: #000000;">  
+    bus_for_each_drv(</span>&amp;i2c_bus_type, NULL, adap, __process_new_adapter);      |<span style="color: #000000;">  
+    mutex_unlock(</span>&amp;core_lock);                                                |  
+                                                                             |  
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                                |  
+                                                                             |<span style="color: #000000;">  
+out_list:                                                                    </span>|<span style="color: #000000;">  
+    mutex_lock(</span>&amp;core_lock);                                                  |<span style="color: #000000;">  
+    idr_remove(</span>&amp;i2c_adapter_idr, adap-&gt;nr);                                  |<span style="color: #000000;">  
+    mutex_unlock(</span>&amp;core_lock);                                                |  
+    <span style="color: #0000ff;">return</span> res;                                                              |<span style="color: #000000;">  
+}                                                                            </span>|  
+kernel/driver/i2c/busses/i2c-imx.c                                           |  
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> i2c_algorithm i2c_imx_algo = {            &lt;--------------------+<span style="color: #000000;">  
+    .master_xfer    </span>= i2c_imx_xfer,          ----------------------------------+<span style="color: #000000;">
+    .functionality    </span>= i2c_imx_func,                                          |<span style="color: #000000;">
+};                                                                             </span>|
+<span style="color: #0000ff;">static</span> u32 i2c_imx_func(<span style="color: #0000ff;">struct</span> i2c_adapter *adapter)                           |<span style="color: #000000;">
+{                                                                              </span>|
+    <span style="color: #0000ff;">return</span> I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;                                 |<span style="color: #000000;">
+}                                                                              </span>|
+<span style="color: #008000;">//</span><span style="color: #008000;">发送接收会调用的函数                                                            |</span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> i2c_imx_xfer(<span style="color: #0000ff;">struct</span> i2c_adapter *adapter,     &lt;---------------------+
+                        <span style="color: #0000ff;">struct</span> i2c_msg *msgs, <span style="color: #0000ff;">int</span> num)                         |<span style="color: #000000;">
+{                                                                              </span>|<span style="color: #000000;">
+    unsigned </span><span style="color: #0000ff;">int</span> i, temp;                                                      |
+    <span style="color: #0000ff;">int</span> result;                                                                |
+    <span style="color: #0000ff;">struct</span> imx_i2c_struct *i2c_imx = i2c_get_adapdata(adapter);                |
+                                                                               |<span style="color: #000000;">
+    dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev, <span style="color: #800000;">"</span><span style="color: #800000;">&lt;%s&gt;\n</span><span style="color: #800000;">"</span>, __func__);                        |
+                                                                               |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Start I2C transfer </span><span style="color: #008000;">*/</span>                                                   |<span style="color: #000000;">
+    result </span>= i2c_imx_start(i2c_imx);                                           |
+    <span style="color: #0000ff;">if</span> (result)                                                                |
+        <span style="color: #0000ff;">goto</span> fail0;                                                            |
+                                                                               |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> read/write data </span><span style="color: #008000;">*/</span>                                                      |
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; num; i++) {                                                |
+        <span style="color: #0000ff;">if</span> (i) {                                                               |<span style="color: #000000;">
+            dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev,                                     |
+                <span style="color: #800000;">"</span><span style="color: #800000;">&lt;%s&gt; repeated start\n</span><span style="color: #800000;">"</span>, __func__);                            |<span style="color: #000000;">
+            temp </span>= readb(i2c_imx-&gt;<span style="color: #0000ff;">base</span> + IMX_I2C_I2CR);                        |<span style="color: #000000;">
+            temp </span>|= I2CR_RSTA;                                                 |<span style="color: #000000;">
+            writeb(temp, i2c_imx</span>-&gt;<span style="color: #0000ff;">base</span> + IMX_I2C_I2CR);                        |<span style="color: #000000;">
+            result </span>=  i2c_imx_bus_busy(i2c_imx, <span style="color: #800080;">1</span>);                            |
+            <span style="color: #0000ff;">if</span> (result)                                                        |
+                <span style="color: #0000ff;">goto</span> fail0;                                                    |<span style="color: #000000;">
+        }                                                                      </span>|<span style="color: #000000;">
+        dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev,                                         |
+            <span style="color: #800000;">"</span><span style="color: #800000;">&lt;%s&gt; transfer message: %d\n</span><span style="color: #800000;">"</span>, __func__, i);                       |
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> write/read data </span><span style="color: #008000;">*/</span>                                                  |<span style="color: #000000;">
+#ifdef CONFIG_I2C_DEBUG_BUS                                                    </span>|<span style="color: #000000;">
+        temp </span>= readb(i2c_imx-&gt;<span style="color: #0000ff;">base</span> + IMX_I2C_I2CR);                            |<span style="color: #000000;">
+        dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev, <span style="color: #800000;">"</span><span style="color: #800000;">&lt;%s&gt; CONTROL: IEN=%d, IIEN=%d, </span><span style="color: #800000;">"</span>       |
+            <span style="color: #800000;">"</span><span style="color: #800000;">MSTA=%d, MTX=%d, TXAK=%d, RSTA=%d\n</span><span style="color: #800000;">"</span>, __func__,                   |<span style="color: #000000;">
+            (temp </span>&amp; I2CR_IEN ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>), (temp &amp; I2CR_IIEN ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>),             |<span style="color: #000000;">
+            (temp </span>&amp; I2CR_MSTA ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>), (temp &amp; I2CR_MTX ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>),             |<span style="color: #000000;">
+            (temp </span>&amp; I2CR_TXAK ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>), (temp &amp; I2CR_RSTA ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>));           |<span style="color: #000000;">
+        temp </span>= readb(i2c_imx-&gt;<span style="color: #0000ff;">base</span> + IMX_I2C_I2SR);                            |<span style="color: #000000;">
+        dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev,                                         |
+            <span style="color: #800000;">"</span><span style="color: #800000;">&lt;%s&gt; STATUS: ICF=%d, IAAS=%d, IBB=%d, </span><span style="color: #800000;">"</span>                           |
+            <span style="color: #800000;">"</span><span style="color: #800000;">IAL=%d, SRW=%d, IIF=%d, RXAK=%d\n</span><span style="color: #800000;">"</span>, __func__,                     |<span style="color: #000000;">
+            (temp </span>&amp; I2SR_ICF ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>), (temp &amp; I2SR_IAAS ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>),             |<span style="color: #000000;">
+            (temp </span>&amp; I2SR_IBB ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>), (temp &amp; I2SR_IAL ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>),              |<span style="color: #000000;">
+            (temp </span>&amp; I2SR_SRW ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>), (temp &amp; I2SR_IIF ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>),              |<span style="color: #000000;">
+            (temp </span>&amp; I2SR_RXAK ? <span style="color: #800080;">1</span> : <span style="color: #800080;">0</span>));                                       |
+<span style="color: #0000ff;">#endif</span>                                                                         |
+        <span style="color: #0000ff;">if</span> (msgs[i].flags &amp; I2C_M_RD)                                          |<span style="color: #000000;">
+            result </span>= i2c_imx_read(i2c_imx, &amp;msgs[i]);                          |
+        <span style="color: #0000ff;">else</span>                                                                   |<span style="color: #000000;">
+            result </span>= i2c_imx_write(i2c_imx, &amp;msgs[i]);                         |
+        <span style="color: #0000ff;">if</span> (result)                                                            |
+            <span style="color: #0000ff;">goto</span> fail0;                                                        |<span style="color: #000000;">
+    }                                                                          </span>|
+                                                                               |<span style="color: #000000;">
+fail0:                                                                         </span>|
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Stop I2C transfer </span><span style="color: #008000;">*/</span>                                                    |<span style="color: #000000;">
+    i2c_imx_stop(i2c_imx);                                                     </span>|
+                                                                               |<span style="color: #000000;">
+    dev_dbg(</span>&amp;i2c_imx-&gt;adapter.dev, <span style="color: #800000;">"</span><span style="color: #800000;">&lt;%s&gt; exit with: %s: %d\n</span><span style="color: #800000;">"</span>, __func__,       |<span style="color: #000000;">
+        (result </span>&lt; <span style="color: #800080;">0</span>) ? <span style="color: #800000;">"</span><span style="color: #800000;">error</span><span style="color: #800000;">"</span> : <span style="color: #800000;">"</span><span style="color: #800000;">success msg</span><span style="color: #800000;">"</span>,                                |<span style="color: #000000;">
+            (result </span>&lt; <span style="color: #800080;">0</span>) ? result : num);                                      |
+    <span style="color: #0000ff;">return</span> (result &lt; <span style="color: #800080;">0</span>) ? result : num;                                        |<span style="color: #000000;">
+}                                                                              </span>|
+                                                                               |
+<span style="color: #008000;">//</span><span style="color: #008000;"> i2c_msg记录了i2c地址                                                          | </span>
+<span style="color: #0000ff;">struct</span> i2c_msg {                                                               |<span style="color: #000000;">
+    __u16 addr;    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> slave address            </span><span style="color: #008000;">*/</span>                              |<span style="color: #000000;">
+    __u16 flags;                                                               </span>|
+<span style="color: #0000ff;">#define</span> I2C_M_TEN        0x0010    /* this is a ten bit chip address */        |
+<span style="color: #0000ff;">#define</span> I2C_M_RD        0x0001    /* read data, from slave to master */        |
+<span style="color: #0000ff;">#define</span> I2C_M_NOSTART        0x4000    /* if I2C_FUNC_PROTOCOL_MANGLING */     |
+<span style="color: #0000ff;">#define</span> I2C_M_REV_DIR_ADDR    0x2000    /* if I2C_FUNC_PROTOCOL_MANGLING */    |
+<span style="color: #0000ff;">#define</span> I2C_M_IGNORE_NAK    0x1000    /* if I2C_FUNC_PROTOCOL_MANGLING */      |
+<span style="color: #0000ff;">#define</span> I2C_M_NO_RD_ACK        0x0800    /* if I2C_FUNC_PROTOCOL_MANGLING */   |
+<span style="color: #0000ff;">#define</span> I2C_M_RECV_LEN        0x0400   /* length will be first received byte */|<span style="color: #000000;">
+    __u16 len;        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> msg length                </span><span style="color: #008000;">*/</span>                          |<span style="color: #000000;">
+    __u8 </span>*buf;        <span style="color: #008000;">/*</span><span style="color: #008000;"> pointer to msg data            </span><span style="color: #008000;">*/</span>                     |<span style="color: #000000;">
+};                                                                             </span>|
+                                                                               |
+                                                                               |
+<span style="color: #800080;">3</span>. 上层应用调用                                                                  |<span style="color: #000000;">
+kernel</span>/driver/i2c/busses/i2c-dev.c                                             |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init i2c_dev_init(<span style="color: #0000ff;">void</span>)                                           |<span style="color: #000000;">
+{                                                                              </span>|
+    <span style="color: #0000ff;">int</span> res;                                                                   |
+                                                                               |<span style="color: #000000;">
+    printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">i2c /dev entries driver\n</span><span style="color: #800000;">"</span>);                             |
+                                                                               |<span style="color: #000000;">
+    res </span>= register_chrdev(I2C_MAJOR, <span style="color: #800000;">"</span><span style="color: #800000;">i2c</span><span style="color: #800000;">"</span>, &amp;i2cdev_fops);    ------------+    |
+    <span style="color: #0000ff;">if</span> (res)                                                              |    |
+        <span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span>;                                                         |    |
+                                                                          |    |<span style="color: #000000;">
+    i2c_dev_class </span>= class_create(THIS_MODULE, <span style="color: #800000;">"</span><span style="color: #800000;">i2c-dev</span><span style="color: #800000;">"</span>);                 |    |
+    <span style="color: #0000ff;">if</span> (IS_ERR(i2c_dev_class)) {                                          |    |<span style="color: #000000;">
+        res </span>= PTR_ERR(i2c_dev_class);                                     |    |
+        <span style="color: #0000ff;">goto</span> out_unreg_chrdev;                                            |    |<span style="color: #000000;">
+    }                                                                     </span>|    |
+                                                                          |    |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Keep track of adapters which will be added or removed later </span><span style="color: #008000;">*/</span>     |    |<span style="color: #000000;">
+    res </span>= bus_register_notifier(&amp;i2c_bus_type, &amp;i2cdev_notifier);         |    |
+    <span style="color: #0000ff;">if</span> (res)                                                              |    |
+        <span style="color: #0000ff;">goto</span> out_unreg_class;                                             |    |
+                                                                          |    |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Bind to already existing adapters right away </span><span style="color: #008000;">*/</span>                    |    |<span style="color: #000000;">
+    i2c_for_each_dev(NULL, i2cdev_attach_adapter);                        </span>|    |
+                                                                          |    |
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                             |    |
+                                                                          |    |<span style="color: #000000;">
+out_unreg_class:                                                          </span>|    |<span style="color: #000000;">
+    class_destroy(i2c_dev_class);                                         </span>|    |<span style="color: #000000;">
+out_unreg_chrdev:                                                         </span>|    |<span style="color: #000000;">
+    unregister_chrdev(I2C_MAJOR, </span><span style="color: #800000;">"</span><span style="color: #800000;">i2c</span><span style="color: #800000;">"</span>);                                  |    |
+<span style="color: #0000ff;">out</span>:                                                                      |    |<span style="color: #000000;">
+    printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: Driver Initialisation failed\n</span><span style="color: #800000;">"</span>, __FILE__);      |    |
+    <span style="color: #0000ff;">return</span> res;                                                           |    |<span style="color: #000000;">
+}                                                                         </span>|    |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> file_operations i2cdev_fops = {         &lt;-------------+    |<span style="color: #000000;">
+    .owner        </span>= THIS_MODULE,                                               |<span style="color: #000000;">
+    .llseek        </span>= no_llseek,                                                |<span style="color: #000000;">
+    .read        </span>= i2cdev_read,        ----------+                             |<span style="color: #000000;">
+    .write        </span>= i2cdev_write,                |                             |<span style="color: #000000;">
+    .unlocked_ioctl    </span>= i2cdev_ioctl,           |                             |<span style="color: #000000;">
+    .open        </span>= i2cdev_open,                  |                             |<span style="color: #000000;">
+    .release    </span>= i2cdev_release,                |                             |<span style="color: #000000;">
+};                                               </span>|                             |<span style="color: #000000;">
+                                                 V                             </span>|
+<span style="color: #0000ff;">static</span> ssize_t i2cdev_read(<span style="color: #0000ff;">struct</span> file *file, <span style="color: #0000ff;">char</span> __user *buf, size_t count,  |<span style="color: #000000;">
+        loff_t </span>*offset)                                                        |<span style="color: #000000;">
+{                                                                              </span>|
+    <span style="color: #0000ff;">char</span> *tmp;                                                                 |
+    <span style="color: #0000ff;">int</span> ret;                                                                   |
+                                                                               |
+    <span style="color: #0000ff;">struct</span> i2c_client *client = file-&gt;private_data;                            |
+                                                                               |
+    <span style="color: #0000ff;">if</span> (count &gt; <span style="color: #800080;">8192</span>)                                                          |<span style="color: #000000;">
+        count </span>= <span style="color: #800080;">8192</span>;                                                          |
+                                                                               |<span style="color: #000000;">
+    tmp </span>= kmalloc(count, GFP_KERNEL);                                          |
+    <span style="color: #0000ff;">if</span> (tmp == NULL)                                                           |
+        <span style="color: #0000ff;">return</span> -ENOMEM;                                                        |
+                                                                               |<span style="color: #000000;">
+    pr_debug(</span><span style="color: #800000;">"</span><span style="color: #800000;">i2c-dev: i2c-%d reading %zu bytes.\n</span><span style="color: #800000;">"</span>,                           |<span style="color: #000000;">
+        iminor(file</span>-&gt;f_path.dentry-&gt;d_inode), count);                          |
+                                                                               |<span style="color: #000000;">
+    ret </span>= i2c_master_recv(client, tmp, count);      ---------------+           |
+    <span style="color: #0000ff;">if</span> (ret &gt;= <span style="color: #800080;">0</span>)                                                  |           |<span style="color: #000000;">
+        ret </span>= copy_to_user(buf, tmp, count) ? -EFAULT : ret;       |           |<span style="color: #000000;">
+    kfree(tmp);                                                    </span>|           |
+    <span style="color: #0000ff;">return</span> ret;                                                    |           |<span style="color: #000000;">
+}                                                                  </span>|           |<span style="color: #000000;">
+                                                                   V           </span>|
+<span style="color: #0000ff;">int</span> i2c_master_recv(<span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> i2c_client *client, <span style="color: #0000ff;">char</span> *buf, <span style="color: #0000ff;">int</span> count)     |<span style="color: #000000;">
+{                                                                              </span>|
+    <span style="color: #0000ff;">struct</span> i2c_adapter *adap = client-&gt;adapter;                                |
+    <span style="color: #0000ff;">struct</span> i2c_msg msg;                                                        |
+    <span style="color: #0000ff;">int</span> ret;                                                                   |
+                                                                               |<span style="color: #000000;">
+    msg.addr </span>= client-&gt;addr;         <span style="color: #008000;">//</span><span style="color: #008000;">地址                                     | </span>
+    msg.flags = client-&gt;flags &amp; I2C_M_TEN;  <span style="color: #008000;">//</span><span style="color: #008000;">判断是否使用10位地址                | </span>
+    msg.flags |= I2C_M_RD;            <span style="color: #008000;">//</span><span style="color: #008000;">读操作                                  | </span>
+    msg.len = count;                <span style="color: #008000;">//</span><span style="color: #008000;">发送个数                                  | </span>
+    msg.buf = buf;                    <span style="color: #008000;">//</span><span style="color: #008000;">发送数据                                | </span>
+                                                                               |<span style="color: #000000;">
+    ret </span>= i2c_transfer(adap, &amp;msg, <span style="color: #800080;">1</span>);            ---------------------------+ |
+                                                                             | |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> If everything went ok (i.e. 1 msg transmitted), return #bytes         | |
+       transmitted, else error code. </span><span style="color: #008000;">*/</span>                                      | |
+    <span style="color: #0000ff;">return</span> (ret == <span style="color: #800080;">1</span>) ? count : ret;                                         | |<span style="color: #000000;">
+}                                                                            </span>| |
+                                                                             | |
+<span style="color: #0000ff;">int</span> i2c_transfer(<span style="color: #0000ff;">struct</span> i2c_adapter *adap, <span style="color: #0000ff;">struct</span> i2c_msg *msgs, <span style="color: #0000ff;">int</span> num) &lt;--+ |<span style="color: #000000;">
+{                                                                              </span>|<span style="color: #000000;">
+    unsigned </span><span style="color: #0000ff;">long</span> orig_jiffies;                                                |
+    <span style="color: #0000ff;">int</span> ret, <span style="color: #0000ff;">try</span>;                                                              |
+                                                                               |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> REVISIT the fault reporting model here is weak:                         |
+     *                                                                         |
+     *  - When we get an error after receiving N bytes from a slave,           |
+     *    there is no way to report "N".                                       |
+     *                                                                         |
+     *  - When we get a NAK after transmitting N bytes to a slave,             |
+     *    there is no way to report "N" ... or to let the master               |
+     *    continue executing the rest of this combined message, if             |
+     *    that's the appropriate response.                                     |
+     *                                                                         |
+     *  - When for example "num" is two and we successfully complete           |
+     *    the first message but get an error part way through the              |
+     *    second, it's unclear whether that should be reported as              |
+     *    one (discarding status on the second message) or errno               |
+     *    (discarding status on the first one).                                |
+     </span><span style="color: #008000;">*/</span>                                                                        |
+    <span style="color: #008000;">//</span><span style="color: #008000;">判断master_xfer函数指针是否存在，存在的话就是指向i2c_imx_xfer                 |</span>
+    <span style="color: #0000ff;">if</span> (adap-&gt;algo-&gt;master_xfer) {                                 &lt;-----------+<span style="color: #000000;">
+#ifdef DEBUG                                                                   </span>|
+        <span style="color: #0000ff;">for</span> (ret = <span style="color: #800080;">0</span>; ret &lt; num; ret++) {                                      |<span style="color: #000000;">
+            dev_dbg(</span>&amp;adap-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">master_xfer[%d] %c, addr=0x%02x, </span><span style="color: #800000;">"</span>            |
+                <span style="color: #800000;">"</span><span style="color: #800000;">len=%d%s\n</span><span style="color: #800000;">"</span>, ret, (msgs[ret].flags &amp; I2C_M_RD)                |
+                ? <span style="color: #800000;">'</span><span style="color: #800000;">R</span><span style="color: #800000;">'</span> : <span style="color: #800000;">'</span><span style="color: #800000;">W</span><span style="color: #800000;">'</span>, msgs[ret].addr, msgs[ret].len,                    |<span style="color: #000000;">
+                (msgs[ret].flags </span>&amp; I2C_M_RECV_LEN) ? <span style="color: #800000;">"</span><span style="color: #800000;">+</span><span style="color: #800000;">"</span> : <span style="color: #800000;">""</span>);                |<span style="color: #000000;">
+        }                                                                      </span>|
+<span style="color: #0000ff;">#endif</span>                                                                         |
+                                                                               |
+        <span style="color: #0000ff;">if</span> (in_atomic() || irqs_disabled()) {                                  |<span style="color: #000000;">
+            ret </span>= i2c_trylock_adapter(adap);                                   |
+            <span style="color: #0000ff;">if</span> (!ret)                                                          |
+                <span style="color: #008000;">/*</span><span style="color: #008000;"> I2C activity is ongoing. </span><span style="color: #008000;">*/</span>                                 |
+                <span style="color: #0000ff;">return</span> -EAGAIN;                                                |<span style="color: #000000;">
+        } </span><span style="color: #0000ff;">else</span> {                                                               |<span style="color: #000000;">
+            i2c_lock_adapter(adap);                                            </span>|<span style="color: #000000;">
+        }                                                                      </span>|
+                                                                               |
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> Retry automatically on arbitration loss </span><span style="color: #008000;">*/</span>                          |<span style="color: #000000;">
+        orig_jiffies </span>= jiffies;                                                |
+        <span style="color: #0000ff;">for</span> (ret = <span style="color: #800080;">0</span>, <span style="color: #0000ff;">try</span> = <span style="color: #800080;">0</span>; <span style="color: #0000ff;">try</span> &lt;= adap-&gt;retries; <span style="color: #0000ff;">try</span>++) {                  |
+            <span style="color: #008000;">//</span><span style="color: #008000;">调用 i2c_imx_xfer函数                                             | </span>
+            ret = adap-&gt;algo-&gt;master_xfer(adap, msgs, num);          &lt;---------+
+            <span style="color: #0000ff;">if</span> (ret != -<span style="color: #000000;">EAGAIN)                                                 
+                </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                          
+            </span><span style="color: #0000ff;">if</span> (time_after(jiffies, orig_jiffies + adap-&gt;<span style="color: #000000;">timeout))              
+                </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                          
+        }                                                                       
+        i2c_unlock_adapter(adap);                                               
+                                                                                
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;                                                             
+    } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {                                                                    
+        dev_dbg(</span>&amp;adap-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">I2C level transfers not supported\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);             
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EOPNOTSUPP;                                                     
+    }                                                                           
+}                                                                               
+</span><span style="color: #008000;">//</span><span style="color: #008000;">同理write函数也是一样                                                 </span>
+<span style="color: #0000ff;">static</span> ssize_t i2cdev_write(<span style="color: #0000ff;">struct</span> file *file, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> __user *<span style="color: #000000;">buf,          
+        size_t count, loff_t </span>*<span style="color: #000000;">offset)                                           
+{                                                                               
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;                                                                    
+    </span><span style="color: #0000ff;">char</span> *<span style="color: #000000;">tmp;                                                                  
+    </span><span style="color: #0000ff;">struct</span> i2c_client *client = file-&gt;<span style="color: #000000;">private_data;                             
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (count &gt; <span style="color: #800080;">8192</span><span style="color: #000000;">)                                                           
+        count </span>= <span style="color: #800080;">8192</span><span style="color: #000000;">;                                                           
+                                                                                
+    tmp </span>=<span style="color: #000000;"> memdup_user(buf, count);                                              
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (IS_ERR(tmp))                                                            
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> PTR_ERR(tmp);                                                    
+                                                                                
+    pr_debug(</span><span style="color: #800000;">"</span><span style="color: #800000;">i2c-dev: i2c-%d writing %zu bytes.\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,                            
+        iminor(file</span>-&gt;f_path.dentry-&gt;<span style="color: #000000;">d_inode), count);                           
+                                                                                
+    ret </span>= i2c_master_send(client, tmp, count);    -----------+<span style="color: #000000;">                  
+    kfree(tmp);                                              </span>|                  
+    <span style="color: #0000ff;">return</span> ret;                                              |<span style="color: #000000;">                  
+}                                                            </span>|<span style="color: #000000;">                  
+                                                             V                  
+</span><span style="color: #0000ff;">int</span> i2c_master_send(<span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> i2c_client *client, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *buf, <span style="color: #0000ff;">int</span><span style="color: #000000;"> count)
+{                                                                               
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;                                                                    
+    </span><span style="color: #0000ff;">struct</span> i2c_adapter *adap = client-&gt;<span style="color: #000000;">adapter;                                 
+    </span><span style="color: #0000ff;">struct</span><span style="color: #000000;"> i2c_msg msg;                                                         
+                                                                                
+    msg.addr </span>= client-&gt;<span style="color: #000000;">addr;                                                    
+    msg.flags </span>= client-&gt;flags &amp;<span style="color: #000000;"> I2C_M_TEN;                                      
+    msg.len </span>=<span style="color: #000000;"> count;                                                            
+    msg.buf </span>= (<span style="color: #0000ff;">char</span> *<span style="color: #000000;">)buf;                                                      
+                                                                                
+    ret </span>= i2c_transfer(adap, &amp;msg, <span style="color: #800080;">1</span><span style="color: #000000;">);                                          
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> If everything went ok (i.e. 1 msg transmitted), return #bytes            
+       transmitted, else error code. </span><span style="color: #008000;">*/</span>                                         
+    <span style="color: #0000ff;">return</span> (ret == <span style="color: #800080;">1</span>) ?<span style="color: #000000;"> count : ret;                                            
+}                                                                               </span></pre>
+</div>
+<p>&nbsp;</p>
+<pre><span>kernel</span>/drivers/i2c/busses/i2c-<span>imx.c</span></pre>

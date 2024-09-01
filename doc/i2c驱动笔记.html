@@ -1,0 +1,12 @@
+<p>基于bcm5300x芯片</p>
+<p>注册平台总线设备，设备名bcm5300x_i2c,通过名称与驱动进行匹配。</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201601/745188-20160113143429397-1632196729.png" alt="" /></p>
+<p>注册平台总线驱动。驱动名称"bcm5300x_i2c",与设备进行匹配。</p>
+<p>drivers/i2c/busses/i2c-bcm5300x.c是针对不同芯片写的驱动。</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201601/745188-20160113110505053-1984471154.png" alt="" /></p>
+<p>i2c驱动公共接口。</p>
+<p>drivers/i2c/i2c-dev.c,i2c共有接口，通过文件描述符可以调用这个函数中的open,read,write,ioctl等函数。这些函数有通过调用algorithm结构体中的算法，调用不同平台的操作。</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201601/745188-20160113110131288-1559644563.png" alt="" /></p>
+<p>网上搜索到关于i2c数据结构之间的关系。</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201601/745188-20160113110854022-980213610.png" alt="" width="881" height="1147" /></p>
+<p>&nbsp;</p>

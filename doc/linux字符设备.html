@@ -1,0 +1,118 @@
+<div class="cnblogs_code">
+<pre>linux有一个全局的结构体数组，共255个元素，记录系统中的设备节点。<br />主设备号相同，次设备号不同的设备组成链表。<br />参考：http://edsionte.com/techblog/archives/1393<br /><br />注册一个字符设备调用函数<br />register_chrdev(major, DEV_NAME, &amp;<span style="color: #000000;">fops)
+
+</span><span style="color: #0000ff;">static</span> inline <span style="color: #0000ff;">int</span> register_chrdev(unsigned <span style="color: #0000ff;">int</span> major, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *<span style="color: #000000;">name,
+                  </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> file_operations *<span style="color: #000000;">fops)
+{
+    </span><span style="color: #0000ff;">return</span> __register_chrdev(major, <span style="color: #800080;">0</span>, <span style="color: #800080;">256</span><span style="color: #000000;">, name, fops);
+}
+//申请次设备号最小从0开始，申请256个次设备。
+</span><span style="color: #0000ff;">int</span> __register_chrdev(unsigned <span style="color: #0000ff;">int</span> major, unsigned <span style="color: #0000ff;">int</span><span style="color: #000000;"> baseminor,　　
+              unsigned </span><span style="color: #0000ff;">int</span> count, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *<span style="color: #000000;">name,
+              </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> file_operations *<span style="color: #000000;">fops) 
+{
+    </span><span style="color: #0000ff;">struct</span> char_device_struct *<span style="color: #000000;">cd;
+    </span><span style="color: #0000ff;">struct</span> cdev *<span style="color: #000000;">cdev;
+    </span><span style="color: #0000ff;">int</span> err = -<span style="color: #000000;">ENOMEM;
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">从全局的字符设备结构体数组中获取可以使用的结构体char_device_struct</span>
+    cd =<span style="color: #000000;"> __register_chrdev_region(major, baseminor, count, name);　
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (IS_ERR(cd))
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> PTR_ERR(cd);
+
+    cdev </span>=<span style="color: #000000;"> cdev_alloc();
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">cdev)
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> out2;
+
+    cdev</span>-&gt;owner = fops-&gt;<span style="color: #000000;">owner;
+    cdev</span>-&gt;ops =<span style="color: #000000;"> fops;
+    kobject_set_name(</span>&amp;cdev-&gt;kobj, <span style="color: #800000;">"</span><span style="color: #800000;">%s</span><span style="color: #800000;">"</span><span style="color: #000000;">, name);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">将字符设备添加到系统中 </span>
+    err = cdev_add(cdev, MKDEV(cd-&gt;<span style="color: #000000;">major, baseminor), count);
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (err)
+        </span><span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span><span style="color: #000000;">;
+
+    cd</span>-&gt;cdev =<span style="color: #000000;"> cdev;
+
+    </span><span style="color: #0000ff;">return</span> major ? <span style="color: #800080;">0</span> : cd-&gt;<span style="color: #000000;">major;
+</span><span style="color: #0000ff;">out</span><span style="color: #000000;">:
+    kobject_put(</span>&amp;cdev-&gt;<span style="color: #000000;">kobj);
+out2:
+    kfree(__unregister_chrdev_region(cd</span>-&gt;<span style="color: #000000;">major, baseminor, count));
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> err;
+}
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> char_device_struct *<span style="color: #000000;">
+__register_chrdev_region(unsigned </span><span style="color: #0000ff;">int</span> major, unsigned <span style="color: #0000ff;">int</span><span style="color: #000000;"> baseminor,
+               </span><span style="color: #0000ff;">int</span> minorct, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *<span style="color: #000000;">name)
+{
+    </span><span style="color: #0000ff;">struct</span> char_device_struct *cd, **<span style="color: #000000;">cp;
+    </span><span style="color: #0000ff;">int</span> ret = <span style="color: #800080;">0</span><span style="color: #000000;">;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> i;
+
+    cd </span>= kzalloc(<span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span><span style="color: #000000;"> char_device_struct), GFP_KERNEL);
+    </span><span style="color: #0000ff;">if</span> (cd ==<span style="color: #000000;"> NULL)
+        </span><span style="color: #0000ff;">return</span> ERR_PTR(-<span style="color: #000000;">ENOMEM);
+
+    mutex_lock(</span>&amp;<span style="color: #000000;">chrdevs_lock);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> temporary </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (major == <span style="color: #800080;">0</span><span style="color: #000000;">) {
+    </span><span style="color: #008000;">//</span>如果设备号为0，那么遍历字符设备节点的数组，查找空闲的设备号，分配给设备
+        <span style="color: #0000ff;">for</span> (i = ARRAY_SIZE(chrdevs)-<span style="color: #800080;">1</span>; i &gt; <span style="color: #800080;">0</span>; i--<span style="color: #000000;">) {
+            </span><span style="color: #0000ff;">if</span> (chrdevs[i] ==<span style="color: #000000;"> NULL)
+                </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+        }
+
+        </span><span style="color: #0000ff;">if</span> (i == <span style="color: #800080;">0</span><span style="color: #000000;">) {
+            ret </span>= -<span style="color: #000000;">EBUSY;
+            </span><span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span><span style="color: #000000;">;
+        }
+        major </span>=<span style="color: #000000;"> i;
+        ret </span>=<span style="color: #000000;"> major;
+    }
+
+    cd</span>-&gt;major =<span style="color: #000000;"> major;
+    cd</span>-&gt;baseminor =<span style="color: #000000;"> baseminor;
+    cd</span>-&gt;minorct =<span style="color: #000000;"> minorct;
+    strlcpy(cd</span>-&gt;name, name, <span style="color: #0000ff;">sizeof</span>(cd-&gt;<span style="color: #000000;">name));
+
+    i </span>=<span style="color: #000000;"> major_to_index(major);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">遍历设备链表，将新的设备根据主设备号和次设备号添加到链表的合适位置 
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">偏移主设备号</span>
+    <span style="color: #0000ff;">for</span> (cp = &amp;chrdevs[i]; *cp; cp = &amp;(*cp)-&gt;<span style="color: #000000;">next)
+        </span><span style="color: #0000ff;">if</span> ((*cp)-&gt;major &gt; major ||<span style="color: #000000;">
+            ((</span>*cp)-&gt;major == major &amp;&amp;<span style="color: #000000;">
+             (((</span>*cp)-&gt;baseminor &gt;= baseminor) ||<span style="color: #000000;">
+              ((</span>*cp)-&gt;baseminor + (*cp)-&gt;minorct &gt;<span style="color: #000000;"> baseminor))))
+            </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+　　 //检查次设备号的范围是否有重叠，但是这个函数一开始就已经指定了此设备0-255（256个），<br />　　 //所以肯定会重叠，这就要求，主设备号不能与已经存在的字符设备重叠，否则注册设备必然会失败<br />　　 //其他的函数范围可能更小，就需要下面进行判断<br /></span><span style="color: #008000;">    /*</span><span style="color: #008000;"> Check for overlapping minor ranges.  </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (*cp &amp;&amp; (*cp)-&gt;major ==<span style="color: #000000;"> major) {
+        </span><span style="color: #0000ff;">int</span> old_min = (*cp)-&gt;<span style="color: #000000;">baseminor;
+        </span><span style="color: #0000ff;">int</span> old_max = (*cp)-&gt;baseminor + (*cp)-&gt;minorct - <span style="color: #800080;">1</span><span style="color: #000000;">;
+        </span><span style="color: #0000ff;">int</span> new_min =<span style="color: #000000;"> baseminor;
+        </span><span style="color: #0000ff;">int</span> new_max = baseminor + minorct - <span style="color: #800080;">1</span><span style="color: #000000;">;
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> New driver overlaps from the left.  </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (new_max &gt;= old_min &amp;&amp; new_max &lt;=<span style="color: #000000;"> old_max) {
+            ret </span>= -<span style="color: #000000;">EBUSY;
+            </span><span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span><span style="color: #000000;">;
+        }
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> New driver overlaps from the right.  </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (new_min &lt;= old_max &amp;&amp; new_min &gt;=<span style="color: #000000;"> old_min) {
+            ret </span>= -<span style="color: #000000;">EBUSY;
+            </span><span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span><span style="color: #000000;">;
+        }
+    }
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">添加到链表中</span>
+    cd-&gt;next = *<span style="color: #000000;">cp;
+    </span>*cp =<span style="color: #000000;"> cd;
+    mutex_unlock(</span>&amp;<span style="color: #000000;">chrdevs_lock);
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> cd;
+</span><span style="color: #0000ff;">out</span><span style="color: #000000;">:
+    mutex_unlock(</span>&amp;<span style="color: #000000;">chrdevs_lock);
+    kfree(cd);
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ERR_PTR(ret);
+}<br /><br />另一种注册字符设备函数,过程与上面的类似。<br />struct cdev cdev;<br />dev_t devno;<br />int __init test_init(void)<br />{<br />&nbsp;&nbsp;&nbsp; int ret;<br />　　//静态分配<br />　　//指定主设备号和次设备号，并设备好的范围是1<br />　　//dev_t devno = MKDEV(globalmem_major, 0);<br />　　//<span style="color: #000000;">ret = register_chrdev_region(&amp;devno, 1, DEV_NAME);</span>　　<br />　　//动态分配<br />&nbsp;&nbsp;&nbsp; ret = alloc_chrdev_region(&amp;devno, 0, 1, DEV_NAME);<br />&nbsp;&nbsp;&nbsp; if(ret)<br />&nbsp;&nbsp;&nbsp; {&nbsp; &nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printk("alloc_chrdev_region failed!\n");<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return -EAGAIN;<br />&nbsp;&nbsp;&nbsp; }&nbsp; &nbsp;<br />&nbsp;&nbsp;&nbsp; else<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printk("major = %d\n", MAJOR(devno));<br /><br />&nbsp;&nbsp;&nbsp; cdev_init(&amp;cdev, &amp;fops);<br />&nbsp;&nbsp;&nbsp; cdev.owner = THIS_MODULE;<br /><br />&nbsp;&nbsp;&nbsp; ret = cdev_add(&amp;cdev, devno, 1); <br />&nbsp;&nbsp;&nbsp; if(ret)<br />&nbsp;&nbsp;&nbsp; {&nbsp; &nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; //释放之前分配的设备号<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; unregister_chrdev_region(devno, 1); <br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printk("cdev_add failed!\n");<br />&nbsp;&nbsp;&nbsp; }&nbsp; &nbsp;<br /><br />&nbsp;&nbsp;&nbsp; return ret;<br />}<br /><br />int register_chrdev_region(dev_t from, unsigned count, const char *name)<br />{<br />&nbsp;&nbsp;&nbsp; struct char_device_struct *cd;<br />&nbsp;&nbsp;&nbsp; dev_t to = from + count;<br />&nbsp;&nbsp;&nbsp; dev_t n, next;<br />　　 //判断申请的设备号的范围是否会溢出到下一个主设备。<br />　　 //溢出的话，就分成基本分，一部分在当前主设备节点分配<br />    //另一部分到下一主设备节点分配<br />&nbsp;&nbsp;&nbsp; for (n = from; n &lt; to; n = next) {<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; next = MKDEV(MAJOR(n)+1, 0);<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (next &gt; to)<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; next = to;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cd = __register_chrdev_region(MAJOR(n), MINOR(n),<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; next - n, name);<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (IS_ERR(cd))<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; goto fail;<br />&nbsp;&nbsp;&nbsp; }<br />&nbsp;&nbsp;&nbsp; return 0;<br />fail:<br />&nbsp;&nbsp;&nbsp; to = n;<br />&nbsp;&nbsp;&nbsp; for (n = from; n &lt; to; n = next) {<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; next = MKDEV(MAJOR(n)+1, 0);<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; kfree(__unregister_chrdev_region(MAJOR(n), MINOR(n), next - n));<br />&nbsp;&nbsp;&nbsp; }<br />&nbsp;&nbsp;&nbsp; return PTR_ERR(cd);<br />}<br /><br /><br />int alloc_chrdev_region(dev_t *dev, unsigned baseminor, unsigned count,<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const char *name)<br />{<br />&nbsp;&nbsp;&nbsp; struct char_device_struct *cd;<br />&nbsp;&nbsp;&nbsp; cd = __register_chrdev_region(0, baseminor, count, name);<br />&nbsp;&nbsp;&nbsp; if (IS_ERR(cd))<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return PTR_ERR(cd);<br />&nbsp;&nbsp;&nbsp; *dev = MKDEV(cd-&gt;major, cd-&gt;baseminor);<br />&nbsp;&nbsp;&nbsp; return 0;<br />}<br /><br /></span></pre>
+</div>
+<p>结构体关系如下所示</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201601/745188-20160113174321382-1625505829.png" alt="" /></p>

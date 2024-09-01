@@ -1,0 +1,288 @@
+<div class="cnblogs_code">
+<pre>摘自：http:<span style="color: #008000;">//</span><span style="color: #008000;">www.ntu.edu.sg/home/ehchua/programming/java/J4a_GUI.html</span>
+<span style="color: #000000;">主要内容：
+　　　　　　</span>1<span style="color: #000000;">.ActionListener
+　　　　　　</span>2<span style="color: #000000;">.WindowEvent
+　　　　　　</span>3<span style="color: #000000;">.MouseEvent, MouseMotionListener
+　　　　　　</span>4<span style="color: #000000;">.KeyEvent, KeyListener
+
+
+</span>1<span style="color: #000000;">.ActionListener
+
+</span><span style="color: #0000ff;">import</span> java.awt.*;        <span style="color: #008000;">//</span><span style="color: #008000;"> Using AWT container and component classes</span>
+<span style="color: #0000ff;">import</span> java.awt.event.*;  <span style="color: #008000;">//</span><span style="color: #008000;"> Using AWT event classes and listener interfaces
+ 
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> An AWT program inherits from the top-level container java.awt.Frame</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> AWTCounter <span style="color: #0000ff;">extends</span> Frame <span style="color: #0000ff;">implements</span><span style="color: #000000;"> ActionListener {
+   </span><span style="color: #0000ff;">private</span> Label lblCount;    <span style="color: #008000;">//</span><span style="color: #008000;"> Declare component Label</span>
+   <span style="color: #0000ff;">private</span> TextField tfCount; <span style="color: #008000;">//</span><span style="color: #008000;"> Declare component TextField</span>
+   <span style="color: #0000ff;">private</span> Button btnCount;   <span style="color: #008000;">//</span><span style="color: #008000;"> Declare component Button</span>
+   <span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> count = 0;     <span style="color: #008000;">//</span><span style="color: #008000;"> Counter's value</span>
+ 
+   <span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to setup GUI components and event handling </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> AWTCounter () {
+      setLayout(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> FlowLayout());
+         </span><span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets its layout to FlowLayout, which arranges the components
+         </span><span style="color: #008000;">//</span><span style="color: #008000;">  from left-to-right, and flow to next row from top-to-bottom.</span>
+<span style="color: #000000;"> 
+      lblCount </span>= <span style="color: #0000ff;">new</span> Label("Counter");  <span style="color: #008000;">//</span><span style="color: #008000;"> construct Label</span>
+      add(lblCount);                    <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds Label</span>
+<span style="color: #000000;"> 
+      tfCount </span>= <span style="color: #0000ff;">new</span> TextField("0", 10); <span style="color: #008000;">//</span><span style="color: #008000;"> construct TextField</span>
+      tfCount.setEditable(<span style="color: #0000ff;">false</span>);       <span style="color: #008000;">//</span><span style="color: #008000;"> set to read-only</span>
+      add(tfCount);                     <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds tfCount</span>
+<span style="color: #000000;"> 
+      btnCount </span>= <span style="color: #0000ff;">new</span> Button("Count");   <span style="color: #008000;">//</span><span style="color: #008000;"> construct Button</span>
+      add(btnCount);                    <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds Button</span>
+<span style="color: #000000;"> 
+      btnCount.addActionListener(</span><span style="color: #0000ff;">this</span><span style="color: #000000;">);
+         </span><span style="color: #008000;">//</span><span style="color: #008000;"> Clicking Button source fires ActionEvent
+         </span><span style="color: #008000;">//</span><span style="color: #008000;"> btnCount registers this instance as ActionEvent listener</span>
+<span style="color: #000000;"> 
+      setTitle(</span>"AWT Counter");  <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets title</span>
+      setSize(250, 100);        <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets initial window size
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> System.out.println(this);
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> System.out.println(lblCount);
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> System.out.println(tfCount);
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> System.out.println(btnCount);</span>
+<span style="color: #000000;"> 
+      setVisible(</span><span style="color: #0000ff;">true</span>);         <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame shows
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> System.out.println(this);
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> System.out.println(lblCount);
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> System.out.println(tfCount);
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> System.out.println(btnCount);</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main() method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Invoke the constructor to setup the GUI, by allocating an instance</span>
+      AWTCounter app = <span style="color: #0000ff;">new</span><span style="color: #000000;"> AWTCounter();
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> ActionEvent handler - Called back upon button-click. </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent evt) {
+      </span>++count; <span style="color: #008000;">//</span><span style="color: #008000;"> increase the counter value
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Display the counter value on the TextField tfCount</span>
+      tfCount.setText(count + ""); <span style="color: #008000;">//</span><span style="color: #008000;"> convert int to String</span>
+<span style="color: #000000;">   }
+}
+
+
+</span>2<span style="color: #000000;">.WindowEvent
+
+</span><span style="color: #0000ff;">import</span> java.awt.*;        <span style="color: #008000;">//</span><span style="color: #008000;"> Using AWT containers and components</span>
+<span style="color: #0000ff;">import</span> java.awt.event.*;  <span style="color: #008000;">//</span><span style="color: #008000;"> Using AWT events and listener interfaces
+ 
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> An AWT GUI program inherits the top-level container java.awt.Frame</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> WindowEventDemo <span style="color: #0000ff;">extends</span><span style="color: #000000;"> Frame
+      </span><span style="color: #0000ff;">implements</span><span style="color: #000000;"> ActionListener, WindowListener {
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> This class acts as listener for ActionEvent and WindowEvent
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Java supports only single inheritance, where a class can extend
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> one superclass, but can implement multiple interfaces.</span>
+ 
+   <span style="color: #0000ff;">private</span><span style="color: #000000;"> TextField tfCount;
+   </span><span style="color: #0000ff;">private</span><span style="color: #000000;"> Button btnCount;
+   </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> count = 0;  <span style="color: #008000;">//</span><span style="color: #008000;"> Counter's value</span>
+ 
+   <span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to setup the UI components and event handling </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> WindowEventDemo() {
+      setLayout(</span><span style="color: #0000ff;">new</span> FlowLayout()); <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets to FlowLayout</span>
+<span style="color: #000000;"> 
+      add(</span><span style="color: #0000ff;">new</span> Label("Counter"));   <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds an anonymous Label</span>
+<span style="color: #000000;"> 
+      tfCount </span>= <span style="color: #0000ff;">new</span> TextField("0", 10); <span style="color: #008000;">//</span><span style="color: #008000;"> Allocate TextField</span>
+      tfCount.setEditable(<span style="color: #0000ff;">false</span>);       <span style="color: #008000;">//</span><span style="color: #008000;"> read-only</span>
+      add(tfCount);                     <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds tfCount</span>
+<span style="color: #000000;"> 
+      btnCount </span>= <span style="color: #0000ff;">new</span> Button("Count");  <span style="color: #008000;">//</span><span style="color: #008000;"> Declare and allocate a Button</span>
+      add(btnCount);                   <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds btnCount</span>
+<span style="color: #000000;"> 
+      btnCount.addActionListener(</span><span style="color: #0000ff;">this</span><span style="color: #000000;">);
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> btnCount fires ActionEvent to its registered ActionEvent listener
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> btnCount adds "this" object as an ActionEvent listener</span>
+<span style="color: #000000;"> 
+      addWindowListener(</span><span style="color: #0000ff;">this</span><span style="color: #000000;">);
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame fires WindowEvent to its registered WindowEvent listener
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds "this" object as a WindowEvent listener</span>
+<span style="color: #000000;"> 
+      setTitle(</span>"WindowEvent Demo"); <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets title</span>
+      setSize(250, 100);            <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets initial size</span>
+      setVisible(<span style="color: #0000ff;">true</span>);             <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame shows</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main() method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #0000ff;">new</span> WindowEventDemo();  <span style="color: #008000;">//</span><span style="color: #008000;"> Let the construct do the job</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> ActionEvent handler </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent evt) {
+      </span>++<span style="color: #000000;">count;
+      tfCount.setText(count </span>+ ""<span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> WindowEvent handlers </span><span style="color: #008000;">*/</span>
+   <span style="color: #008000;">//</span><span style="color: #008000;"> Called back upon clicking close-window button</span>
+<span style="color: #000000;">   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> windowClosing(WindowEvent e) {
+      System.exit(</span>0);  <span style="color: #008000;">//</span><span style="color: #008000;"> Terminate the program</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> Not Used, but need to provide an empty body</span>
+<span style="color: #000000;">   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> windowOpened(WindowEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> windowClosed(WindowEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> windowIconified(WindowEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> windowDeiconified(WindowEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> windowActivated(WindowEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> windowDeactivated(WindowEvent e) { }
+}
+
+</span>3<span style="color: #000000;">.MouseEvent, MouseMotionListener
+
+</span><span style="color: #0000ff;">import</span> java.awt.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span><span style="color: #000000;"> java.awt.event.MouseEvent;
+</span><span style="color: #0000ff;">import</span><span style="color: #000000;"> java.awt.event.MouseListener;
+</span><span style="color: #0000ff;">import</span><span style="color: #000000;"> java.awt.event.MouseMotionListener;
+ 
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> An AWT GUI program inherits from the top-level container java.awt.Frame</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> MouseMotionDemo <span style="color: #0000ff;">extends</span><span style="color: #000000;"> Frame
+      </span><span style="color: #0000ff;">implements</span><span style="color: #000000;"> MouseListener, MouseMotionListener {
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> This class acts as MouseListener and MouseMotionListener
+ 
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> To display the (x, y) coordinates of the mouse-clicked</span>
+   <span style="color: #0000ff;">private</span><span style="color: #000000;"> TextField tfMouseClickX;
+   </span><span style="color: #0000ff;">private</span><span style="color: #000000;"> TextField tfMouseClickY;
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> To display the (x, y) coordinates of the current mouse-pointer position</span>
+   <span style="color: #0000ff;">private</span><span style="color: #000000;"> TextField tfMousePositionX;
+   </span><span style="color: #0000ff;">private</span><span style="color: #000000;"> TextField tfMousePositionY;
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to setup the GUI </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> MouseMotionDemo() {
+      setLayout(</span><span style="color: #0000ff;">new</span> FlowLayout()); <span style="color: #008000;">//</span><span style="color: #008000;"> "this" frame sets to FlowLayout</span>
+<span style="color: #000000;"> 
+      add(</span><span style="color: #0000ff;">new</span> Label("X-Click: "<span style="color: #000000;">));
+      tfMouseClickX </span>= <span style="color: #0000ff;">new</span> TextField(10<span style="color: #000000;">);
+      tfMouseClickX.setEditable(</span><span style="color: #0000ff;">false</span><span style="color: #000000;">);
+      add(tfMouseClickX);
+      add(</span><span style="color: #0000ff;">new</span> Label("Y-Click: "<span style="color: #000000;">));
+      tfMouseClickY </span>= <span style="color: #0000ff;">new</span> TextField(10<span style="color: #000000;">);
+      tfMouseClickY.setEditable(</span><span style="color: #0000ff;">false</span><span style="color: #000000;">);
+      add(tfMouseClickY);
+ 
+      add(</span><span style="color: #0000ff;">new</span> Label("X-Position: "<span style="color: #000000;">));
+      tfMousePositionX </span>= <span style="color: #0000ff;">new</span> TextField(10<span style="color: #000000;">);
+      tfMousePositionX.setEditable(</span><span style="color: #0000ff;">false</span><span style="color: #000000;">);
+      add(tfMousePositionX);
+      add(</span><span style="color: #0000ff;">new</span> Label("Y-Position: "<span style="color: #000000;">));
+      tfMousePositionY </span>= <span style="color: #0000ff;">new</span> TextField(10<span style="color: #000000;">);
+      tfMousePositionY.setEditable(</span><span style="color: #0000ff;">false</span><span style="color: #000000;">);
+      add(tfMousePositionY);
+ 
+      addMouseListener(</span><span style="color: #0000ff;">this</span><span style="color: #000000;">);
+      addMouseMotionListener(</span><span style="color: #0000ff;">this</span><span style="color: #000000;">);
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> "super" frame fires MouseEvent to all its registered MouseListener and MouseMotionListener
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> "super" frame adds "this" object as MouseListener and MouseMotionListener</span>
+<span style="color: #000000;"> 
+      setTitle(</span>"MouseMotion Demo"); <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets title</span>
+      setSize(400, 120);            <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets initial size</span>
+      setVisible(<span style="color: #0000ff;">true</span>);             <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame shows</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main() method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #0000ff;">new</span> MouseMotionDemo();  <span style="color: #008000;">//</span><span style="color: #008000;"> Let the constructor do the job</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> MouseListener handlers </span><span style="color: #008000;">*/</span>
+   <span style="color: #008000;">//</span><span style="color: #008000;"> Called back when a mouse-button has been clicked</span>
+<span style="color: #000000;">   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> mouseClicked(MouseEvent e) {
+      tfMouseClickX.setText(e.getX() </span>+ ""<span style="color: #000000;">);
+      tfMouseClickY.setText(e.getY() </span>+ ""<span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> Not Used, but need to provide an empty body for compilation</span>
+<span style="color: #000000;">   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> mousePressed(MouseEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> mouseReleased(MouseEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> mouseEntered(MouseEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> mouseExited(MouseEvent e) { }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> MouseMotionEvent handlers </span><span style="color: #008000;">*/</span>
+   <span style="color: #008000;">//</span><span style="color: #008000;"> Called back when the mouse-pointer has been moved</span>
+<span style="color: #000000;">   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> mouseMoved(MouseEvent e) {
+      tfMousePositionX.setText(e.getX() </span>+ ""<span style="color: #000000;">);
+      tfMousePositionY.setText(e.getY() </span>+ ""<span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> Not Used, but need to provide an empty body for compilation</span>
+<span style="color: #000000;">   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> mouseDragged(MouseEvent e) { }
+}
+
+</span>4<span style="color: #000000;">.KeyEvent, KeyListener
+
+</span><span style="color: #0000ff;">import</span> java.awt.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span><span style="color: #000000;"> java.awt.event.KeyEvent;
+</span><span style="color: #0000ff;">import</span><span style="color: #000000;"> java.awt.event.KeyListener;
+ 
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> An AWT GUI program inherits from the top-level container java.awt.Frame</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> KeyEventDemo <span style="color: #0000ff;">extends</span> Frame <span style="color: #0000ff;">implements</span><span style="color: #000000;"> KeyListener {
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> This class acts as KeyEvent Listener</span>
+ 
+   <span style="color: #0000ff;">private</span> TextField tfInput;  <span style="color: #008000;">//</span><span style="color: #008000;"> single-line TextField to receive tfInput key</span>
+   <span style="color: #0000ff;">private</span> TextArea taDisplay; <span style="color: #008000;">//</span><span style="color: #008000;"> multi-line TextArea to taDisplay result</span>
+ 
+   <span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to setup the GUI </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> KeyEventDemo() {
+      setLayout(</span><span style="color: #0000ff;">new</span> FlowLayout()); <span style="color: #008000;">//</span><span style="color: #008000;"> "super" frame sets to FlowLayout</span>
+<span style="color: #000000;"> 
+      add(</span><span style="color: #0000ff;">new</span> Label("Enter Text: "<span style="color: #000000;">));
+      tfInput </span>= <span style="color: #0000ff;">new</span> TextField(10<span style="color: #000000;">);
+      add(tfInput);
+      taDisplay </span>= <span style="color: #0000ff;">new</span> TextArea(5, 40); <span style="color: #008000;">//</span><span style="color: #008000;"> 5 rows, 40 columns</span>
+<span style="color: #000000;">      add(taDisplay);
+ 
+      tfInput.addKeyListener(</span><span style="color: #0000ff;">this</span><span style="color: #000000;">);
+         </span><span style="color: #008000;">//</span><span style="color: #008000;"> tfInput TextField fires KeyEvent to its registered KeyListeners
+         </span><span style="color: #008000;">//</span><span style="color: #008000;"> tfInput adds "this" object as a KeyEvent listener</span>
+<span style="color: #000000;"> 
+      setTitle(</span>"KeyEvent Demo"); <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets title</span>
+      setSize(400, 200);         <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets initial size</span>
+      setVisible(<span style="color: #0000ff;">true</span>);          <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame shows</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main() method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #0000ff;">new</span> KeyEventDemo();  <span style="color: #008000;">//</span><span style="color: #008000;"> Let the constructor do the job</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> KeyEvent handlers </span><span style="color: #008000;">*/</span>
+   <span style="color: #008000;">//</span><span style="color: #008000;"> Called back when a key has been typed (pressed and released)</span>
+<span style="color: #000000;">   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> keyTyped(KeyEvent e) {
+      taDisplay.append(</span>"You have typed " + e.getKeyChar() + "\n"<span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> Not Used, but need to provide an empty body for compilation</span>
+<span style="color: #000000;">   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> keyPressed(KeyEvent e) { }
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> keyReleased(KeyEvent e) { }
+}</span></pre>
+</div>
+<p>&nbsp;</p>

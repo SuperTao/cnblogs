@@ -1,0 +1,97 @@
+<p>&nbsp;</p>
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">UBUNTU网络配置
+
+配置临时的Ip
+
+　　ifconfig eth0 </span><span style="color: #800080;">192.168</span>.<span style="color: #800080;">3.136</span>/<span style="color: #800080;">24</span><span style="color: #000000;">
+
+其中24指的网络掩码24位。
+
+　　vim </span>/etc/network/<span style="color: #000000;">interfaces 添加下面内容
+
+　　auto eth0                   #开机自动连接
+
+　　iface eth0 inet </span><span style="color: #0000ff;">static</span><span style="color: #000000;">  #静态IP
+
+　　address </span><span style="color: #800080;">192.168</span>.<span style="color: #800080;">1.112</span><span style="color: #000000;">
+
+　　netmask </span><span style="color: #800080;">255.255</span>.<span style="color: #800080;">255.0</span><span style="color: #000000;">
+
+　　gateway </span><span style="color: #800080;">192.168</span>.<span style="color: #800080;">1.1</span><span style="color: #000000;">
+
+如果是dhcp，添加
+
+　　auto eth0
+
+　　iface eth0 inet dhcp
+
+DNS配置：
+
+vim </span>/etc/<span style="color: #000000;">resolv.conf
+
+      nameserver </span><span style="color: #800080;">202.96</span>.<span style="color: #800080;">128.166</span><span style="color: #000000;">
+
+　　nameserver </span><span style="color: #800080;">202.96</span>.<span style="color: #800080;">134.133</span><span style="color: #000000;">
+
+　　nameserver </span><span style="color: #800080;">8.8</span>.<span style="color: #800080;">8.8</span><span style="color: #000000;">
+
+在resolv.conf文件中添加一些DNS服务器（例如电信）的IP地址即可。
+
+网络重启：
+
+　　sudo </span>/etc/init.d/<span style="color: #000000;">networking restart
+
+关闭网卡：
+
+　　sudo ifconfig eth0 down
+
+打开网卡
+
+　　sudo ifconfig eth0 up
+
+ 
+
+centos网络配置
+
+在networ</span>-<span style="color: #000000;">scripts目录下，不同的网卡对应不同的配置文件。
+
+sudo vim </span>/etc/sysconfig/network-scripts/ifcfg-<span style="color: #000000;">eth0
+
+　　DEVICE</span>=<span style="color: #000000;">eth0
+
+　　IPADDR</span>=<span style="color: #800080;">192.168</span>.<span style="color: #800080;">3.136</span><span style="color: #000000;">
+
+　　NETMASK</span>=<span style="color: #800080;">255.255</span>.<span style="color: #800080;">255.0</span><span style="color: #000000;">
+
+　　GATEWAY</span>=<span style="color: #800080;">192.168</span>.<span style="color: #800080;">3.1</span><span style="color: #000000;">
+
+　　HWADDR</span>=<span style="color: #800080;">00</span>:0C:<span style="color: #800080;">29</span>:C1:<span style="color: #800080;">78</span><span style="color: #000000;">:F6
+
+　　ONBOOT</span>=<span style="color: #000000;">yes　　　　　　#开机启动
+
+　　NM_CONTROLLED</span>=<span style="color: #000000;">yes
+
+　　BOOTPROTO</span>=<span style="color: #0000ff;">static</span><span style="color: #000000;">
+
+DNS配置
+
+vim </span>/etc/<span style="color: #000000;">resolv.conf
+
+　　nameserver </span><span style="color: #800080;">202.96</span>.<span style="color: #800080;">128.166</span><span style="color: #000000;">
+
+　　nameserver </span><span style="color: #800080;">202.96</span>.<span style="color: #800080;">134.133</span><span style="color: #000000;">
+
+服务重启：
+
+      sudo service network restart
+
+启动
+
+　　sudo service network start
+
+关闭
+
+　　sudo service network stop</span></pre>
+</div>
+<p>&nbsp;</p>

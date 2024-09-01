@@ -1,0 +1,394 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">****************************************************************
+ *                    gpio irq
+ *
+ *    一直以来都没了解过gpio的irq,如何使用，今天正好了解下。 
+ *  　本文从内核和应用层分析gpio的irq，并写验证程序。
+ *            
+ *    本文部分程序内容源自以下链接，并自己更改进行验证。验证平台freescal imx6.
+ *        </span><span style="color: #008000; text-decoration: underline;">http://blog.ittraining.com.tw/2015/05/raspberry-pi-b-pi2-linux-gpio-button.html</span><span style="color: #008000;">
+ *        </span><span style="color: #008000; text-decoration: underline;">http://m.blog.csdn.net/article/details?id=51187244</span><span style="color: #008000;">
+ *        </span><span style="color: #008000; text-decoration: underline;">http://blog.csdn.net/gqb_driver/article/details/8620809</span><span style="color: #008000;">
+ *    参考文档:
+ *        kernel/Documentation/gpio.txt
+ *
+ *                                    Tony Liu, 2016-5-26, Shenzhen
+ ****************************************************************</span><span style="color: #008000;">*/</span>
+<span style="color: #800080;">1</span><span style="color: #000000;">.内核中验证
+</span><span style="color: #800080;">1.1</span><span style="color: #000000;"> 程序
+
+#include </span>&lt;linux/module.h&gt;<span style="color: #000000;">
+#include </span>&lt;linux/fs.h&gt;<span style="color: #000000;">
+#include </span>&lt;linux/init.h&gt;<span style="color: #000000;">
+#include </span>&lt;linux/kernel.h&gt;<span style="color: #000000;">
+#include </span>&lt;linux/gpio.h&gt;<span style="color: #000000;">
+#include </span>&lt;linux/interrupt.h&gt;
+
+<span style="color: #0000ff;">#define</span> LED                IMX_GPIO_NR(2, 3)        
+<span style="color: #0000ff;">#define</span> BUTTON            IMX_GPIO_NR(3, 23)    
+<span style="color: #0000ff;">#define</span> INT_NAME        "BUTTON_INT"
+<span style="color: #0000ff;">#define</span> DEV_NAME        "INTERRUPT"<span style="color: #000000;">
+
+unsigned </span><span style="color: #0000ff;">short</span> <span style="color: #0000ff;">int</span> button_irq = <span style="color: #800080;">0</span><span style="color: #000000;">;
+</span><span style="color: #0000ff;">static</span> unsigned <span style="color: #0000ff;">long</span> flags = <span style="color: #800080;">0</span><span style="color: #000000;">;
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> led_trigger = <span style="color: #800080;">0</span><span style="color: #000000;">;
+
+</span><span style="color: #0000ff;">static</span> irqreturn_t button_isr(<span style="color: #0000ff;">int</span> irq, <span style="color: #0000ff;">void</span> *<span style="color: #000000;">data)
+{
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 使cpu不接受其他中断 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    local_irq_save(flags);
+    printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">button_isr !!!!\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    gpio_set_value(LED, led_trigger);
+    led_trigger </span>= led_trigger ? (<span style="color: #800080;">0</span>):(<span style="color: #800080;">1</span><span style="color: #000000;">);
+    local_irq_restore(flags);
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> IRQ_HANDLED;
+}
+
+</span><span style="color: #0000ff;">int</span> __init gpio_irq_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;
+    ret </span>= gpio_request(LED, <span style="color: #800000;">"</span><span style="color: #800000;">led</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret) {
+        printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">get led FAILED!\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;
+    }
+    gpio_direction_output(LED, </span><span style="color: #800080;">0</span><span style="color: #000000;">);
+    ret </span>= gpio_request(BUTTON, <span style="color: #800000;">"</span><span style="color: #800000;">button</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret) {
+        printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">get button FAILED!\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;
+    }
+    button_irq </span>=<span style="color: #000000;"> gpio_to_irq(BUTTON);
+    </span><span style="color: #0000ff;">if</span> (button_irq &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+        printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">gpio_to_irq FAILED!\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+    }
+    printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">irq:%d\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, button_irq);
+    ret </span>=<span style="color: #000000;"> request_irq(button_irq, button_isr, IRQF_TRIGGER_RISING, INT_NAME, DEV_NAME);
+    </span><span style="color: #0000ff;">if</span> (ret &lt; <span style="color: #800080;">0</span><span style="color: #000000;">)
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;
+}
+
+</span><span style="color: #0000ff;">void</span> __exit gpio_irq_exit(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    gpio_free(LED);
+    gpio_free(BUTTON);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">需要释放申请的中断，否这下次不能使用，并且id要是申请使跳得内容相同，否则会出错。</span>
+<span style="color: #000000;">    free_irq(button_irq, DEV_NAME);
+}
+
+module_init(gpio_irq_init);
+module_exit(gpio_irq_exit);
+
+MODULE_LICENSE(</span><span style="color: #800000;">"</span><span style="color: #800000;">GPL</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+</span><span style="color: #800080;">1.2</span><span style="color: #000000;"> 分析
+</span><span style="color: #008000;">/*</span><span style="color: #008000;">
+    irq:gpio_to_irq获得的中断号
+    handler:    中断处理函数
+    *devname: 会在/proc/intertupt中显示
+    *dev_id: request和free的时候必须相同，否则会出错。可以为NULL
+</span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">int</span> request_irq(unsigned <span style="color: #0000ff;">int</span><span style="color: #000000;"> irq,
+        irq_handler_t handler,
+        unsigned </span><span style="color: #0000ff;">long</span> flags, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *devname, <span style="color: #0000ff;">void</span> *<span style="color: #000000;">dev_id)
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">文件系统中查看缩写的dev_id,开头的343是中断号</span>
+root@freescale ~$ cat /proc/<span style="color: #000000;">interrupts 
+           CPU0       CPU1       
+......
+</span><span style="color: #800080;">343</span>:          <span style="color: #800080;">0</span>          <span style="color: #800080;">0</span><span style="color: #000000;">      GPIO  BUTTON_INT
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">.应用层验证
+</span><span style="color: #800080;">2.1</span><span style="color: #000000;"> 验证代码(poll函数)
+
+#include </span>&lt;stdio.h&gt;<span style="color: #000000;">
+#include </span>&lt;sys/types.h&gt;<span style="color: #000000;">
+#include </span>&lt;sys/stat.h&gt;<span style="color: #000000;">
+#include </span>&lt;fcntl.h&gt;<span style="color: #000000;">
+#include </span>&lt;unistd.h&gt;<span style="color: #000000;">
+#include </span>&lt;poll.h&gt;
+
+<span style="color: #0000ff;">int</span> main(<span style="color: #0000ff;">int</span> argc, <span style="color: #0000ff;">char</span> *<span style="color: #000000;">argv[])
+{
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> fd, ret;
+    </span><span style="color: #0000ff;">char</span><span style="color: #000000;"> value;
+    </span><span style="color: #0000ff;">struct</span><span style="color: #000000;"> pollfd pfd;
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">打开gpio87,对应imx6的IMX_GPIO_NR(3, 23),我连接了一个按键</span>
+    system(<span style="color: #800000;">"</span><span style="color: #800000;">echo \"87\" &gt; /sys/class/gpio/export</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     *    none    表示引脚为输入，不是中断引脚
+     *  rising    表示引脚为中断输入，上升沿触发
+     *  falling    表示引脚为中断输入，下降沿触发
+     *  both    表示引脚为中断输入，边沿触发
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    system(</span><span style="color: #800000;">"</span><span style="color: #800000;">echo \"both\" &gt; /sys/class/gpio/gpio87/edge</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+    fd </span>= open(<span style="color: #800000;">"</span><span style="color: #800000;">/sys/class/gpio/gpio87/value</span><span style="color: #800000;">"</span><span style="color: #000000;">, O_RDWR);
+    </span><span style="color: #0000ff;">if</span> (fd &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+        printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">open file fail\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+    }
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> poll要监听的文件描述符号 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    pfd.fd </span>=<span style="color: #000000;"> fd;
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 监听的文件的事件类型,当配置为中断'edge&lsquo;的时候.events必须设置为POLLPRI
+　　  * 详情查看内核中的文档gpio.txt </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    pfd.events </span>= POLLPRI |<span style="color: #000000;"> POLLERR;
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 由于value文件中本来就有数据需要读取，没有读取的话，会被当成一个中断而进行处理 </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">//</span><span style="color: #008000;">到文件开头读取</span>
+    ret = lseek(fd, <span style="color: #800080;">0</span><span style="color: #000000;">, SEEK_SET);
+    </span><span style="color: #0000ff;">if</span> (ret == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+        printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">lseek error\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">; 
+    }   
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">读取1字节</span>
+    ret = read(fd, &amp;value, <span style="color: #800080;">1</span><span style="color: #000000;">);
+
+    </span><span style="color: #0000ff;">while</span> (<span style="color: #800080;">1</span><span style="color: #000000;">) {
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 监听个数1， 等待时间无限 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        ret </span>= poll(&amp;pfd, <span style="color: #800080;">1</span>, -<span style="color: #800080;">1</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">if</span> (ret == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+            printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">poll error\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+            </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+        }
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 监听的时间会保存在revents成员中 </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (pfd.revents &amp;<span style="color: #000000;"> POLLPRI) {
+            </span><span style="color: #008000;">//</span><span style="color: #008000;">文件指针只想文件的开头</span>
+            ret = lseek(fd, <span style="color: #800080;">0</span><span style="color: #000000;">, SEEK_SET);
+            </span><span style="color: #0000ff;">if</span> (ret == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+                printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">lseek error\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+                </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+            }
+            </span><span style="color: #008000;">//</span><span style="color: #008000;">读取，结果为字符'0'或者&lsquo;1&rsquo;</span>
+            read(fd, &amp;value, <span style="color: #800080;">1</span><span style="color: #000000;">);
+            printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">value:%c\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, value);
+        }
+        </span><span style="color: #0000ff;">if</span> (pfd.revents &amp;<span style="color: #000000;"> POLLERR) {
+            printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">poll error\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        }
+    }
+    
+    close(fd);
+
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+
+</span><span style="color: #800080;">2.1</span><span style="color: #000000;"> 验证代码(select函数)
+
+#include </span>&lt;stdio.h&gt;<span style="color: #000000;">
+#include </span>&lt;sys/types.h&gt;<span style="color: #000000;">
+#include </span>&lt;sys/stat.h&gt;<span style="color: #000000;">
+#include </span>&lt;fcntl.h&gt;<span style="color: #000000;">
+#include </span>&lt;unistd.h&gt;<span style="color: #000000;">
+#include </span>&lt;sys/<span style="color: #0000ff;">select</span>.h&gt;
+
+<span style="color: #0000ff;">int</span> main(<span style="color: #0000ff;">int</span> argc, <span style="color: #0000ff;">char</span> *<span style="color: #000000;">argv[])
+{
+    </span><span style="color: #0000ff;">int</span> fd[<span style="color: #800080;">2</span><span style="color: #000000;">], ret;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> maxfd;
+    </span><span style="color: #0000ff;">char</span><span style="color: #000000;"> value;
+    fd_set readfd;
+    fd_set exceptfd;
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">打开gpio87,对应imx6的IMX_GPIO_NR(3, 23),我连接了一个按键</span>
+    system(<span style="color: #800000;">"</span><span style="color: #800000;">echo 87 &gt; /sys/class/gpio/export</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">打开gpio94,对应imx6的IMX_GPIO_NR(3, 30),我连接了一个按键</span>
+    system(<span style="color: #800000;">"</span><span style="color: #800000;">echo 94 &gt; /sys/class/gpio/export</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+    system(</span><span style="color: #800000;">"</span><span style="color: #800000;">echo in &gt; /sys/class/gpio/gpio94/direction</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    system(</span><span style="color: #800000;">"</span><span style="color: #800000;">echo in &gt; /sys/class/gpio/gpio87/direction</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     *    none    表示引脚为输入，不是中断引脚
+     *  rising    表示引脚为中断输入，上升沿触发
+     *  falling    表示引脚为中断输入，下降沿触发
+     *  both    表示引脚为中断输入，边沿触发
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    system(</span><span style="color: #800000;">"</span><span style="color: #800000;">echo falling &gt; /sys/class/gpio/gpio87/edge</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    system(</span><span style="color: #800000;">"</span><span style="color: #800000;">echo falling &gt; /sys/class/gpio/gpio94/edge</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+
+    fd[</span><span style="color: #800080;">0</span>] = open(<span style="color: #800000;">"</span><span style="color: #800000;">/sys/class/gpio/gpio87/value</span><span style="color: #800000;">"</span><span style="color: #000000;">, O_RDWR);
+    </span><span style="color: #0000ff;">if</span> (fd[0] &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+        printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">open file fail\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+    }
+
+    fd[</span><span style="color: #800080;">1</span>] = open(<span style="color: #800000;">"</span><span style="color: #800000;">/sys/class/gpio/gpio94/value</span><span style="color: #800000;">"</span><span style="color: #000000;">, O_RDWR);
+    </span><span style="color: #0000ff;">if</span> (fd[1] &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+        printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">open file fail\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 由于value文件中本来就有数据需要读取，没有读取的话，会被当成一个中断而进行处理 </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">//</span><span style="color: #008000;">到文件开头读取</span>
+    ret = lseek(fd[<span style="color: #800080;">0</span>], <span style="color: #800080;">0</span><span style="color: #000000;">, SEEK_SET);
+    </span><span style="color: #0000ff;">if</span> (ret == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+        printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">lseek error\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">; 
+    }   
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">读取1字节</span>
+    ret = read(fd[<span style="color: #800080;">0</span>], &amp;value, <span style="color: #800080;">1</span><span style="color: #000000;">);
+
+    ret </span>= lseek(fd[<span style="color: #800080;">1</span>], <span style="color: #800080;">0</span><span style="color: #000000;">, SEEK_SET);
+    </span><span style="color: #0000ff;">if</span> (ret == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+        printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">lseek error\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">; 
+    }   
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">读取1字节</span>
+    ret = read(fd[<span style="color: #800080;">1</span>], &amp;value, <span style="color: #800080;">1</span><span style="color: #000000;">);
+
+    </span><span style="color: #0000ff;">while</span> (<span style="color: #800080;">1</span><span style="color: #000000;">) {
+        FD_ZERO(</span>&amp;<span style="color: #000000;">exceptfd);
+        FD_SET(fd[</span><span style="color: #800080;">0</span>], &amp;<span style="color: #000000;">exceptfd);
+        FD_SET(fd[</span><span style="color: #800080;">1</span>], &amp;<span style="color: #000000;">exceptfd);
+        maxfd </span>= (fd[<span style="color: #800080;">0</span>] &gt; fd[<span style="color: #800080;">1</span>] ? fd[<span style="color: #800080;">0</span>] : fd[<span style="color: #800080;">1</span><span style="color: #000000;">]);
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">使用select获取中断，必须将fd放在exceptfd的位置</span>
+        ret = <span style="color: #0000ff;">select</span>(maxfd +<span style="color: #800080;">1</span>, NULL, NULL, &amp;<span style="color: #000000;">exceptfd, NULL);
+        </span><span style="color: #0000ff;">if</span> (ret == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+            printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">select operation fail\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+            </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;
+        }
+        </span><span style="color: #0000ff;">if</span> (FD_ISSET(fd[<span style="color: #800080;">0</span>], &amp;<span style="color: #000000;">exceptfd)) {
+            ret </span>= lseek(fd[<span style="color: #800080;">0</span>], <span style="color: #800080;">0</span><span style="color: #000000;">, SEEK_SET);
+            </span><span style="color: #0000ff;">if</span> (ret == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+                printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">lseek error\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+                </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+            }
+            read(fd[</span><span style="color: #800080;">0</span>], &amp;value, <span style="color: #800080;">1</span><span style="color: #000000;">);
+                printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">0: value:%c\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, value);
+        }
+        </span><span style="color: #0000ff;">if</span> (FD_ISSET(fd[<span style="color: #800080;">1</span>], &amp;<span style="color: #000000;">exceptfd)) {
+            ret </span>= lseek(fd[<span style="color: #800080;">1</span>], <span style="color: #800080;">0</span><span style="color: #000000;">, SEEK_SET);
+            </span><span style="color: #0000ff;">if</span> (ret == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+                printf(</span><span style="color: #800000;">"</span><span style="color: #800000;">lseek error\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+                </span><span style="color: #0000ff;">return</span> -<span style="color: #800080;">1</span><span style="color: #000000;">;
+            } read(fd[</span><span style="color: #800080;">1</span>], &amp;value, <span style="color: #800080;">1</span>); printf(<span style="color: #800000;">"</span><span style="color: #800000;">1: value:%c\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, value); }
+    }
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">关闭文件描述符    </span>
+    close(fd[<span style="color: #800080;">0</span><span style="color: #000000;">]);
+    close(fd[</span><span style="color: #800080;">1</span><span style="color: #000000;">]);
+
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">操作完毕,释放gpio</span>
+    system(<span style="color: #800000;">"</span><span style="color: #800000;">echo 87 &gt; /sys/class/gpio/unexport</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    system(</span><span style="color: #800000;">"</span><span style="color: #800000;">echo 94 &gt; /sys/class/gpio/unexport</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">.1分析
+    </span>&lt;<span style="color: #800080;">1</span>&gt;<span style="color: #000000;">申请gpio, gpio_request
+    echo </span><span style="color: #800000;">"</span><span style="color: #800000;">87</span><span style="color: #800000;">"</span> &gt; /sys/<span style="color: #0000ff;">class</span>/gpio/<span style="color: #000000;">export
+    会在</span>/sys/<span style="color: #0000ff;">class</span>/<span style="color: #000000;">gpio目录下边生成一个gpio87的目录
+
+    </span>&lt;<span style="color: #800080;">2</span>&gt;<span style="color: #000000;">释放gpio, gpio_free
+    echo </span><span style="color: #800000;">"</span><span style="color: #800000;">87</span><span style="color: #800000;">"</span> &gt; /sys/<span style="color: #0000ff;">class</span>/gpio/<span style="color: #000000;">unexport
+
+    </span>&lt;<span style="color: #800080;">3</span>&gt;<span style="color: #000000;">申请之后，gpio87目录的内容如下：
+    root@freescale </span>/sys/<span style="color: #0000ff;">class</span>/gpio/gpio87$ ls -<span style="color: #000000;">l
+    </span>-rw-r--r--    <span style="color: #800080;">1</span> root     root          <span style="color: #800080;">4096</span> Jan  <span style="color: #800080;">1</span> <span style="color: #800080;">00</span>:<span style="color: #800080;">33</span><span style="color: #000000;"> active_low
+    </span>-rw-r--r--    <span style="color: #800080;">1</span> root     root          <span style="color: #800080;">4096</span> Jan  <span style="color: #800080;">1</span> <span style="color: #800080;">00</span>:<span style="color: #800080;">33</span><span style="color: #000000;"> direction
+    </span>-rw-r--r--    <span style="color: #800080;">1</span> root     root          <span style="color: #800080;">4096</span> Jan  <span style="color: #800080;">1</span> <span style="color: #800080;">00</span>:<span style="color: #800080;">15</span><span style="color: #000000;"> edge
+    drwxr</span>-xr-x    <span style="color: #800080;">2</span> root     root             <span style="color: #800080;">0</span> Jan  <span style="color: #800080;">1</span> <span style="color: #800080;">00</span>:<span style="color: #800080;">33</span><span style="color: #000000;"> power
+    lrwxrwxrwx    </span><span style="color: #800080;">1</span> root     root             <span style="color: #800080;">0</span> Jan  <span style="color: #800080;">1</span> <span style="color: #800080;">00</span>:<span style="color: #800080;">33</span> subsystem -&gt; ../../../../<span style="color: #0000ff;">class</span>/<span style="color: #000000;">gpio
+    </span>-rw-r--r--    <span style="color: #800080;">1</span> root     root          <span style="color: #800080;">4096</span> Jan  <span style="color: #800080;">1</span> <span style="color: #800080;">00</span>:<span style="color: #800080;">33</span><span style="color: #000000;"> uevent
+    </span>-rw-r--r--    <span style="color: #800080;">1</span> root     root          <span style="color: #800080;">4096</span> Jan  <span style="color: #800080;">1</span> <span style="color: #800080;">00</span>:<span style="color: #800080;">15</span><span style="color: #000000;"> value
+    </span>&lt;<span style="color: #800080;">4</span>&gt;<span style="color: #000000;">设置输入输出
+        echo </span><span style="color: #800000;">"</span><span style="color: #800000;">in</span><span style="color: #800000;">"</span> &gt;<span style="color: #000000;"> direction
+        echo </span><span style="color: #800000;">"</span><span style="color: #800000;">out</span><span style="color: #800000;">"</span> &gt;<span style="color: #000000;"> direction
+    </span>&lt;<span style="color: #800080;">5</span>&gt;<span style="color: #000000;">设置输出值
+        echo </span><span style="color: #800000;">"</span><span style="color: #800000;">1</span><span style="color: #800000;">"</span> &gt; value         <span style="color: #008000;">//</span><span style="color: #008000;">非0值都会当作1</span>
+        echo <span style="color: #800000;">"</span><span style="color: #800000;">0</span><span style="color: #800000;">"</span> &gt;<span style="color: #000000;"> value
+
+详细参考内核的文档：
+         kernel</span>/Documentation/<span style="color: #000000;">gpio.txt
+如下：
+There are three kinds of entry </span><span style="color: #0000ff;">in</span> /sys/<span style="color: #0000ff;">class</span>/<span style="color: #000000;">gpio:
+
+   </span>-    Control interfaces used to <span style="color: #0000ff;">get</span><span style="color: #000000;"> userspace control over GPIOs;
+
+   </span>-<span style="color: #000000;">    GPIOs themselves; and
+
+   </span>-    GPIO controllers (<span style="color: #800000;">"</span><span style="color: #800000;">gpio_chip</span><span style="color: #800000;">"</span><span style="color: #000000;"> instances).
+
+That</span><span style="color: #800000;">'</span><span style="color: #800000;">s in addition to standard files including the "device" symlink.</span>
+<span style="color: #000000;">
+The control interfaces are write</span>-<span style="color: #000000;">only:
+
+    </span>/sys/<span style="color: #0000ff;">class</span>/gpio/
+
+        <span style="color: #800000;">"</span><span style="color: #800000;">export</span><span style="color: #800000;">"</span><span style="color: #000000;"> ... Userspace may ask the kernel to export control of
+        a GPIO to userspace by writing its number to </span><span style="color: #0000ff;">this</span><span style="color: #000000;"> file.
+
+        Example:  </span><span style="color: #800000;">"</span><span style="color: #800000;">echo 19 &gt; export</span><span style="color: #800000;">"</span> will create a <span style="color: #800000;">"</span><span style="color: #800000;">gpio19</span><span style="color: #800000;">"</span><span style="color: #000000;"> node
+        </span><span style="color: #0000ff;">for</span> GPIO #<span style="color: #800080;">19</span>, <span style="color: #0000ff;">if</span> that<span style="color: #800000;">'</span><span style="color: #800000;">s not requested by kernel code.</span>
+
+        <span style="color: #800000;">"</span><span style="color: #800000;">unexport</span><span style="color: #800000;">"</span><span style="color: #000000;"> ... Reverses the effect of exporting to userspace.
+
+        Example:  </span><span style="color: #800000;">"</span><span style="color: #800000;">echo 19 &gt; unexport</span><span style="color: #800000;">"</span> will remove a <span style="color: #800000;">"</span><span style="color: #800000;">gpio19</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        node exported </span><span style="color: #0000ff;">using</span> the <span style="color: #800000;">"</span><span style="color: #800000;">export</span><span style="color: #800000;">"</span><span style="color: #000000;"> file.
+
+GPIO signals have paths like </span>/sys/<span style="color: #0000ff;">class</span>/gpio/gpio42/ (<span style="color: #0000ff;">for</span> GPIO #<span style="color: #800080;">42</span><span style="color: #000000;">)
+and have the following read</span>/<span style="color: #000000;">write attributes:
+
+    </span>/sys/<span style="color: #0000ff;">class</span>/gpio/gpioN/
+
+    <span style="color: #800000;">"</span><span style="color: #800000;">direction</span><span style="color: #800000;">"</span> ... reads <span style="color: #0000ff;">as</span> either <span style="color: #800000;">"</span><span style="color: #800000;">in</span><span style="color: #800000;">"</span> or <span style="color: #800000;">"</span><span style="color: #800000;">out</span><span style="color: #800000;">"</span><span style="color: #000000;">.  This value may
+        normally be written.  Writing </span><span style="color: #0000ff;">as</span> <span style="color: #800000;">"</span><span style="color: #800000;">out</span><span style="color: #800000;">"</span><span style="color: #000000;"> defaults to
+        initializing the value </span><span style="color: #0000ff;">as</span> low.  To ensure glitch <span style="color: #0000ff;">free</span><span style="color: #000000;">
+        operation, values </span><span style="color: #800000;">"</span><span style="color: #800000;">low</span><span style="color: #800000;">"</span> and <span style="color: #800000;">"</span><span style="color: #800000;">high</span><span style="color: #800000;">"</span><span style="color: #000000;"> may be written to
+        configure the GPIO </span><span style="color: #0000ff;">as</span><span style="color: #000000;"> an output with that initial value.
+
+        Note that </span><span style="color: #0000ff;">this</span> attribute *will not exist* <span style="color: #0000ff;">if</span><span style="color: #000000;"> the kernel
+        doesn</span><span style="color: #800000;">'</span><span style="color: #800000;">t support changing the direction of a GPIO, or</span>
+        it was exported by kernel code that didn<span style="color: #800000;">'</span><span style="color: #800000;">t explicitly</span>
+        allow userspace to reconfigure <span style="color: #0000ff;">this</span> GPIO<span style="color: #800000;">'</span><span style="color: #800000;">s direction.</span>
+
+    <span style="color: #800000;">"</span><span style="color: #800000;">value</span><span style="color: #800000;">"</span> ... reads <span style="color: #0000ff;">as</span> either <span style="color: #800080;">0</span> (low) or <span style="color: #800080;">1</span><span style="color: #000000;"> (high).  If the GPIO
+        </span><span style="color: #0000ff;">is</span> configured <span style="color: #0000ff;">as</span> an output, <span style="color: #0000ff;">this</span><span style="color: #000000;"> value may be written;
+        any nonzero value </span><span style="color: #0000ff;">is</span> treated <span style="color: #0000ff;">as</span><span style="color: #000000;"> high.
+
+        If the pin can be configured </span><span style="color: #0000ff;">as</span> interrupt-<span style="color: #000000;">generating interrupt
+        and </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> it has been configured to generate interrupts (see the
+        description of </span><span style="color: #800000;">"</span><span style="color: #800000;">edge</span><span style="color: #800000;">"</span>), you can poll(<span style="color: #800080;">2</span><span style="color: #000000;">) on that file and
+        poll(</span><span style="color: #800080;">2</span>) will <span style="color: #0000ff;">return</span><span style="color: #000000;"> whenever the interrupt was triggered. If
+        you use poll(</span><span style="color: #800080;">2</span>), <span style="color: #0000ff;">set</span><span style="color: #000000;"> the events POLLPRI and POLLERR. If you
+        use </span><span style="color: #0000ff;">select</span>(<span style="color: #800080;">2</span>), <span style="color: #0000ff;">set</span> the file descriptor <span style="color: #0000ff;">in</span><span style="color: #000000;"> exceptfds. After
+        poll(</span><span style="color: #800080;">2</span>) returns, either lseek(<span style="color: #800080;">2</span><span style="color: #000000;">) to the beginning of the sysfs
+        file and read the </span><span style="color: #0000ff;">new</span> value or close the file and re-<span style="color: #000000;">open it
+        to read the value.
+
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">edge</span><span style="color: #800000;">"</span> ... reads <span style="color: #0000ff;">as</span> either <span style="color: #800000;">"</span><span style="color: #800000;">none</span><span style="color: #800000;">"</span>, <span style="color: #800000;">"</span><span style="color: #800000;">rising</span><span style="color: #800000;">"</span>, <span style="color: #800000;">"</span><span style="color: #800000;">falling</span><span style="color: #800000;">"</span><span style="color: #000000;">, or
+        </span><span style="color: #800000;">"</span><span style="color: #800000;">both</span><span style="color: #800000;">"</span>. Write these strings to <span style="color: #0000ff;">select</span><span style="color: #000000;"> the signal edge(s)
+        that will make poll(</span><span style="color: #800080;">2</span>) on the <span style="color: #800000;">"</span><span style="color: #800000;">value</span><span style="color: #800000;">"</span> file <span style="color: #0000ff;">return</span><span style="color: #000000;">.
+
+        This file exists only </span><span style="color: #0000ff;">if</span> the pin can be configured <span style="color: #0000ff;">as</span><span style="color: #000000;"> an
+        interrupt generating input pin.
+
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">active_low</span><span style="color: #800000;">"</span> ... reads <span style="color: #0000ff;">as</span> either <span style="color: #800080;">0</span> (<span style="color: #0000ff;">false</span>) or <span style="color: #800080;">1</span> (<span style="color: #0000ff;">true</span><span style="color: #000000;">).  Write
+        any nonzero value to invert the value attribute both
+        </span><span style="color: #0000ff;">for</span><span style="color: #000000;"> reading and writing.  Existing and subsequent
+        poll(</span><span style="color: #800080;">2</span><span style="color: #000000;">) support configuration via the edge attribute
+        </span><span style="color: #0000ff;">for</span> <span style="color: #800000;">"</span><span style="color: #800000;">rising</span><span style="color: #800000;">"</span> and <span style="color: #800000;">"</span><span style="color: #800000;">falling</span><span style="color: #800000;">"</span> edges will follow <span style="color: #0000ff;">this</span><span style="color: #000000;">
+        setting.
+
+GPIO controllers have paths like </span>/sys/<span style="color: #0000ff;">class</span>/gpio/gpiochip42/ (<span style="color: #0000ff;">for</span><span style="color: #000000;"> the
+controller implementing GPIOs starting at #</span><span style="color: #800080;">42</span><span style="color: #000000;">) and have the following
+read</span>-<span style="color: #000000;">only attributes:
+
+    </span>/sys/<span style="color: #0000ff;">class</span>/gpio/gpiochipN/
+
+        <span style="color: #800000;">"</span><span style="color: #800000;">base</span><span style="color: #800000;">"</span> ... same <span style="color: #0000ff;">as</span> N, the first GPIO managed by <span style="color: #0000ff;">this</span><span style="color: #000000;"> chip
+
+        </span><span style="color: #800000;">"</span><span style="color: #800000;">label</span><span style="color: #800000;">"</span> ... provided <span style="color: #0000ff;">for</span><span style="color: #000000;"> diagnostics (not always unique)
+
+        </span><span style="color: #800000;">"</span><span style="color: #800000;">ngpio</span><span style="color: #800000;">"</span> ... how many GPIOs <span style="color: #0000ff;">this</span> manges (N to N + ngpio - <span style="color: #800080;">1</span><span style="color: #000000;">)
+
+Board documentation should </span><span style="color: #0000ff;">in</span> most cases cover what GPIOs are used <span style="color: #0000ff;">for</span><span style="color: #000000;">
+what purposes.  However, those numbers are not always stable; GPIOs on
+a daughtercard might be different depending on the </span><span style="color: #0000ff;">base</span><span style="color: #000000;"> board being used,
+or other cards </span><span style="color: #0000ff;">in</span><span style="color: #000000;"> the stack.  In such cases, you may need to use the
+gpiochip nodes (possibly </span><span style="color: #0000ff;">in</span><span style="color: #000000;"> conjunction with schematics) to determine
+the correct GPIO number to use </span><span style="color: #0000ff;">for</span> a given signal.</pre>
+</div>
+<p>&nbsp;</p>

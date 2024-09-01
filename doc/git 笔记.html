@@ -1,0 +1,141 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">***********************************************************************
+ *                 git 笔记
+ *  改动文件之后,想要备份时,通常都是给文件起一个名字,并记录上日期.
+ *  等下次查看时,又很难发觉哪里改动了.版本控制器就是为解决这些问题而诞生的.
+ *  本文主要记录从网上摘录的一些git使用方法.内容源自以下链接.
+ *  参考文档:
+ *    </span><span style="color: #008000; text-decoration: underline;">http://www.liaoxuefeng.com/wiki/0013739516305929606dd18361248578c67b8067c8c017b000</span><span style="color: #008000;">
+ *    </span><span style="color: #008000; text-decoration: underline;">http://www.bootcss.com/p/git-guide/</span><span style="color: #008000;">
+ *   <br /> *                                          Tony Liu， 2016-5-23， Shenzhen <br /> ****************************************************************************</span><span style="color: #008000;">*/</span>
+<span style="color: #800080;">1</span><span style="color: #000000;">. 安装
+    sudo apt</span>-<span style="color: #0000ff;">get</span><span style="color: #000000;"> install git
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">. 创建git可管理仓库:
+    创建空目录,进入目录
+    mkdir dir
+    cd dir
+    git init
+    在dir目录下会生成.git目录
+</span><span style="color: #800080;">3</span><span style="color: #000000;">. touch readme.txt
+    git add filename   将文件保存到缓存stage
+    提交的到本地仓库,并添加提交说明
+    git commit </span>-m <span style="color: #800000;">"</span><span style="color: #800000;">代码提交信息</span><span style="color: #800000;">"</span> 
+
+<span style="color: #800080;">4</span><span style="color: #000000;">. 查看git 状态
+    git status
+
+</span><span style="color: #800080;">5</span><span style="color: #000000;">. 查看文件和库中的区别
+    git diff readme.txt
+
+</span><span style="color: #800080;">6</span><span style="color: #000000;">. 查看日志
+    git log
+
+</span><span style="color: #800080;">7</span><span style="color: #000000;">. 回退版本
+    回退到最新提交版本
+    git reset </span>--<span style="color: #000000;">hard HEAD
+    回退到上一个版本
+    git reset </span>--hard HEAD^<span style="color: #000000;">
+    回退到上上一个版本
+    git reset </span>--hard HEAD^^<span style="color: #000000;">
+    回推到之前的第100版本
+    git reset </span>--hard HEAD~<span style="color: #800080;">100<br />　　 <br />　　git reset --hard &lt;commit id&gt;<br /></span>
+
+<span style="color: #800080;">8</span><span style="color: #000000;">. 查看每一次命令
+    git reflog
+
+</span><span style="color: #800080;">9</span><span style="color: #000000;">. 回退到更新的版本
+    git reflog </span>&lt;commit id&gt;<span style="color: #000000;">
+    commit id通过reflog查看
+
+</span><span style="color: #800080;">10</span><span style="color: #000000;">. 撤销修改
+    git checkout </span>--<span style="color: #000000;"> readme.txt
+    一种是readme.txt自修改后还没有被放到暂存区，现在，撤销修改就回到和版本库一模一样的状态；
+    一种是readme.txt已经添加到暂存区后，又作了修改，现在，撤销修改就回到添加到暂存区后的状态。
+    总之，就是让这个文件回到最近一次git commit或git add时的状态。
+
+</span><span style="color: #800080;">11</span><span style="color: #000000;">. 删除
+    git rm readme.txt
+    git commit </span>-m <span style="color: #800000;">"</span><span style="color: #800000;">remove readme.txt</span><span style="color: #800000;">"</span>
+
+<span style="color: #800080;">12</span><span style="color: #000000;">. 将你的仓库连接到某个远程服务器，你可以使用如下命令添加：
+    git remote add origin </span>&lt;server&gt;<span style="color: #000000;">
+    git remote add origin git@server</span>-name:path/repo-<span style="color: #000000;">name.git
+
+</span><span style="color: #800080;">13</span><span style="color: #000000;">. 本地库推送到服务器
+    第一次推送
+    git push </span>-<span style="color: #000000;">u origin master
+    以后
+    git push origin master
+</span><span style="color: #800080;">14</span><span style="color: #000000;">. 克隆一个库 
+    从服务器上克隆
+    git clone git@github.com:michaelliao</span>/<span style="color: #000000;">gitskills.git
+    本地克隆
+    git clone </span>/path/to/<span style="color: #000000;">repository
+
+</span><span style="color: #800080;">15</span><span style="color: #000000;">. 创建分支
+    git branch</span><span style="color: #000000;"> dev
+
+</span><span style="color: #800080;">16</span><span style="color: #000000;">. 切换到分支
+    git checkout dev
+
+</span><span style="color: #800080;">17</span><span style="color: #000000;">. 查看当前分支
+    git branch
+
+</span><span style="color: #800080;">18</span><span style="color: #000000;">. 将dev于master分支合并
+    git merge dev
+
+</span><span style="color: #800080;">19</span><span style="color: #000000;">. 删除分支
+    合并完成之后删除 
+    git branch </span>-<span style="color: #000000;">d dev
+    
+</span><span style="color: #800080;">20</span><span style="color: #000000;">. 查看分支合并图 
+    git log </span>--<span style="color: #000000;">graph
+
+
+</span><span style="color: #800080;">21</span><span style="color: #000000;">. 删除分支后,保留分支信息
+    合并分支时，加上</span>--no-<span style="color: #000000;">ff参数就可以用普通模式合并，合并后的历史有分支，能看出来曾经做过合并，而fast forward合并就看不出来曾经做过合并。
+
+    git merge </span>--no-ff -m <span style="color: #800000;">"</span><span style="color: #800000;">merge with no-ff</span><span style="color: #800000;">"</span><span style="color: #000000;"> dev
+</span><span style="color: #800080;">22</span><span style="color: #000000;">. 保存现场
+    git stash
+    查看    
+    git stash list
+    回复
+    git stash apply
+    删除stash内容
+    git stash drop
+    恢复并删除stash
+    git stash pop
+
+</span><span style="color: #800080;">23</span><span style="color: #000000;">. 删除为未合并分支
+    git branch </span>-D &lt;name&gt;
+
+<span style="color: #800080;">24</span>. 查看远程库信息，使用git remote -<span style="color: #000000;">v；
+
+    本地新建的分支如果不推送到远程，对其他人就是不可见的；
+
+    从本地推送分支，使用git push origin branch</span>-<span style="color: #000000;">name，如果推送失败，先用git pull抓取远程的新提交；
+
+    在本地创建和远程分支对应的分支，使用git checkout </span>-b branch-name origin/branch-<span style="color: #000000;">name，本地和远程分支的名称最好一致；
+
+    建立本地分支和远程分支的关联，使用git branch </span>--<span style="color: #0000ff;">set</span>-upstream branch-name origin/branch-<span style="color: #000000;">name；
+
+    从远程抓取分支，使用git pull，如果有冲突，要先处理冲突。
+
+</span><span style="color: #800080;">23</span>. git tag &lt;tag name&gt;<span style="color: #000000;">
+    给某一个提交的版本打上标签
+    git tag </span>&lt;tag name&gt; &lt;commit id&gt;<span style="color: #000000;">
+    查看标签的文字说明 
+    git show </span>&lt;tagname&gt;<span style="color: #000000;">
+    删除标签
+    git tag </span>-d &lt;tag name&gt;
+
+<span style="color: #800080;">24</span><span style="color: #000000;">. 忽略特殊文件
+    在Git工作区的根目录下创建一个特殊的.gitignore文件，然后把要忽略的文件名填进去，Git就会自动忽略这些文件。
+
+</span><span style="color: #800080;">25</span><span style="color: #000000;">. 配置别名
+    st就表示status：
+     git config </span>--<span style="color: #0000ff;">global</span> alias.st status</pre>
+</div>
+<p>&nbsp;</p>

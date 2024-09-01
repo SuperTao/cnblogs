@@ -1,0 +1,113 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">摘自：
+    http:</span><span style="color: #008000;">//</span><span style="color: #008000;">www.ntu.edu.sg/home/ehchua/programming/java/J4b_CustomGraphics.html</span>
+
+<span style="color: #0000ff;">import</span> java.awt.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span> java.awt.event.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span> javax.swing.*<span style="color: #000000;">;
+</span><span style="color: #008000;">/**</span><span style="color: #008000;">
+ * Custom Graphics Example: Using key/button to move a line left or right.
+ </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+@SuppressWarnings(</span>"serial"<span style="color: #000000;">)
+</span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> CGMoveALine <span style="color: #0000ff;">extends</span><span style="color: #000000;"> JFrame {
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> Name-constants for the various dimensions</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">final</span> <span style="color: #0000ff;">int</span> CANVAS_WIDTH = 400<span style="color: #000000;">;
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">final</span> <span style="color: #0000ff;">int</span> CANVAS_HEIGHT = 140<span style="color: #000000;">;
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">final</span> Color LINE_COLOR =<span style="color: #000000;"> Color.BLACK;
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">final</span> Color CANVAS_BACKGROUND =<span style="color: #000000;"> Color.CYAN;
+ 
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> The line from (x1, y1) to (x2, y2), initially position at the center</span>
+   <span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> x1 = CANVAS_WIDTH / 2<span style="color: #000000;">;
+   </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> y1 = CANVAS_HEIGHT / 8<span style="color: #000000;">;
+   </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> x2 =<span style="color: #000000;"> x1;
+   </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> y2 = CANVAS_HEIGHT / 8 * 7<span style="color: #000000;">;
+ 
+   </span><span style="color: #0000ff;">private</span> DrawCanvas canvas; <span style="color: #008000;">//</span><span style="color: #008000;"> the custom drawing canvas (extends JPanel)</span>
+ 
+   <span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to set up the GUI </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> CGMoveALine() {
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Set up a panel for the buttons</span>
+      JPanel btnPanel = <span style="color: #0000ff;">new</span> JPanel(<span style="color: #0000ff;">new</span><span style="color: #000000;"> FlowLayout());
+      JButton btnLeft </span>= <span style="color: #0000ff;">new</span> JButton("Move Left "<span style="color: #000000;">);
+      btnPanel.add(btnLeft);
+      btnLeft.addActionListener(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> ActionListener() {
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent e) {
+            x1 </span>-= 10<span style="color: #000000;">;
+            x2 </span>-= 10<span style="color: #000000;">;
+            canvas.repaint();
+            requestFocus(); </span><span style="color: #008000;">//</span><span style="color: #008000;"> change the focus to JFrame to receive KeyEvent</span>
+<span style="color: #000000;">         }
+      });
+      JButton btnRight </span>= <span style="color: #0000ff;">new</span> JButton("Move Right"<span style="color: #000000;">);
+      btnPanel.add(btnRight);
+      btnRight.addActionListener(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> ActionListener() {
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent e) {
+            x1 </span>+= 10<span style="color: #000000;">;
+            x2 </span>+= 10<span style="color: #000000;">;
+            canvas.repaint();
+            requestFocus(); </span><span style="color: #008000;">//</span><span style="color: #008000;"> change the focus to JFrame to receive KeyEvent</span>
+<span style="color: #000000;">         }
+      });
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Set up a custom drawing JPanel</span>
+      canvas = <span style="color: #0000ff;">new</span><span style="color: #000000;"> DrawCanvas();
+      canvas.setPreferredSize(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> Dimension(CANVAS_WIDTH, CANVAS_HEIGHT));
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Add both panels to this JFrame</span>
+      Container cp =<span style="color: #000000;"> getContentPane();
+      cp.setLayout(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> BorderLayout());
+      cp.add(canvas, BorderLayout.CENTER);
+      cp.add(btnPanel, BorderLayout.SOUTH);
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> "this" JFrame fires KeyEvent</span>
+      addKeyListener(<span style="color: #0000ff;">new</span><span style="color: #000000;"> KeyAdapter() {
+         @Override
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> keyPressed(KeyEvent evt) {
+            </span><span style="color: #0000ff;">switch</span><span style="color: #000000;">(evt.getKeyCode()) {
+               </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> KeyEvent.VK_LEFT:
+                  x1 </span>-= 10<span style="color: #000000;">;
+                  x2 </span>-= 10<span style="color: #000000;">;
+                  repaint();
+                  </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+               </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> KeyEvent.VK_RIGHT:
+                  x1 </span>+= 10<span style="color: #000000;">;
+                  x2 </span>+= 10<span style="color: #000000;">;
+                  repaint();
+                  </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+            }
+         }
+      });
+ 
+      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); </span><span style="color: #008000;">//</span><span style="color: #008000;"> Handle the CLOSE button</span>
+      setTitle("Move a Line"<span style="color: #000000;">);
+      pack();           </span><span style="color: #008000;">//</span><span style="color: #008000;"> pack all the components in the JFrame</span>
+      setVisible(<span style="color: #0000ff;">true</span>); <span style="color: #008000;">//</span><span style="color: #008000;"> show it</span>
+      requestFocus();   <span style="color: #008000;">//</span><span style="color: #008000;"> set the focus to JFrame to receive KeyEvent</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;">
+    * DrawCanvas (inner class) is a JPanel used for custom drawing
+    </span><span style="color: #008000;">*/<br />//调用repaint函数，间接调用paintComponent()函数<br /></span>
+   <span style="color: #0000ff;">class</span> DrawCanvas <span style="color: #0000ff;">extends</span><span style="color: #000000;"> JPanel {
+      @Override
+      </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> paintComponent(Graphics g) {
+         </span><span style="color: #0000ff;">super</span><span style="color: #000000;">.paintComponent(g);
+         setBackground(CANVAS_BACKGROUND);
+         g.setColor(LINE_COLOR);
+         g.drawLine(x1, y1, x2, y2); </span><span style="color: #008000;">//</span><span style="color: #008000;"> draw the line</span>
+<span style="color: #000000;">      }
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main() method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Run GUI codes on the Event-Dispatcher Thread for thread safety</span>
+      SwingUtilities.invokeLater(<span style="color: #0000ff;">new</span><span style="color: #000000;"> Runnable() {
+         @Override
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> run() {
+            </span><span style="color: #0000ff;">new</span> CGMoveALine(); <span style="color: #008000;">//</span><span style="color: #008000;"> Let the constructor do the job</span>
+<span style="color: #000000;">         }
+      });
+   }
+}</span></pre>
+</div>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201602/745188-20160221182816420-280863096.png" alt="" /></p>

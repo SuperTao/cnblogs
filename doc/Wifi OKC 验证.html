@@ -1,0 +1,42 @@
+<p><strong>OKC</strong><strong>（</strong><strong>Opportunistic Key Caching</strong><strong>）</strong></p>
+<p>OKC，也叫OPC（Opportunistic PMK Caching），是微软定义的一套标准，并不在802.11标准中。不过多数厂商都支持这种方式，也成为了一种事实标准。</p>
+<p>其流程大致如下：</p>
+<p>当STA跟AP1经过完整的EAP/802.1X建立连接后，产生一条PMKSA，里面包含一个PMKID1，然后AP1把这个PMKSA传给它的邻居，其中一个就是AP2。</p>
+<p>Fast Roaming发生前，STA要根据AA，SPA和PMKID1计算出一个PMKID2，把这个PMKID2放在RSN IE里，送给AP2。</p>
+<p>AP2在收到这个PMKID2后，就像平时一样，会在自己的PMKSA Cache里找，当然，这是找不到的。因为Cache没有一个的PMKID是PMKID2。然后，AP2就要对Cache中的每一个Entry计算一次新的PMKID，其必要的几个元素，AA，SPA和PMKID1都是有的。每计算一个就跟PMKID2匹配一次，匹配成功就可以直接进行4次握手。</p>
+<p>Preauthentication虽然在Roaming期间略过了802.1X，但还是每次都要做，只不过提前罢了。</p>
+<p>OKC的出现，就是为了解决每次都要做802.1X的问题，可以提高效率，降低网络负荷。可是，OKC的方便是建立在牺牲安全性的基础上的。这会导致每个AP上都拿到相同的PMK。</p>
+<p><strong>802.1X</strong><strong>连接过程</strong></p>
+<p>802.1X连接的正常流程。需要多次EAP&nbsp; request/reponse与RADIUS服务器交互，然后再进行四次握手。步骤如下：</p>
+<p>1 申请者连接至802.11 网络。连接只用到两个帧，这种简单的交换程序几乎都会成功。</p>
+<p>2 申请者发出一个EAPOL-Start 信息，开始进行802.1X 交换程序。这个步骤并非必要。并非所有申请者都会送出EAPOL-Start 信息，因此可能没有这个步骤。</p>
+<p>3 &ldquo;正常的&rdquo;EAP 交换程序开始。认证者（基站）发出一个EAP-Request/Identity 帧。如果基站只为已经认证成功的连接转送帧，Request/Identity 帧之前可能就没有EAPOL-Start。主动发出Request/Identity 帧用来指示申请者必须进行802.1X 身份认证。</p>
+<p>4 申请者以EAP-Response/Identity 帧进行答复， 此帧随后被转换为Radius-Access-Request 封包送给RADIUS 服务器。</p>
+<p>5 RADIUS 服务器判断需要使用那个类型的身份认证，并且在所送出的EAP-Request 信息中指定认证方式类型。EAP-Request 被封装于Radius-Access-Challenge 封包送给基站。地台收到封包后。将EAP-Request 传递给申请者。AP-Request 信息通常会被表示为EAP-Request/Method。其中的Method 代表所使用的EAP 认证方式。如果目前使用的是PEAP，则传回的封包将以EAP-Request/PEAP 来表示。</p>
+<p>6 申请者从使用者方面取得回应，然后回传EAP-Response。认证者会将此回应转换为送给RADIUS 的Radius-Access-Request 封包，针对挑战信息所做的回应则存放于数据字段。步骤5 与步骤6 不断重复进行，直到身份认证完成为止。如果所使用的是需要交换凭证的EAP 认证方式，免不了要重复这些步骤几次。有些EAP 交换可能需要在用户端与RADIUS 服务器间，反覆进行10 到20 个回合。</p>
+<p>7 既然RADIUS 服务器送出一个Radius-Access-Accept 封包允许对方访问网络，因此认证者会发出一个EAP-Success 帧，并且授权使用连接埠。访问权限也可以由RADIUS 服务器所回传的参数来决定。</p>
+<p>8 收到Access-Accept 封包后，基站会立即使用EAPOL-Key 信息将密钥传给申请者。</p>
+<p>9 一旦申请者安装好密钥，就可以开始传送数据帧来访问网络DHCP 配置设置通常会在此刻进行。</p>
+<p>10 当申请者不再需要访问网络，就会送出一个EAPOL-Logoff 信息，使连接埠回复未授权状态。</p>
+<p>&nbsp;<img src="https://img2018.cnblogs.com/blog/745188/201904/745188-20190409135410744-843684292.png" alt="" /></p>
+<p><strong>验证方法</strong></p>
+<p>在WCNSS_qcom_cfg.ini文件中有一个选项OkcEnable。默认值是1，默认是打开OKC。漫游的时候，只有首次连接到802.1X的网络时，会有多次EAP&nbsp; request/response数据包的交互，在success之后，再进行四次握手。在漫游的过程中，直接进行四次握手，也就是EAPOL-key包的交互。</p>
+<p>测试的时候，尝试将OkcEnable的值设置成0。无论是首次连接到802.1X网络其后漫游过程中，都会有EAP&nbsp; request/response数据包的交互，然后才是四次握手，这样流程多了几步，对漫游的效率也是有影响的。</p>
+<p><strong>抓包分析</strong></p>
+<p>首次连接。</p>
+<p>&nbsp;<img src="https://img2018.cnblogs.com/blog/745188/201904/745188-20190409135455778-1790410250.png" alt="" /></p>
+<p>漫游情况下。OKcEnable=1的情况。没有EAP request和EAP response。</p>
+<p>&nbsp;<img src="https://img2018.cnblogs.com/blog/745188/201904/745188-20190409135523019-1770985603.png" alt="" /></p>
+<p>OkcEnable=0的时候，漫游时任然会进行EAP request/reponse的交互。</p>
+<p>&nbsp;<img src="https://img2018.cnblogs.com/blog/745188/201904/745188-20190409135606803-1613406321.png" alt="" /></p>
+<p>EAP request：</p>
+<p>&nbsp;<img src="https://img2018.cnblogs.com/blog/745188/201904/745188-20190409135735636-2133190191.png" alt="" /></p>
+<p>EAP response：</p>
+<p>&nbsp;<img src="https://img2018.cnblogs.com/blog/745188/201904/745188-20190409135755271-400951124.png" alt="" /></p>
+<p>EAP-FAST：</p>
+<p>&nbsp;<img src="https://img2018.cnblogs.com/blog/745188/201904/745188-20190409135810080-1659437894.png" alt="" /></p>
+<p>Success：</p>
+<p>&nbsp;<img src="https://img2018.cnblogs.com/blog/745188/201904/745188-20190409135824294-1145357543.png" alt="" /></p>
+<p><strong>参考文档</strong></p>
+<p>《802.11无线网络权威指南》</p>
+<p><a href="https://blog.csdn.net/ollins136/article/details/28277717">https://blog.csdn.net/ollins136/article/details/28277717</a></p>

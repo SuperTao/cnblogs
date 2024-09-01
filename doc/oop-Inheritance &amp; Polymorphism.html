@@ -1,0 +1,298 @@
+<p>本文主要作为java学习笔记，方便以后查看，大部分内容都源于以下网站：</p>
+<p>　　http://www.ntu.edu.sg/home/ehchua/programming/index.html#Game</p>
+<p>本文的内容是根据自己理解而归类，有不准确的地方，敬请谅解。</p>
+<p>本文主要内容：</p>
+<p>　　1.继承(inheritance)</p>
+<p>　　2.多态(polymorphism)</p>
+<p>　　3.抽象类(abstract_class)</p>
+<p>　　4.接口(interface)</p>
+<p>&nbsp;-----------------------------------------------------------------</p>
+<p>1.继承</p>
+<p>修饰符：extends</p>
+<p>继承只能是单继承，一个子类只能继承一个父类，不能继承多个父类。</p>
+<p>The "@Override" is known as annotation (introduced in JDK 1.5), which asks compiler to check whether there is such a method in the superclass to be overridden. This helps greatly if you misspell the name of the method to be overridden. For example, suppose that you wish to override method toString() in a subclass. If @Override is not used and toString() is misspelled as TOString(), it will be treated as a new method in the subclass, instead of overriding the superclass. If @Override is used, the compiler will signal an error.@Override annotation is optional, but certainly nice to have.<br />Annotations are not programming constructs. They have no effect on the program output. It is only used by the compiler, discarded after compilation, and not used by the runtime.</p>
+<p>&ldquo;@Override&rdquo;作为标注，告诉编译器去检查父类中是否存在子类将要重载的同名函数。注意这里的Override开头的&lsquo;O&rsquo;需要大写。</p>
+<p>Point.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span><span style="color: #000000;"> Point {
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> x;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> y;
+
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> Point() {
+        x </span>= 0<span style="color: #000000;">;
+        y </span>= 0<span style="color: #000000;">;
+    }   
+    </span><span style="color: #0000ff;">public</span> Point(<span style="color: #0000ff;">int</span> x, <span style="color: #0000ff;">int</span><span style="color: #000000;"> y) {
+        </span><span style="color: #0000ff;">this</span>.x =<span style="color: #000000;"> x;
+        </span><span style="color: #0000ff;">this</span>.y =<span style="color: #000000;"> y;
+    }   
+
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> getX() {
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> x;
+    }   
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span> setX(<span style="color: #0000ff;">int</span><span style="color: #000000;"> x) {
+        </span><span style="color: #0000ff;">this</span>.x =<span style="color: #000000;"> x;
+    }   
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> getY() {
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> y;
+    }   
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span> setY(<span style="color: #0000ff;">int</span><span style="color: #000000;"> y) {
+        </span><span style="color: #0000ff;">this</span>.y =<span style="color: #000000;"> y;
+    }   
+
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> String toString() {
+        </span><span style="color: #0000ff;">return</span> "(" + x + ", " + y + ")"<span style="color: #000000;">;
+    }   
+}</span></pre>
+</div>
+<p>Point3D.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> Point3D <span style="color: #0000ff;">extends</span><span style="color: #000000;"> Point {
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> z;
+
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> Point3D() {
+        </span><span style="color: #0000ff;">super</span><span style="color: #000000;">();　　　　//调用父类的构造函数
+        z </span>= 0<span style="color: #000000;">;
+    }   
+    </span><span style="color: #0000ff;">public</span> Point3D(<span style="color: #0000ff;">int</span> x, <span style="color: #0000ff;">int</span> y, <span style="color: #0000ff;">int</span><span style="color: #000000;"> z) {
+        </span><span style="color: #0000ff;">super</span><span style="color: #000000;">(x, y); 　　<span style="color: #000000;">//调用父类的构造函数</span>
+        </span><span style="color: #0000ff;">this</span>.z =<span style="color: #000000;"> z;
+    }   
+
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> getZ() {
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> z;
+    }   
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span> setZ(<span style="color: #0000ff;">int</span><span style="color: #000000;"> z) {
+        </span><span style="color: #0000ff;">this</span>.z =<span style="color: #000000;"> z;
+    }   
+
+    @Override
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> String toString() {
+        </span><span style="color: #0000ff;">return</span> "(" + <span style="color: #0000ff;">super</span>.getX() + ", " + <span style="color: #0000ff;">super</span>.getY() + ", " + z + ")"<span style="color: #000000;">;
+    }   
+}</span></pre>
+</div>
+<p>TestPoint3D.java</p>
+<p>运行结果：</p>
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">(1, 2, 3)<br />1<br />2<br />3<br />(4, 5, 6)</span></pre>
+</div>
+<p>Java provides a binary operator called instanceof which returns true if an object is an instance of a particular class. The syntax is as follows:<br />anObject instanceof aClass</p>
+<div class="cnblogs_code">
+<pre>Circle c1 = <span style="color: #0000ff;">new</span><span style="color: #000000;"> Circle();
+System.out.println(c1 </span><span style="color: #0000ff;">instanceof</span> Circle);  <span style="color: #008000;">//</span><span style="color: #008000;"> true</span></pre>
+</div>
+<p>A subclass instance processes all the attributes operations of its superclass. When a superclass instance is expected, it can be substituted by a subclass instance. In other words, a reference to a class may hold an instance of that class or an instance of one of its subclasses - it is called substitutability.<br />&nbsp;&nbsp;&nbsp; If a subclass instance is assign to a superclass reference, you can invoke the methods defined in the superclass only. You cannot invoke methods defined in the subclass.<br />&nbsp;&nbsp;&nbsp; However, the substituted instance retains its own identity in terms of overridden methods and hiding variables. If the subclass overrides methods in the superclass, the subclass's version will be executed, instead of the superclass's version.</p>
+<p>2.多态</p>
+<p>Shape.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span><span style="color: #000000;"> Shape {
+    </span><span style="color: #0000ff;">private</span><span style="color: #000000;"> String color;
+
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> Shape (String color) {
+        </span><span style="color: #0000ff;">this</span>.color =<span style="color: #000000;"> color;
+    }   
+
+    @Override
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> String toString() {
+        </span><span style="color: #0000ff;">return</span> "Shape of color=\"" + color + "\""<span style="color: #000000;">;
+    }   
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">double</span><span style="color: #000000;"> getArea() {
+        System.out.println(</span>"shape unknown! Cannot compute area!"<span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> 0<span style="color: #000000;">;
+    }   
+}</span></pre>
+</div>
+<p>Rectangle.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> Rectangle <span style="color: #0000ff;">extends</span><span style="color: #000000;"> Shape {
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> length;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> width;
+
+    </span><span style="color: #0000ff;">public</span> Rectangle(String color, <span style="color: #0000ff;">int</span> length, <span style="color: #0000ff;">int</span><span style="color: #000000;"> width) {
+        </span><span style="color: #0000ff;">super</span><span style="color: #000000;">(color);
+        </span><span style="color: #0000ff;">this</span>.length =<span style="color: #000000;"> length;
+        </span><span style="color: #0000ff;">this</span>.width =<span style="color: #000000;"> width;
+    }  <br />　　<span style="color: #000000;">//重载父类的方法</span> 
+    @Override
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> String toString() {
+        </span><span style="color: #0000ff;">return</span> "Rectangle of length=" + length + " and width=" 
+            + width + ", subclass of " + <span style="color: #0000ff;">super</span><span style="color: #000000;">.toString();
+    }   <br />　　<span style="color: #000000;">//重载父类的方法</span>
+    @Override
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">double</span><span style="color: #000000;"> getArea() {
+        </span><span style="color: #0000ff;">return</span> length *<span style="color: #000000;"> width;
+    }   
+}</span></pre>
+</div>
+<p>Triangle.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> Triangle <span style="color: #0000ff;">extends</span><span style="color: #000000;"> Shape {
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> length;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> width;
+
+    </span><span style="color: #0000ff;">public</span> Triangle(String color, <span style="color: #0000ff;">int</span> length, <span style="color: #0000ff;">int</span><span style="color: #000000;"> width) {
+        </span><span style="color: #0000ff;">super</span><span style="color: #000000;">(color);
+        </span><span style="color: #0000ff;">this</span>.length =<span style="color: #000000;"> length;
+        </span><span style="color: #0000ff;">this</span>.width =<span style="color: #000000;"> width;
+    }   <br />　　//重载父类的方法
+    @Override
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> String toString() {
+        </span><span style="color: #0000ff;">return</span> "Rectangle of length=" + length + " and width=" 
+            + width + ", subclass of " + <span style="color: #0000ff;">super</span><span style="color: #000000;">.toString();
+
+    } <br />　　//重载父类的方法
+    @Override
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">double</span><span style="color: #000000;"> getArea() {
+        </span><span style="color: #0000ff;">return</span> 0.5 * length *<span style="color: #000000;"> width;
+    }   
+}</span></pre>
+</div>
+<p>TestShape.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span><span style="color: #000000;"> TestShape {
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+        Shape s1 </span>= <span style="color: #0000ff;">new</span> Rectangle("red", 4, 5<span style="color: #000000;">); 　　　　//多态的体现，可以将子类复制给父类，应为子类具有父类的属性
+        System.out.println(s1);
+        System.out.println(</span>"Area is " +<span style="color: #000000;"> s1.getArea());　　//根据赋值前的情况，将会调用Rectangle中的getArea函数
+
+        Shape s2 </span>= <span style="color: #0000ff;">new</span> Triangle("blue", 4, 5<span style="color: #000000;">); 
+        System.out.println(s2);
+        System.out.println(</span>"Area is " +<span style="color: #000000;"> s2.getArea());　　<span style="color: #000000;">//根据赋值前的情况，将会调用Rectangle中的getArea函数</span>
+    }   
+}</span></pre>
+</div>
+<p>运行结果：</p>
+<div class="cnblogs_code">
+<pre>Rectangle of length=4 and width=5, subclass of Shape of color="red"<span style="color: #000000;">
+Area is </span>20.0<span style="color: #000000;">
+Rectangle of length</span>=4 and width=5, subclass of Shape of color="blue"<span style="color: #000000;">
+Area is </span>10.0</pre>
+</div>
+<p>3.抽象类（abastract class)</p>
+<p>修饰符：abstract</p>
+<p>抽象类只有接口，但是其中的函数并没有实现。</p>
+<p>An <code>abstract</code> class is <em>incomplete</em> in its definition, since the implementation of its <code>abstract</code> methods is missing. Therefore, an <code>abstract</code> class <em>cannot be instantiated</em>. In other words, you cannot create instances from an <code>abstract</code> class (otherwise, you will have an incomplete instance with missing method's body).</p>
+<p>To use an <code>abstract</code> class, you have to derive a subclass from the <code>abstract</code> class. In the derived subclass, you have to override the <code>abstract</code> methods and provide implementation to all the <code>abstract</code> methods. The subclass derived is now complete, and can be instantiated. (If a subclass does not provide implementation to all the <code>abstract</code> methods of the superclass, the subclass remains <code>abstract</code>.)</p>
+<p>This property of the <code>abstract</code> class solves our earlier problem. In other words, you can create instances of the subclasses such as <code>Triangle</code> and <code>Rectangle</code>, and upcast them to <code>Shape</code> (so as to program and operate at the interface level), but you cannot create instance of <code>Shape</code>, which avoid the pitfall that we have faced. For example,</p>
+<p>Shape.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">abstract</span> <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span><span style="color: #000000;"> Shape {
+    </span><span style="color: #0000ff;">private</span><span style="color: #000000;"> String color;
+
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> Shape(String color) {
+        </span><span style="color: #0000ff;">this</span>.color =<span style="color: #000000;"> color;
+    }   
+
+    @Override
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> String toString() {
+        </span><span style="color: #0000ff;">return</span> "Shape of color\"" + color + "\""<span style="color: #000000;">;
+    }   <br />　　//其中的方法不必实现，实现由其子类来完成
+    </span><span style="color: #0000ff;">abstract</span> <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">double</span><span style="color: #000000;"> getArea();
+}</span></pre>
+</div>
+<p>Rectangle.java和Triangle.java使用上面的。子类继承父类，并实现器中的未实现的函数。抽象类不能够实例化，即通过new操作符，新建一个instance。</p>
+<p>TestShape.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span><span style="color: #000000;"> TestShape {
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+        Shape s1 </span>= <span style="color: #0000ff;">new</span> Rectangle("red", 4, 5<span style="color: #000000;">); 
+        System.out.println(s1);
+        System.out.println(</span>"Area is " +<span style="color: #000000;"> s1.getArea());
+
+        Shape s2 </span>= <span style="color: #0000ff;">new</span> Triangle("blue", 4, 5<span style="color: #000000;">); 
+        System.out.println(s2);
+        System.out.println(</span>"Area is " +<span style="color: #000000;"> s2.getArea());
+
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">wrong
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">Shape s3 = new Shape("green");</span>
+<span style="color: #000000;">    }   
+}</span></pre>
+</div>
+<p>4.接口（interface)</p>
+<p>A Java <code>interface</code> is a <em>100% abstract superclass</em> which define a set of methods its subclasses must support. An <code>interface</code> contains only <code>public</code> <em>abstract methods</em> (methods with signature and no implementation) and possibly <em>constants</em> (<code>public</code> <code>static</code> <code>final</code> variables). You have to use the keyword "<code>interface</code>" to define an <code>interface</code> (instead of keyword "<code>class</code>" for normal classes). The keyword <code>public</code> and <code>abstract</code> are not needed for its abstract methods as they are mandatory.</p>
+<p>An interface is a <em>contract</em> for what the classes can do. It, however, does not specify how the classes should do it.</p>
+<p>Movable.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public <span style="color: #0000ff;">interface<span style="color: #000000;"> Movable {
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">void<span style="color: #000000;"> moveUp();
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">void<span style="color: #000000;"> moveDown();
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">void<span style="color: #000000;"> moveLeft();
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">void<span style="color: #000000;"> moveRight();
+}</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></pre>
+</div>
+<p>MovablePoint.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public <span style="color: #0000ff;">class MovablePoint <span style="color: #0000ff;">implements<span style="color: #000000;"> Movable {
+    <span style="color: #0000ff;">private <span style="color: #0000ff;">int<span style="color: #000000;"> x, y;
+
+    <span style="color: #0000ff;">public MovablePoint(<span style="color: #0000ff;">int x, <span style="color: #0000ff;">int<span style="color: #000000;"> y) {
+        <span style="color: #0000ff;">this.x =<span style="color: #000000;"> x;
+        <span style="color: #0000ff;">this.y =<span style="color: #000000;"> y;
+    }   
+
+    @Override
+    <span style="color: #0000ff;">public<span style="color: #000000;"> String toString() {
+        <span style="color: #0000ff;">return "Point at (" + x + ", " + y + ")"<span style="color: #000000;">;
+    }   
+    @Override
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">void<span style="color: #000000;"> moveUp() {
+        y++<span style="color: #000000;">;
+    }   
+    @Override
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">void<span style="color: #000000;"> moveDown() {
+        y--<span style="color: #000000;">;
+    }   
+    @Override
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">void<span style="color: #000000;"> moveLeft() {
+        x--<span style="color: #000000;">;
+    }   
+    @Override
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">void<span style="color: #000000;"> moveRight() {
+        x++<span style="color: #000000;">;
+    }   
+}</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></pre>
+</div>
+<p>TestMovable.java</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public <span style="color: #0000ff;">class<span style="color: #000000;"> TestMovable {
+    <span style="color: #0000ff;">public <span style="color: #0000ff;">static <span style="color: #0000ff;">void<span style="color: #000000;"> main(String[] args) {
+        Movable m1 = <span style="color: #0000ff;">new MovablePoint(7,7<span style="color: #000000;">);
+
+        m1.moveUp();
+        System.out.println(m1);
+        m1.moveDown();
+        System.out.println(m1);
+        m1.moveLeft();
+        System.out.println(m1);
+        m1.moveDown();
+        System.out.println(m1);
+    }   
+}</span></span></span></span></span></span></span></span></span></pre>
+</div>
+<p>运行结果</p>
+<div class="cnblogs_code">
+<pre>Point at (7, 8<span style="color: #000000;">)
+Point at (7, 7<span style="color: #000000;">)
+Point at (6, 7<span style="color: #000000;">)
+Point at (6, 6）</span></span></span></pre>
+</div>
+<p>接口的出现，使得java可以间接实现多继承，因为一个类可以通过修饰符implements来实现多个接口。</p>
+<p>As mentioned, Java supports only <em>single inheritance</em>. That is, a subclass can be derived from one and only one superclass. Java does not support <em>multiple inheritance</em> to avoid inheriting conflicting properties from multiple superclasses. Multiple inheritance, however, does have its place in programming.</p>
+<p>A subclass, however, can implement more than one interfaces. This is permitted in Java as an interface merely defines the abstract methods without the actual implementations and less likely leads to inheriting conflicting properties from multiple interfaces. In other words, Java indirectly supports multiple inheritances via implementing multiple interfaces. For example,</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> Circle <span style="color: #0000ff;">extends</span> Shape <span style="color: #0000ff;">implements</span> Movable, Displayable {  <span style="color: #008000;">//</span><span style="color: #008000;"> One superclass but implement multiple interfaces</span>
+<span style="color: #000000;">   .......
+}</span></pre>
+</div>
+<p>The formal syntax for declaring interface is:</p>
+<div class="cnblogs_code">
+<pre>[<span style="color: #0000ff;">public</span>|<span style="color: #0000ff;">protected</span>|<span style="color: #0000ff;">package</span>] <span style="color: #0000ff;">interface</span><span style="color: #000000;"> interfaceName
+[</span><span style="color: #0000ff;">extends</span><span style="color: #000000;"> superInterfaceName] {
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> constants</span>
+   <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">final</span><span style="color: #000000;"> ...;
+
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> abstract methods' signature</span>
+<span style="color: #000000;">   ...
+}</span></pre>
+</div>

@@ -1,0 +1,660 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">本文主要关注bsp中，关于smbus（系统管理总线，是i2c的子集）的配置过程,了解如如何配置i2c寄存器。<br />所有发送的数据都会写在FIFO中，使能之后就发送出去。接收数据就从接收寄存器中读取。<br />读取和发送的数据都保存在iproc_xact_info结构体中。<br />结合smbus数据帧的格式，分析下面代码。<br /><br />struct iproc_xact_info {<br />&nbsp;&nbsp;&nbsp;&nbsp; bool cmd_valid; /* true if command field below is valid. Otherwise, false */<br />&nbsp;&nbsp;&nbsp;&nbsp; unsigned short command; /* Passed by caller to send SMBus command code */<br />&nbsp;&nbsp;&nbsp;&nbsp; unsigned char *data; /* actual data pased by the caller */ <br />&nbsp;&nbsp;&nbsp;&nbsp; unsigned int size; /* Size of data buffer passed */<br />&nbsp;&nbsp;&nbsp;&nbsp; unsigned short flags; /* Sent by caller specifying PEC, 10-bit addresses */<br />&nbsp;&nbsp;&nbsp;&nbsp; unsigned char smb_proto; /* SMBus protocol to use to perform transaction */<br /> }; 
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> i2c_algorithm iproc_smb_algorithm =<span style="color: #000000;"> {
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">    .name           = "iproc-smb", </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    .smbus_xfer     </span>=<span style="color: #000000;"> iproc_smb_xfer,
+    .master_xfer    </span>=<span style="color: #000000;"> NULL,
+    .functionality  </span>=<span style="color: #000000;"> iproc_smb_funcs,
+};
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> iproc_smb_xfer(<span style="color: #0000ff;">struct</span> i2c_adapter *<span style="color: #000000;">i2c_adap, u16 addr, 
+                          unsigned </span><span style="color: #0000ff;">short</span> flags, <span style="color: #0000ff;">char</span><span style="color: #000000;"> read_write,
+                          u8 command, </span><span style="color: #0000ff;">int</span> size, union i2c_smbus_data *<span style="color: #000000;">data)
+{
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> rc;
+    </span><span style="color: #0000ff;">struct</span> iproc_smb_drv_int_data *dev =<span style="color: #000000;"> i2c_get_adapdata(i2c_adap);
+    </span><span style="color: #0000ff;">struct</span><span style="color: #000000;"> iproc_xact_info info;
+    unsigned </span><span style="color: #0000ff;">int</span> num_bytes_read = <span style="color: #800080;">0</span><span style="color: #000000;">;
+
+#ifdef IPROC_SMB_DBG
+    printk(KERN_DEBUG </span><span style="color: #800000;">"</span><span style="color: #800000;">\n%s: dev=0x%08X\n</span><span style="color: #800000;">"</span>, __func__, (unsigned <span style="color: #0000ff;">int</span><span style="color: #000000;">)dev);
+</span><span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+
+    down(</span>&amp;dev-&gt;<span style="color: #000000;">xfer_lock);
+
+    addr </span>&lt;&lt;= <span style="color: #800080;">1</span><span style="color: #000000;">;
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">smbus发送的数据有多种形式，有些是写1字节，有些是多字节
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">switch中根据不同操作，将信息保存到info结构体中</span>
+    <span style="color: #0000ff;">switch</span> (size <span style="color: #008000;">/*</span><span style="color: #008000;"> protocol </span><span style="color: #008000;">*/</span><span style="color: #000000;">) {
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">一字节,有些不需要command</span>
+        <span style="color: #0000ff;">case</span><span style="color: #000000;"> I2C_SMBUS_BYTE:
+            info.cmd_valid </span>= <span style="color: #0000ff;">false</span><span style="color: #000000;">;
+            info.command </span>= command; <span style="color: #008000;">/*</span><span style="color: #008000;"> not used </span><span style="color: #008000;">*/</span>
+            <span style="color: #0000ff;">if</span> (read_write == I2C_SMBUS_WRITE) {     <span style="color: #008000;">//</span><span style="color: #008000;">写操作</span>
+<span style="color: #000000;">
+              info.data </span>= &amp;<span style="color: #000000;">command;
+
+            }
+            </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+
+            info.data </span>= &amp;data-&gt;<span style="color: #0000ff;">byte</span><span style="color: #000000;">; 
+
+            }
+            info.size </span>= <span style="color: #800080;">1</span><span style="color: #000000;">;
+            info.flags </span>=<span style="color: #000000;"> flags;
+            </span><span style="color: #008000;">//</span><span style="color: #008000;">读操作</span>
+            <span style="color: #0000ff;">if</span> (read_write ==<span style="color: #000000;"> I2C_SMBUS_READ) {
+
+                addr </span>|= <span style="color: #800080;">0x1</span>; <span style="color: #008000;">/*</span><span style="color: #008000;"> Read operation </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+                info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_RECV_BYTE;
+                info.data </span>= &amp;data-&gt;<span style="color: #0000ff;">byte</span><span style="color: #000000;">; 
+
+            }
+            </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+
+                info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_SEND_BYTE;
+
+            }
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+　　　　　//发送字节和数据
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> I2C_SMBUS_BYTE_DATA:
+            info.cmd_valid </span>= <span style="color: #0000ff;">true</span><span style="color: #000000;">;
+            info.command </span>=<span style="color: #000000;"> command;
+            info.data </span>= &amp;data-&gt;<span style="color: #0000ff;">byte</span><span style="color: #000000;">; 
+            info.size </span>= <span style="color: #800080;">1</span><span style="color: #000000;">;
+            info.flags </span>=<span style="color: #000000;"> flags;
+
+            </span><span style="color: #0000ff;">if</span> (read_write ==<span style="color: #000000;"> I2C_SMBUS_READ) {
+
+                info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_RD_BYTE;
+
+            }
+            </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+
+                info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_WR_BYTE;
+                </span><span style="color: #008000;">//</span><span style="color: #008000;">info.smb_proto = SMBUS_PROT_WR_WORD; /* TEMP chg. remove later */</span>
+<span style="color: #000000;">
+            }
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+　　　　　//发送字，也就是2字节
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> I2C_SMBUS_WORD_DATA:
+            info.cmd_valid </span>= <span style="color: #0000ff;">true</span><span style="color: #000000;">;
+            info.command </span>=<span style="color: #000000;"> command;
+            info.data </span>= (unsigned <span style="color: #0000ff;">char</span> *)(&amp;data-&gt;<span style="color: #000000;">word);
+            info.size </span>= <span style="color: #800080;">2</span><span style="color: #000000;">;
+            info.flags </span>=<span style="color: #000000;"> flags;
+            </span><span style="color: #0000ff;">if</span> (read_write ==<span style="color: #000000;"> I2C_SMBUS_READ) {
+                info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_RD_WORD;
+            }
+            </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+                info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_WR_WORD;
+            }
+
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+　　　　//块数据操作
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> I2C_SMBUS_BLOCK_DATA:
+            info.cmd_valid </span>= <span style="color: #0000ff;">true</span><span style="color: #000000;">;
+            info.command </span>=<span style="color: #000000;"> command;
+            info.data </span>= &amp;data-&gt;block[<span style="color: #800080;">1</span><span style="color: #000000;">];
+            info.flags </span>=<span style="color: #000000;"> flags;
+
+            </span><span style="color: #0000ff;">if</span> (read_write ==<span style="color: #000000;"> I2C_SMBUS_READ) {
+
+                info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_BLK_RD;
+
+                </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Protocol(hw) returns data byte count as part of response </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+                info.size </span>= <span style="color: #800080;">0</span><span style="color: #000000;">; 
+
+            }
+            </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+
+                info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_BLK_WR;
+
+                info.size </span>= data-&gt;block[<span style="color: #800080;">0</span>]; <span style="color: #008000;">/*</span><span style="color: #008000;"> i2c-core passes the length in
+                                               this field </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+            }
+
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> I2C_SMBUS_BLOCK_PROC_CALL:
+            info.cmd_valid </span>= <span style="color: #0000ff;">true</span><span style="color: #000000;">;
+            info.command </span>=<span style="color: #000000;"> command;
+            info.data </span>= &amp;data-&gt;block[<span style="color: #800080;">1</span><span style="color: #000000;">];
+            info.flags </span>=<span style="color: #000000;"> flags;
+            info.smb_proto </span>=<span style="color: #000000;"> SMBUS_PROT_BLK_WR_BLK_RD_PROC_CALL;
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">default</span><span style="color: #000000;">:
+            printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: Unsupported transaction %d\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, __func__, size);
+            up(</span>&amp;dev-&gt;<span style="color: #000000;">xfer_lock);
+            </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;
+
+    }
+
+    //接收操作
+    </span><span style="color: #0000ff;">if</span> (read_write ==<span style="color: #000000;"> I2C_SMBUS_READ) {
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Refer to i2c_smbus_read_byte for params passed. </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        rc </span>= iproc_smb_data_recv(i2c_adap, addr, &amp;info, &amp;<span style="color: #000000;">num_bytes_read);　　　　　　//------------------------&gt;&gt;&gt;      1
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> if failed due to bus hang, but recovered, retry once </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (rc == -<span style="color: #000000;">ECOMM) {
+            rc </span>= iproc_smb_data_recv(i2c_adap, addr, &amp;info, &amp;<span style="color: #000000;">num_bytes_read);
+        }
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> For block read call, we pass the actual amount of data sent by
+         * slave, as expected by std Linux API
+         </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> ((info.smb_proto == SMBUS_PROT_BLK_RD) ||<span style="color: #000000;">
+            (info.smb_proto </span>==<span style="color: #000000;"> SMBUS_PROT_BLK_WR_BLK_RD_PROC_CALL)) {
+
+            </span><span style="color: #0000ff;">if</span> (rc == <span style="color: #800080;">0</span><span style="color: #000000;">) {
+
+                data</span>-&gt;block[<span style="color: #800080;">0</span>] =<span style="color: #000000;"> num_bytes_read;
+
+#ifdef IPROC_SMB_DBG
+                printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: num bytes read=%u\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, 
+                       __func__, data</span>-&gt;block[<span style="color: #800080;">0</span><span style="color: #000000;">]);
+</span><span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+
+            }
+        }
+
+    }　　//接收
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Refer to i2c_smbus_write_byte params passed. </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        rc </span>= iproc_smb_data_send(i2c_adap, addr, &amp;<span style="color: #000000;">info);　　　　　　　　// ----------------------&gt;&gt;&gt; 2
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> if failed due to bus hang, but recovered, retry </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (rc == -<span style="color: #000000;">ECOMM) {
+          rc </span>= iproc_smb_data_send(i2c_adap, addr, &amp;<span style="color: #000000;">info);
+        }
+
+    }   
+
+    </span><span style="color: #0000ff;">if</span> (rc &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+
+        printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">%s %s: %s error accessing device 0x%X rc=%d</span><span style="color: #800000;">"</span>, __func__, dev-&gt;<span style="color: #000000;">adapter.name, 
+                (read_write </span>== I2C_SMBUS_READ) ? <span style="color: #800000;">"</span><span style="color: #800000;">Read</span><span style="color: #800000;">"</span> : <span style="color: #800000;">"</span><span style="color: #800000;">Write</span><span style="color: #800000;">"</span><span style="color: #000000;">, addr, rc);
+
+        up(</span>&amp;dev-&gt;<span style="color: #000000;">xfer_lock);
+
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EREMOTEIO;
+
+    }
+
+    up(</span>&amp;dev-&gt;<span style="color: #000000;">xfer_lock);
+
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> (rc);
+}
+
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> iproc_smb_data_send(<span style="color: #0000ff;">struct</span> i2c_adapter *<span style="color: #000000;">adapter,　　　　　　//   &lt;&lt;&lt;----------------------- 2
+                               unsigned </span><span style="color: #0000ff;">short</span><span style="color: #000000;"> addr,
+                               </span><span style="color: #0000ff;">struct</span> iproc_xact_info *<span style="color: #000000;">info)
+{
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> rc;
+    unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> regval;
+    </span><span style="color: #0000ff;">struct</span> iproc_smb_drv_int_data *dev =<span style="color: #000000;"> i2c_get_adapdata(adapter);
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;"> time_left;
+
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">检查总线是否空闲</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Make sure the previous transaction completed </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    rc </span>=<span style="color: #000000;"> iproc_smb_startbusy_wait(dev);　　　　　　　　　　　　　　　　// ---------------------------&gt;&gt;&gt; 3
+
+    </span><span style="color: #0000ff;">if</span> (rc &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+
+#ifdef IPROC_SMB_DBG
+        printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: Send: %s bus is busy, attempt recovery \n</span><span style="color: #800000;">"</span><span style="color: #000000;">, 
+               __func__, dev</span>-&gt;<span style="color: #000000;">adapter.name);
+</span><span style="color: #0000ff;">#endif</span>
+        <span style="color: #008000;">//</span><span style="color: #008000;">恢复总线</span>
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> attempt to recover the bus </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (iproc_smb_startbusy_recovery(dev) != <span style="color: #800080;">0</span><span style="color: #000000;">) {
+
+          </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> rc;
+
+        }
+    }
+
+    </span><span style="color: #0000ff;">if</span> (dev-&gt;enable_evts ==<span style="color: #000000;"> ENABLE_INTR) {
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Enable start_busy interrupt </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        regval </span>= iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                       CCB_SMB_EVTEN_REG);
+
+        regval </span>|=<span style="color: #000000;"> CCB_SMB_MSTRSTARTBUSYEN_MASK;
+
+        iproc_smb_reg_write((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                            CCB_SMB_EVTEN_REG, regval);
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Mark as incomplete before sending the data </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        INIT_COMPLETION(dev</span>-&gt;<span style="color: #000000;">ses_done);
+
+    }
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">把所有的数据都写道FIFO中</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Write transaction bytes to Tx FIFO </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    iproc_smb_write_trans_data((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;<span style="color: #000000;">block_base_addr, addr, info);　　　　　　// -----------------&gt;&gt;&gt; 4
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">是能寄存器，初始化写操作</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Program master command register (0x30) with protocol type and set
+     * start_busy_command bit to initiate the write transaction
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    regval </span>= (info-&gt;smb_proto &lt;&lt; CCB_SMB_MSTRSMBUSPROTO_SHIFT) |<span style="color: #000000;">
+              CCB_SMB_MSTRSTARTBUSYCMD_MASK;
+
+    iproc_smb_reg_write((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                        CCB_SMB_MSTRCMD_REG, regval);
+
+    </span><span style="color: #0000ff;">if</span> (dev-&gt;enable_evts ==<span style="color: #000000;"> ENABLE_INTR) {
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+         * Block waiting for the transaction to finish. When it's finished,
+         * we'll be signaled by an interrupt
+         </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        time_left </span>= wait_for_completion_timeout(&amp;dev-&gt;<span style="color: #000000;">ses_done, XACT_TIMEOUT);
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Disable start_busy interrupt </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        regval </span>= iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                       CCB_SMB_EVTEN_REG);
+
+        regval </span>&amp;= ~<span style="color: #000000;">CCB_SMB_MSTRSTARTBUSYEN_MASK;
+
+        iproc_smb_reg_write((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                               CCB_SMB_EVTEN_REG, regval);
+
+        </span><span style="color: #0000ff;">if</span> (time_left == <span style="color: #800080;">0</span><span style="color: #000000;">) {
+
+           printk (KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: Send: %s timeout accessing device x%02x\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, 
+                   __func__, dev</span>-&gt;<span style="color: #000000;">adapter.name, addr);
+
+           </span><span style="color: #008000;">/*</span><span style="color: #008000;"> attempt to recover the bus </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+           rc </span>=<span style="color: #000000;"> iproc_smb_timeout_recovery(dev);
+           </span><span style="color: #0000ff;">if</span> ( rc != <span style="color: #800080;">0</span><span style="color: #000000;"> ) {
+
+                </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ETIMEDOUT;
+
+            }
+           </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+                </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ECOMM;
+            }
+
+        }
+
+    }
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">读取寄存器，检查发送完之后的寄存器标志位，判断是否发送成功    </span>
+    regval = iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                CCB_SMB_MSTRCMD_REG);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> If start_busy bit cleared, check if there are any errors </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (!(regval &amp;<span style="color: #000000;"> CCB_SMB_MSTRSTARTBUSYCMD_MASK)) {
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> start_busy bit cleared, check master_status field now </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        regval </span>&amp;=<span style="color: #000000;"> CCB_SMB_MSTRSTS_MASK;
+        regval </span>&gt;&gt;=<span style="color: #000000;"> CCB_SMB_MSTRSTS_SHIFT;
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">检查是否发送成功</span>
+        <span style="color: #0000ff;">if</span> (regval !=<span style="color: #000000;"> MSTR_STS_XACT_SUCCESS) {
+
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> We can flush Tx FIFO here </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+            printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">\n\n%s:Send: %s Error in transaction %d to device x%02x, exiting\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+                     __func__, dev</span>-&gt;<span style="color: #000000;">adapter.name, regval, addr);
+
+           </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EREMOTEIO;
+
+        }
+    }
+
+    </span><span style="color: #0000ff;">return</span>(<span style="color: #800080;">0</span><span style="color: #000000;">);
+}
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> iproc_smb_startbusy_wait(<span style="color: #0000ff;">struct</span> iproc_smb_drv_int_data *<span style="color: #000000;">dev)　　　　// &lt;&lt;&lt;-----------------------   3
+{
+    unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> regval;
+
+    regval </span>= iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                    CCB_SMB_MSTRCMD_REG);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Check if an operation is in progress. During probe it won't be.
+     * But when shutdown/remove was called we want to make sure that
+     * the transaction in progress completed
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">//</span><span style="color: #008000;">检查总线是否空闲,如果非零表示busy，那么就等待</span>
+    <span style="color: #0000ff;">if</span> (regval &amp;<span style="color: #000000;"> CCB_SMB_MSTRSTARTBUSYCMD_MASK) {
+        unsigned </span><span style="color: #0000ff;">int</span> i = <span style="color: #800080;">0</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">do</span><span style="color: #000000;"> {
+
+               msleep(</span><span style="color: #800080;">1</span>); <span style="color: #008000;">/*</span><span style="color: #008000;"> Wait for 1 msec </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+               i</span>++<span style="color: #000000;">;
+                </span><span style="color: #008000;">//</span><span style="color: #008000;">再次读取，判断是否空闲</span>
+               regval =<span style="color: #000000;"> iproc_smb_reg_read(
+                     (unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> CCB_SMB_MSTRCMD_REG);
+        
+          </span><span style="color: #008000;">/*</span><span style="color: #008000;"> If start-busy bit cleared, exit the loop </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        } </span><span style="color: #0000ff;">while</span> ((regval &amp; CCB_SMB_MSTRSTARTBUSYCMD_MASK) &amp;&amp;<span style="color: #000000;">
+                 (i </span>&lt;<span style="color: #000000;"> IPROC_SMB_MAX_RETRIES));
+
+        </span><span style="color: #0000ff;">if</span> (i &gt;=<span style="color: #000000;"> IPROC_SMB_MAX_RETRIES) {
+#ifdef IPROC_SMB_DBG
+            printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: %s START_BUSY bit didn't clear, exiting\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+                   __func__, dev</span>-&gt;<span style="color: #000000;">adapter.name);
+</span><span style="color: #0000ff;">#endif</span>
+            <span style="color: #0000ff;">return</span> -<span style="color: #000000;">ETIMEDOUT;
+
+        }
+
+    }
+
+   </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> iproc_smb_data_recv(<span style="color: #0000ff;">struct</span> i2c_adapter *<span style="color: #000000;">adapter,　　　　　　　　// &lt;&lt;&lt;-----------------------  1
+                               unsigned </span><span style="color: #0000ff;">short</span><span style="color: #000000;"> addr,
+                               </span><span style="color: #0000ff;">struct</span> iproc_xact_info *<span style="color: #000000;">info,
+                               unsigned </span><span style="color: #0000ff;">int</span> *<span style="color: #000000;">num_bytes_read)
+{
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> rc;
+    unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> regval;
+    </span><span style="color: #0000ff;">struct</span> iproc_smb_drv_int_data *dev =<span style="color: #000000;"> i2c_get_adapdata(adapter);
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;"> time_left;
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">等待总线空闲</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Make sure the previous transaction completed </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    rc </span>=<span style="color: #000000;"> iproc_smb_startbusy_wait(dev);
+
+    </span><span style="color: #0000ff;">if</span> (rc &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+#ifdef IPROC_SMB_DBG
+        printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: Receive: %s bus is busy, attempt recovery \n</span><span style="color: #800000;">"</span>, __func__, dev-&gt;<span style="color: #000000;">adapter.name);
+</span><span style="color: #0000ff;">#endif</span>
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> attempt to recover the bus </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (iproc_smb_startbusy_recovery(dev) != <span style="color: #800080;">0</span><span style="color: #000000;">) {
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> rc;
+        }
+    }
+
+    </span><span style="color: #0000ff;">if</span> (dev-&gt;enable_evts ==<span style="color: #000000;"> ENABLE_INTR) {
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">启用开始信号终端</span>
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> Enable start_busy interrupt </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        regval </span>= iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                    CCB_SMB_EVTEN_REG);
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">设置标志位为1，通知接收事件</span>
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> Set Rx_event_en bit for notification of reception event </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        regval </span>|=<span style="color: #000000;"> (CCB_SMB_MSTRSTARTBUSYEN_MASK);
+
+        iproc_smb_reg_write((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                               CCB_SMB_EVTEN_REG, regval);
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Mark as incomplete before sending the data </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        INIT_COMPLETION(dev</span>-&gt;<span style="color: #000000;">ses_done);
+
+    }
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">把所有的数据防盗FIFO中发送</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Program all transaction bytes into master Tx FIFO </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    iproc_smb_write_trans_data((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;<span style="color: #000000;">block_base_addr, addr, info);　　　　　　　　　　//-----------------------&gt;&gt;&gt; 4
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">初始化发送操作，设置发送的数据大小，激活发送操作，发送数据，设置其中的字节数</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Program master command register (0x30) with protocol type and set
+     * start_busy_command bit to initiate the write transaction
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    regval </span>= (info-&gt;smb_proto &lt;&lt; CCB_SMB_MSTRSMBUSPROTO_SHIFT) |<span style="color: #000000;">
+              CCB_SMB_MSTRSTARTBUSYCMD_MASK </span>| info-&gt;<span style="color: #000000;">size;
+
+    iproc_smb_reg_write((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                        CCB_SMB_MSTRCMD_REG, regval);
+
+    </span><span style="color: #0000ff;">if</span> (dev-&gt;enable_evts ==<span style="color: #000000;"> ENABLE_INTR) {
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+         * Block waiting for the transaction to finish. When it's finished,
+         * we'll be signaled by an interrupt
+         </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        time_left </span>= wait_for_completion_timeout(&amp;dev-&gt;<span style="color: #000000;">ses_done, XACT_TIMEOUT);
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Disable start_busy and rx_event interrupts. Above call has handled
+         * the interrupt
+         </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        regval </span>= iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                    CCB_SMB_EVTEN_REG);
+
+        regval </span>&amp;= ~<span style="color: #000000;">(CCB_SMB_MSTRSTARTBUSYEN_MASK);
+
+        iproc_smb_reg_write((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                               CCB_SMB_EVTEN_REG, regval);
+
+        </span><span style="color: #0000ff;">if</span> (time_left == <span style="color: #800080;">0</span><span style="color: #000000;">) {
+
+           printk (KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">\n%s: Receive: %s timeout accessing device 0x%02x\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, 
+                   __func__, dev</span>-&gt;<span style="color: #000000;">adapter.name, addr);
+
+           </span><span style="color: #008000;">/*</span><span style="color: #008000;"> attempt to recover the bus </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+           rc </span>=<span style="color: #000000;"> iproc_smb_timeout_recovery(dev);　　　　　　　　　　// ------------------------------&gt;&gt;&gt; 5
+           </span><span style="color: #0000ff;">if</span> ( rc != <span style="color: #800080;">0</span><span style="color: #000000;"> ) {
+           </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ETIMEDOUT;
+           }
+           </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+             </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ECOMM;
+           }
+        }
+
+    }
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">读取状态位</span>
+    regval = iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                CCB_SMB_MSTRCMD_REG);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">start_busy位清0的时候，检查是否有错</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> If start_busy bit cleared, check if there are any errors </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (!(regval &amp;<span style="color: #000000;"> CCB_SMB_MSTRSTARTBUSYCMD_MASK)) {
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> start_busy bit cleared, check master_status field now </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        regval </span>&amp;=<span style="color: #000000;"> CCB_SMB_MSTRSTS_MASK;
+        regval </span>&gt;&gt;=<span style="color: #000000;"> CCB_SMB_MSTRSTS_SHIFT;
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">检查发送是否成功</span>
+        <span style="color: #0000ff;">if</span> (regval !=<span style="color: #000000;"> MSTR_STS_XACT_SUCCESS) {
+
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> We can flush Tx FIFO here </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+            printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">\n%s: %s Error in transaction %d to device x%02x, exiting\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+            __func__, dev</span>-&gt;<span style="color: #000000;">adapter.name, regval, addr);
+
+           </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EREMOTEIO;
+
+        }
+
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> In the isr we will read the received byte, and also deal with
+     * rx fifo full event. The above check is for timeout error. If needed
+     * we may move it to rx isr
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">//</span><span style="color: #008000;">开始接受数据,接受第一字节</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Read received byte(s) </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    regval </span>= iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                   CCB_SMB_MSTRDATARD_REG);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">如果是读取块数据</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> For block read, protocol (hw) returns byte count, as the first byte </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> ((info-&gt;smb_proto == SMBUS_PROT_BLK_RD) ||<span style="color: #000000;"> 
+        (info</span>-&gt;smb_proto ==<span style="color: #000000;"> SMBUS_PROT_BLK_WR_BLK_RD_PROC_CALL)) {
+
+        </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> i;
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">根据协议定义，再发送了读取信号之后，接收的第一个字节是接受数据的大小</span>
+        *num_bytes_read = regval &amp;<span style="color: #000000;"> CCB_SMB_MSTRRDDATA_MASK;
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Limit to reading a max of 32 bytes only; just a safeguard. If
+         * # bytes read is a number &gt; 32, check transaction set up, and contact
+         * hw engg. Assumption: PEC is disabled 
+         </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; (i &lt; *num_bytes_read) &amp;&amp; (i &lt; I2C_SMBUS_BLOCK_MAX); i++<span style="color: #000000;">) {
+
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Read Rx FIFO for data bytes </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+            regval </span>= iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                        CCB_SMB_MSTRDATARD_REG);
+
+            info</span>-&gt;data[i] = regval &amp;<span style="color: #000000;"> CCB_SMB_MSTRRDDATA_MASK;
+
+        }
+
+    }
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+
+        </span>*info-&gt;data = regval &amp;<span style="color: #000000;"> CCB_SMB_MSTRRDDATA_MASK;
+
+        </span>*num_bytes_read = <span style="color: #800080;">1</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">if</span> (info-&gt;smb_proto ==<span style="color: #000000;"> SMBUS_PROT_RD_WORD) {
+          </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Read Rx FIFO for data bytes </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+          regval </span>= iproc_smb_reg_read((unsigned <span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> 
+                                      CCB_SMB_MSTRDATARD_REG);
+
+          info</span>-&gt;data[<span style="color: #800080;">1</span>] = regval &amp;<span style="color: #000000;"> CCB_SMB_MSTRRDDATA_MASK;
+
+          </span>*num_bytes_read = <span style="color: #800080;">2</span><span style="color: #000000;">;
+        }
+    }
+
+    </span><span style="color: #0000ff;">return</span>(<span style="color: #800080;">0</span><span style="color: #000000;">);
+}
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> iproc_smb_write_trans_data(unsigned <span style="color: #0000ff;">long</span><span style="color: #000000;"> base_addr, 　　　　　　// &lt;&lt;&lt;----------------------- 4
+                                       unsigned </span><span style="color: #0000ff;">short</span><span style="color: #000000;"> dev_addr,
+                                       </span><span style="color: #0000ff;">struct</span> iproc_xact_info *<span style="color: #000000;">info)
+{
+    unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> regval;
+    unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> i;
+    unsigned </span><span style="color: #0000ff;">int</span> num_data_bytes = <span style="color: #800080;">0</span><span style="color: #000000;">;
+
+#ifdef IPROC_SMB_DBG
+    printk(KERN_DEBUG </span><span style="color: #800000;">"</span><span style="color: #800000;">\n%s: dev_addr=0x%X, offset=%u, cmd_valid=%u, size=%u\n</span><span style="color: #800000;">"</span>, __func__, dev_addr, info-&gt;command, info-&gt;cmd_valid, info-&gt;<span style="color: #000000;">size);
+</span><span style="color: #0000ff;">#endif</span> /* IPROC_SMB_DBG */
+
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Write SMBus device address first </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Note, we are assuming 7-bit addresses for now. For 10-bit addresses,
+     * we may have one more write to send the upper 3 bits of 10-bit addr
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">//</span><span style="color: #008000;">将地址写入到主机数据写寄存器中，发送出去</span>
+    iproc_smb_reg_write(base_addr +<span style="color: #000000;"> CCB_SMB_MSTRDATAWR_REG, dev_addr);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">发送command </span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> If the protocol needs command code, copy it </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (info-&gt;cmd_valid == <span style="color: #0000ff;">true</span><span style="color: #000000;">) {
+
+        iproc_smb_reg_write(base_addr </span>+ CCB_SMB_MSTRDATAWR_REG, info-&gt;<span style="color: #000000;">command);
+ 
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Depending on the SMBus protocol, we need to write additional transaction
+     * data in to Tx FIFO. Refer to section 5.5 of SMBus spec for sequence for a
+     * transaction
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">//</span><span style="color: #008000;">寄存器偏移0x30, 判断要发送数据的大小
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">判断操作的类型,添加额外的数据给到FIFO中</span>
+    <span style="color: #0000ff;">switch</span> (info-&gt;<span style="color: #000000;">smb_proto) {
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">接受字节</span>
+        <span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_RECV_BYTE:
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> No additional data to be written </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+            num_data_bytes </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">发送字节</span>
+        <span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_SEND_BYTE:
+            num_data_bytes </span>= info-&gt;<span style="color: #000000;">size;
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_RD_BYTE:
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_RD_WORD:
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_BLK_RD:
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Write slave address with R/W~ set (bit #0) </span><span style="color: #008000;">*/</span>
+            <span style="color: #008000;">//</span><span style="color: #008000;">块数据，多个字节的读写
+            </span><span style="color: #008000;">//</span><span style="color: #008000;">根据协议格式，读操作需要再次发送开始信号</span>
+            iproc_smb_reg_write(base_addr +<span style="color: #000000;"> CCB_SMB_MSTRDATAWR_REG,
+                                dev_addr </span>| <span style="color: #800080;">0x1</span><span style="color: #000000;">);
+            num_data_bytes </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_WR_BYTE:
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_WR_WORD:
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> No additional bytes to be written. Data portion is written in the
+             * 'for' loop below
+             </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+            num_data_bytes </span>= info-&gt;<span style="color: #000000;">size;
+
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Note for hx4 eeprom (at24c64). the low addr bytes can be passed
+             * in to 1st byte of info-&gt;data 
+             </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">break</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_BLK_WR:
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 3rd byte is byte count </span><span style="color: #008000;">*/</span>
+            <span style="color: #008000;">//</span><span style="color: #008000;">块数据写，需要发送要些的字节个数</span>
+            iproc_smb_reg_write(base_addr + CCB_SMB_MSTRDATAWR_REG, info-&gt;<span style="color: #000000;">size);
+            num_data_bytes </span>= info-&gt;<span style="color: #000000;">size;
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">case</span><span style="color: #000000;"> SMBUS_PROT_BLK_WR_BLK_RD_PROC_CALL:
+            </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Write byte count </span><span style="color: #008000;">*/</span>
+            <span style="color: #008000;">//</span><span style="color: #008000;">块数据读写调用，需要发送字节的个数</span>
+            iproc_smb_reg_write(base_addr + CCB_SMB_MSTRDATAWR_REG, info-&gt;<span style="color: #000000;">size);
+            num_data_bytes </span>= info-&gt;<span style="color: #000000;">size;
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+
+        </span><span style="color: #0000ff;">default</span><span style="color: #000000;">:
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+
+    }
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">发送实际的数据 </span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Copy actual data from caller, next. In general, for reads, no data is
+     * copied
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; num_data_bytes; --num_data_bytes, i++<span style="color: #000000;">) {
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> For the last byte, set MASTER_WR_STATUS bit. For block rd/wr process
+         * call, we need to program slave addr after copying data byte(s), so 
+         * master status bit is set later, after the loop
+         </span><span style="color: #008000;">*/</span>
+        <span style="color: #008000;">//</span><span style="color: #008000;">最后一个字节，需要设置master写状态为1</span>
+        <span style="color: #0000ff;">if</span> ((num_data_bytes == <span style="color: #800080;">1</span>) &amp;&amp;<span style="color: #000000;"> 
+            (info</span>-&gt;smb_proto !=<span style="color: #000000;"> SMBUS_PROT_BLK_WR_BLK_RD_PROC_CALL)) { 
+            regval </span>= info-&gt;data[i] |<span style="color: #000000;"> CCB_SMB_MSTRWRSTS_MASK;
+        }
+        </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+            regval </span>=  info-&gt;<span style="color: #000000;">data[i];
+        }
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">发送数据</span>
+        iproc_smb_reg_write(base_addr +<span style="color: #000000;"> CCB_SMB_MSTRDATAWR_REG, regval);
+
+    }
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">如果是读写调用操作，数据写完之后，还要再次读回来，
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">所以下面这条命令就是再次发送开始信号，并指定为读操作 </span>
+    <span style="color: #0000ff;">if</span> (info-&gt;smb_proto ==<span style="color: #000000;"> SMBUS_PROT_BLK_WR_BLK_RD_PROC_CALL) {
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Write device address needed during repeat start condition </span><span style="color: #008000;">*/</span>
+        <span style="color: #008000;">//</span><span style="color: #008000;">重复的开始信号，还有地址，有些操作需要这样</span>
+        iproc_smb_reg_write(base_addr +<span style="color: #000000;"> CCB_SMB_MSTRDATAWR_REG,
+                            CCB_SMB_MSTRWRSTS_MASK </span>| dev_addr | <span style="color: #800080;">0x1</span><span style="color: #000000;">);
+    }
+
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;">;
+}
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> iproc_smb_startbusy_recovery(<span style="color: #0000ff;">struct</span> iproc_smb_drv_int_data *<span style="color: #000000;">dev)　　　　　　// &lt;&lt;&lt;------------- 5
+{
+  </span><span style="color: #0000ff;">int</span> rc = -<span style="color: #800080;">1</span><span style="color: #000000;">;
+  unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> recoveryCnt;
+
+  </span><span style="color: #0000ff;">if</span> (dev-&gt;adapter.nr == <span style="color: #800080;">0</span><span style="color: #000000;">) {
+    recoveryCnt </span>= ++<span style="color: #000000;">smbus0_startBusyCnt;
+  }
+  </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+    recoveryCnt </span>= ++<span style="color: #000000;">smbus1_startBusyCnt;
+  }
+
+  printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: %s START_BUSY recovery #%d \n</span><span style="color: #800000;">"</span>, __func__, dev-&gt;<span style="color: #000000;">adapter.name, recoveryCnt);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">复位i2c总线到默认值</span>
+  <span style="color: #008000;">/*</span><span style="color: #008000;"> reset the SMBus block, wait a minimum of 50 uSecs and then re-initialize </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+  iproc_smb_reg_write((unsigned </span><span style="color: #0000ff;">long</span>)dev-&gt;block_base_addr +<span style="color: #000000;"> CCB_SMB_CFG_REG, CCB_SMB_CFG_RST_MASK);
+  udelay(</span><span style="color: #800080;">60</span><span style="color: #000000;">);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">从新初始化</span>
+  <span style="color: #0000ff;">if</span> ( iproc_smbus_block_init(dev) == <span style="color: #800080;">0</span><span style="color: #000000;"> ) {
+    rc </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;
+  }
+  
+  </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> rc;
+}</span></pre>
+</div>
+<p>&nbsp;</p>

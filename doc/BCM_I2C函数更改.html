@@ -1,0 +1,102 @@
+<div class="cnblogs_code">
+<pre>版本：sdk-xgs-robo-<span style="color: #800080;">6.3</span>.<span style="color: #800080;">8</span><span style="color: #000000;">
+平台：BCM53344
+应用：控制POE芯片
+<br />描述：POE控制芯片使用PD69200，使用i2c与其通信，每次需要发送15字节数据，并接受15字节的返回数据。<br /><br />1.更改函数<br />
+打开文件sdk</span>-xgs-robo-<span style="color: #800080;">6.3</span>.<span style="color: #800080;">8</span>/src/soc/i2c/<span style="color: #000000;">smbus.c
+更改如下：
+</span><span style="color: #0000ff;">int</span><span style="color: #000000;">
+soc_i2c_block_read(</span><span style="color: #0000ff;">int</span><span style="color: #000000;"> unit, i2c_saddr_t saddr,
+           uint8 com, uint8</span>* count, uint8*<span style="color: #000000;"> data)
+{
+     //... 省略 ...
+
+    I2C_LOCK(unit);
+// 53344芯片在定义了BCM_CMICM_SUPPORT,所以会运行下面的代码。
+#ifdef BCM_CMICM_SUPPORT
+    </span><span style="color: #0000ff;">if</span>(soc_feature(unit, soc_feature_cmicm) &amp;&amp; !<span style="color: #000000;">SOC_IS_SAND(unit)) {
+retry:<br />　　//这个函数是smbus协议的命令格式。与I2C有些区别。注释掉发送地址和com的地方。<br />　　//直接读取数据
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        rval = SOC_I2C_TX_ADDR(saddr);
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        WRITE_CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr(unit, rval);
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        rval = com;
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        WRITE_CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr(unit, rval);</span>
+        rval =<span style="color: #000000;"> SOC_I2C_RX_ADDR(saddr);
+        soc_reg_field_set(unit, CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr, </span>&amp;rval, MASTER_WR_STATUSf, <span style="color: #800080;">1</span>); <span style="color: #008000;">/*</span><span style="color: #008000;"> Last Byte </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        WRITE_CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr(unit, rval);
+　　　　//更改要接受的数据个数。默认是0，因此会读取0个数据。<br />　　　　//查看芯片手册，需要将CMIC_I2CM_SMBus_Master_Command寄存器的最低8位（RD_BYTE_COUNT),设置为要读取的字节个数。
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        rval = 0;</span>
+        rval = *<span style="color: #000000;">count;
+        soc_reg_field_set(unit, CMIC_I2CM_SMBUS_MASTER_COMMANDr, </span>&amp;<span style="color: #000000;">rval, SMBUS_PROTOCOLf, SMBUS_BLOCK_READ);
+        WRITE_CMIC_I2CM_SMBUS_MASTER_COMMANDr(unit,rval);
+
+        rv </span>=<span style="color: #000000;"> smbus_start_wait(unit);
+        </span><span style="color: #0000ff;">if</span> (rv ==<span style="color: #000000;"> SOC_E_NONE) {<br />　　　　//直接读取即可，这一部分也不需要，smbus协议才需要
+</span><span style="color: #008000;">//</span><span style="color: #008000;">            READ_CMIC_I2CM_SMBUS_MASTER_DATA_READr(unit, &amp;rval);
+</span><span style="color: #008000;">//</span><span style="color: #008000;">            *count = (uint8) (rval &amp; 0xff);</span>
+            ptr =<span style="color: #000000;"> data;
+            </span><span style="color: #0000ff;">for</span>( i = <span style="color: #800080;">0</span>; i &lt; *count; i++, ptr++<span style="color: #000000;">) {
+                READ_CMIC_I2CM_SMBUS_MASTER_DATA_READr(unit, </span>&amp;<span style="color: #000000;">rval);
+                </span>*ptr = (uint8) (rval &amp; <span style="color: #800080;">0xff</span><span style="color: #000000;">);
+            }
+        } </span><span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span> (rt-- &gt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+            </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> retry;
+        } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+            rv </span>=<span style="color: #000000;"> SOC_E_TIMEOUT;
+        }
+    } </span><span style="color: #0000ff;">else　　//后面的不运行</span>
+<span style="color: #0000ff;">#endif</span>
+　　// ... 省略 ...<br />}
+<br />//同理，write函数也进行注释
+<span style="color: #0000ff;">int</span><span style="color: #000000;">
+soc_i2c_block_write(</span><span style="color: #0000ff;">int</span><span style="color: #000000;"> unit, i2c_saddr_t saddr,
+            uint8 com, uint8 count, uint8</span>*<span style="color: #000000;"> data)
+{
+    </span><span style="color: #0000ff;">int</span> i,rv =<span style="color: #000000;"> SOC_E_NONE;
+    uint8</span>* ptr =<span style="color: #000000;"> NULL;
+#ifdef BCM_CMICM_SUPPORT
+    uint32 rval;
+    </span><span style="color: #0000ff;">int</span> rt = <span style="color: #800080;">5</span><span style="color: #000000;">;
+</span><span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+
+soc_cm_debug(DK_I2C, </span><span style="color: #800000;">"</span><span style="color: #800000;">i2c%d: soc_i2c_block_write %02x bytes @ %02x - %02x\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, unit, count, saddr, com);
+
+#ifdef BCM_CALADAN3_SVK
+    </span><span style="color: #0000ff;">if</span> (unit == -<span style="color: #800080;">1</span><span style="color: #000000;">) {
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> cpu_i2c_block_write(unit, saddr, com, data, count);
+    }
+</span><span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+
+    I2C_LOCK(unit);
+#ifdef BCM_CMICM_SUPPORT
+    </span><span style="color: #0000ff;">if</span>(soc_feature(unit, soc_feature_cmicm) &amp;&amp; !<span style="color: #000000;">SOC_IS_SAND(unit)) {
+retry:
+        rval </span>=<span style="color: #000000;"> SOC_I2C_TX_ADDR(saddr);
+        WRITE_CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr(unit, rval);
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        rval = com;
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        WRITE_CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr(unit, rval);
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        rval = count;
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        WRITE_CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr(unit, rval);</span>
+<span style="color: #000000;">
+        ptr </span>=<span style="color: #000000;"> data;
+        </span><span style="color: #0000ff;">for</span>( i = <span style="color: #800080;">0</span>; i &lt; (<span style="color: #0000ff;">int</span>) (count - <span style="color: #800080;">1</span>); i++, ptr++<span style="color: #000000;">) {
+            rval </span>= (uint32) *<span style="color: #000000;">ptr;
+            WRITE_CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr(unit, rval);
+        }
+        rval </span>= (uint32) *<span style="color: #000000;">ptr;
+        soc_reg_field_set(unit, CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr, </span>&amp;rval, MASTER_WR_STATUSf, <span style="color: #800080;">1</span>); <span style="color: #008000;">/*</span><span style="color: #008000;"> Last Byte </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        WRITE_CMIC_I2CM_SMBUS_MASTER_DATA_WRITEr(unit, rval);
+
+        rval </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;
+        soc_reg_field_set(unit, CMIC_I2CM_SMBUS_MASTER_COMMANDr, </span>&amp;<span style="color: #000000;">rval, SMBUS_PROTOCOLf, SMBUS_BLOCK_WRITE);
+        WRITE_CMIC_I2CM_SMBUS_MASTER_COMMANDr(unit,rval);
+
+        rv </span>=<span style="color: #000000;"> smbus_start_wait(unit);
+        </span><span style="color: #0000ff;">if</span> (rv != SOC_E_NONE &amp;&amp; rt-- &gt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+            </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> retry;
+        } </span><span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span> (rt &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {
+            rv </span>=<span style="color: #000000;"> SOC_E_TIMEOUT;
+        }
+    } </span><span style="color: #0000ff;">else</span>
+<span style="color: #0000ff;">#endif<br /><br />2.导出全局符号<br />打开文件 sdk/systems/linux/kernel/modules/include/bcmx_export.h<br />最后添加：<br />　　#include &lt;soc/i2c.h&gt;<br />　　EXPORT_SYMBOL(soc_i2c_is_attached);<br />　　EXPORT_SYMBOL(soc_i2c_attach);<br />　　EXPORT_SYMBOL(soc_i2c_block_read);<br />　　EXPORT_SYMBOL(soc_i2c_block_write);<br /><br />之后从新编译SDK即可。<br /><br /></span></pre>
+</div>
+<p>&nbsp;</p>

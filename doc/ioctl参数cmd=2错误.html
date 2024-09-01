@@ -1,0 +1,26 @@
+<p>在写内核驱动的时候，用到了ioctl。自己定义cmd作为ioctl的参数。如下：</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">enum</span><span style="color: #000000;"> CMD {
+    LEVEL_DOWN,
+    LEVEL_UP,
+    GPIO_INPUT,
+    GPIO_OUTPUT,
+    GPIO_GET,
+};</span></pre>
+</div>
+<p>ioctl底层调用代码：</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">long</span> led_ioctl(<span style="color: #0000ff;">struct</span> file *file, unsigned <span style="color: #0000ff;">int</span> cmd, unsigned <span style="color: #0000ff;">long</span><span style="color: #000000;"> arg)
+{
+   
+}</span></pre>
+</div>
+<p>在应用层调用ioctl的时候，当传入的cmd=2时会出现错误。<br />ioctl返回值为-1。错误号errno:14,&nbsp; bad address。 <br /><br />上网查阅才知道需要使用_IOWR等宏来生成cmd命令，而不能自己写。<br />虽然自己写也可以，但很有可能和系统的其他cmd命令冲突。刚好当ioctl的cmd=2使就出现了错误。<br />从新定义cmd如下：</p>
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">#define</span>     TYPE            'S' 
+<span style="color: #0000ff;">#define</span>     LEVEL_DOWN      _IOWR(TYPE, 0, int)
+<span style="color: #0000ff;">#define</span>     LEVEL_UP        _IOWR(TYPE, 1, int)
+<span style="color: #0000ff;">#define</span>     GPIO_INPUT      _IOWR(TYPE, 2, int)
+<span style="color: #0000ff;">#define</span>     GPIO_OUTPUT     _IOWR(TYPE, 3, int)
+<span style="color: #0000ff;">#define</span>     GPIO_GET        _IOWR(TYPE, 4, int)</pre>
+</div>

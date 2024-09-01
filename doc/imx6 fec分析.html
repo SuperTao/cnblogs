@@ -1,0 +1,854 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">****************************************************************************                                                   
+ *                        imx6 fec分析 
+ * 本文主要分析imx6的网卡程序，phy使用ar8031。
+ *
+ *                                             Tony Liu, 2016-4-19, Shenzhen 
+ ***************************************************************************</span><span style="color: #008000;">*/</span>
+<span style="color: #008000;">/*</span><span style="color: #008000;"> 注册设备 </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                                  
+kernel</span>/arch/arm/mach-mx6/<span style="color: #000000;">board_mx6q_sabresd.c                                                                                                    
+MACHINE_START(MX6Q_SABRESD, </span><span style="color: #800000;">"</span><span style="color: #800000;">Freescale i.MX 6Quad/DualLite/Solo Sabre-SD Board</span><span style="color: #800000;">"</span><span style="color: #000000;">)                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Maintainer: Freescale Semiconductor, Inc. </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                 
+    .boot_params </span>= MX6_PHYS_OFFSET + <span style="color: #800080;">0x100</span><span style="color: #000000;">,                                                         
+    .fixup </span>=<span style="color: #000000;"> fixup_mxc_board,                                                                       
+    .map_io </span>=<span style="color: #000000;"> mx6_map_io,                                                                           
+    .init_irq </span>=<span style="color: #000000;"> mx6_init_irq,                                                                       
+    .init_machine </span>=<span style="color: #000000;"> mx6_sabresd_board_init,                                                         
+    .timer </span>= &amp;mx6_sabresd_timer,        |<span style="color: #000000;">                                                           
+    .reserve </span>= mx6q_sabresd_reserve,    |<span style="color: #000000;">                                                           
+MACHINE_END                             </span>|<span style="color: #000000;">                                                           
+                                        V                                                           
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __init mx6_sabresd_board_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)                                                     
+{                                                                                                   
+    ... ...                                                                                         
+    imx6_init_fec(fec_data);  </span>---------------------------------------------+<span style="color: #000000;">                        
+    ... ...   </span>|                                                            |<span style="color: #000000;">                        
+}             </span>|                                                            |<span style="color: #000000;">                        
+              V                                                            </span>|                        
+<span style="color: #0000ff;">void</span> __init imx6_init_fec(<span style="color: #0000ff;">struct</span> fec_platform_data fec_data)               |<span style="color: #000000;">                        
+{                                                                          </span>|<span style="color: #000000;">                        
+    fec_get_mac_addr(fec_data.mac);         </span><span style="color: #008000;">//</span><span style="color: #008000;">获得mac地址    |              |                    </span>
+    <span style="color: #0000ff;">if</span> (!is_valid_ether_addr(fec_data.mac))                 |              |<span style="color: #000000;">                        
+        random_ether_addr(fec_data.mac);                    </span>|              |                        
+                                                            |              |                        
+    <span style="color: #0000ff;">if</span> (cpu_is_mx6sl())                                     |              |<span style="color: #000000;">                        
+        imx6sl_add_fec(</span>&amp;fec_data);      <span style="color: #008000;">//</span><span style="color: #008000;">注册设备   --------------------+  |                        </span>
+    <span style="color: #0000ff;">else</span>                                                    |            | |<span style="color: #000000;">                        
+        imx6q_add_fec(</span>&amp;fec_data);                           |            | |<span style="color: #000000;">                        
+}                                                           </span>|            | |                        
+                                                            |            | |                        
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> fec_get_mac_addr(unsigned <span style="color: #0000ff;">char</span> *mac)      &lt;------+            | |<span style="color: #000000;">                        
+{                                                                        </span>| |<span style="color: #000000;">                        
+    unsigned </span><span style="color: #0000ff;">int</span> value;                                                  | |                        
+                                                                         | |<span style="color: #000000;">                        
+    value </span>= readl(MX6_IO_ADDRESS(OCOTP_BASE_ADDR) + HW_OCOTP_MACn(<span style="color: #800080;">0</span>));   | |<span style="color: #000000;">                        
+    value </span>= <span style="color: #800080;">0x03040506</span>;                                                  | |<span style="color: #000000;">                        
+    mac[</span><span style="color: #800080;">5</span>] = value &amp; <span style="color: #800080;">0xff</span>;                                               | |<span style="color: #000000;">                        
+    mac[</span><span style="color: #800080;">4</span>] = (value &gt;&gt; <span style="color: #800080;">8</span>) &amp; <span style="color: #800080;">0xff</span>;                                        | |<span style="color: #000000;">                        
+    mac[</span><span style="color: #800080;">3</span>] = (value &gt;&gt; <span style="color: #800080;">16</span>) &amp; <span style="color: #800080;">0xff</span>;                                       | |<span style="color: #000000;">                        
+    mac[</span><span style="color: #800080;">2</span>] = (value &gt;&gt; <span style="color: #800080;">24</span>) &amp; <span style="color: #800080;">0xff</span>;                                       | |<span style="color: #000000;">                        
+    value </span>= readl(MX6_IO_ADDRESS(OCOTP_BASE_ADDR) + HW_OCOTP_MACn(<span style="color: #800080;">1</span>));   | |<span style="color: #000000;">                        
+    value </span>= <span style="color: #800080;">0x0102</span>;                                                      | |<span style="color: #000000;">                        
+    mac[</span><span style="color: #800080;">1</span>] = value &amp; <span style="color: #800080;">0xff</span>;                                               | |<span style="color: #000000;">                        
+    mac[</span><span style="color: #800080;">0</span>] = (value &gt;&gt; <span style="color: #800080;">8</span>) &amp; <span style="color: #800080;">0xff</span>;                                        | |                        
+                                                                         | |                        
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                            | |<span style="color: #000000;">                        
+}                                                                        </span>| |                        
+                                                                         | |                        
+<span style="color: #0000ff;">#define</span> imx6sl_add_fec(pdata)    \               &lt;-----------------------+ |                        <span style="color: #000000;">
+    imx_add_fec(</span>&amp;imx6sl_fec_data, pdata)                                 | |                        
+                                                                         | |                        
+<span style="color: #0000ff;">struct</span> platform_device *__init imx_add_fec(      &lt;-----------------------+ |                        
+        <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> imx_fec_data *data,                                   |                        
+        <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> fec_platform_data *pdata)                             |<span style="color: #000000;">                        
+{                                                                          </span>|                        
+    <span style="color: #0000ff;">struct</span> resource res[] = {                                              |<span style="color: #000000;">                        
+        {                                                                  </span>|<span style="color: #000000;">                        
+            .start </span>= data-&gt;iobase,                                         |<span style="color: #000000;">                        
+            .end </span>= data-&gt;iobase + SZ_4K - <span style="color: #800080;">1</span>,                               |<span style="color: #000000;">                        
+            .flags </span>= IORESOURCE_MEM,                                       |<span style="color: #000000;">                        
+        }, {                                                               </span>|<span style="color: #000000;">                        
+            .start </span>= data-&gt;irq,                                            |<span style="color: #000000;">                        
+            .end </span>= data-&gt;irq,                                              |<span style="color: #000000;">                        
+            .flags </span>= IORESOURCE_IRQ,                                       |<span style="color: #000000;">                        
+        },                                                                 </span>|<span style="color: #000000;">                        
+    };                                                                     </span>|                        
+                                                                           |                        
+    <span style="color: #0000ff;">if</span> (!fuse_dev_is_available(MXC_DEV_ENET))                              |                        
+        <span style="color: #0000ff;">return</span> ERR_PTR(-ENODEV);                                           |                        
+                                                                           |                        
+    <span style="color: #0000ff;">return</span> imx_add_platform_device_dmamask(data-&gt;devid, <span style="color: #800080;">0</span>,                 |<span style="color: #000000;">                        
+            res, ARRAY_SIZE(res),                                          </span>|<span style="color: #000000;">                        
+            pdata, </span><span style="color: #0000ff;">sizeof</span>(*pdata), DMA_BIT_MASK(<span style="color: #800080;">32</span>));                      |<span style="color: #000000;">                        
+}                                                                          </span>|                        
+                                                                           |                        
+                                                                           |                        
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> fec_platform_data fec_data __initdata = {        &lt;-----------+<span style="color: #000000;">                        
+        .init                   </span>= mx6q_sabresd_fec_phy_init,   ----------+<span style="color: #000000;">                          
+        .power_hibernate        </span>= mx6_sabresd_fec_power_hibernate,       |<span style="color: #000000;">                          
+        .phy                    </span>= PHY_INTERFACE_MODE_RGMII,  |           |<span style="color: #000000;">                          
+#ifdef CONFIG_MX6_ENET_IRQ_TO_GPIO                           </span>|           |<span style="color: #000000;">                          
+        .gpio_irq </span>= MX6_ENET_IRQ,                            |           |                          
+<span style="color: #0000ff;">#endif</span>                                                       |           |                          <span style="color: #000000;">
+};                                                           </span>|           |<span style="color: #000000;">                          
+                                                             V           </span>|                          
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> mx6_sabresd_fec_power_hibernate(<span style="color: #0000ff;">struct</span> phy_device *phydev)    |<span style="color: #000000;">                          
+{                                                                        </span>|<span style="color: #000000;">                          
+        unsigned </span><span style="color: #0000ff;">short</span> val;                                              |                          
+                                                                         |                          
+        <span style="color: #008000;">/*</span><span style="color: #008000;">set AR8031 debug reg 0xb to hibernate power</span><span style="color: #008000;">*/</span>                  |<span style="color: #000000;">                          
+        phy_write(phydev, </span><span style="color: #800080;">0x1d</span>, <span style="color: #800080;">0xb</span>);                                    |<span style="color: #000000;">                          
+        val </span>= phy_read(phydev, <span style="color: #800080;">0x1e</span>);                                    |                          
+                                                                         |<span style="color: #000000;">                          
+        val </span>|= <span style="color: #800080;">0x8000</span>;                                                   |<span style="color: #000000;">                          
+        phy_write(phydev, </span><span style="color: #800080;">0x1e</span>, val);                                    |                          
+                                                                         |                          
+        <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                        |<span style="color: #000000;">                          
+}                                                                        </span>|                          
+                                                                         |                          
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> mx6q_sabresd_fec_phy_init(<span style="color: #0000ff;">struct</span> phy_device *phydev)  &lt;-------+<span style="color: #000000;">                          
+{                                                                                                   
+        unsigned </span><span style="color: #0000ff;">short</span><span style="color: #000000;"> val;                                                                         
+    gpio_request(SABRESD_FEC_PHY_RESET,</span><span style="color: #800000;">"</span><span style="color: #800000;">phy-rst</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                                  
+    gpio_direction_output(SABRESD_FEC_PHY_RESET, </span><span style="color: #800080;">0</span><span style="color: #000000;">);                                                
+    mdelay(</span><span style="color: #800080;">5</span><span style="color: #000000;">);                                                                                      
+    gpio_direction_output(SABRESD_FEC_PHY_RESET, </span><span style="color: #800080;">1</span><span style="color: #000000;">);                                                
+    mdelay(</span><span style="color: #800080;">1</span><span style="color: #000000;">);                                                                                      
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Ar8031 phy SmartEEE feature cause link status generates glitch,                          
+         * which cause ethernet link down/up issue, so disable SmartEEE                             
+         </span><span style="color: #008000;">*/</span>                                                                                         
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> ar8031芯片手册中有体积，有三种寄存器，不同的寄存器读取方法不一样。</span><span style="color: #008000;">*/</span>
+        <span style="color: #008000;">//</span><span style="color: #008000;"> 1.  0xd确定设备地址, 0xe读取其中的值                                         </span>
+        phy_write(phydev, <span style="color: #800080;">0xd</span>, <span style="color: #800080;">0x3</span>);        <span style="color: #008000;">//</span><span style="color: #008000;">芯片device address: 3                               </span>
+        phy_write(phydev, <span style="color: #800080;">0xe</span>, <span style="color: #800080;">0x805d</span>);        <span style="color: #008000;">//</span><span style="color: #008000;">   offset:   0x805D                                </span>
+        phy_write(phydev, <span style="color: #800080;">0xd</span>, <span style="color: #800080;">0x4003</span>);        <span style="color: #008000;">//</span><span style="color: #008000;">keep the device address                            </span>
+        val = phy_read(phydev, <span style="color: #800080;">0xe</span>);        <span style="color: #008000;">//</span><span style="color: #008000;">读取寄存器0x805d 的值                          </span>
+        val &amp;= ~(<span style="color: #800080;">0x1</span> &lt;&lt; <span style="color: #800080;">8</span>);                    <span style="color: #008000;">//</span><span style="color: #008000;">disable smartEEE                                   </span>
+        phy_write(phydev, <span style="color: #800080;">0xe</span><span style="color: #000000;">, val);                                                                
+                                                                                                    
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> To enable AR8031 ouput a 125MHz clk from CLK_25M </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                      
+        phy_write(phydev, </span><span style="color: #800080;">0xd</span>, <span style="color: #800080;">0x7</span><span style="color: #000000;">);                                                                
+        phy_write(phydev, </span><span style="color: #800080;">0xe</span>, <span style="color: #800080;">0x8016</span><span style="color: #000000;">);                                                             
+        phy_write(phydev, </span><span style="color: #800080;">0xd</span>, <span style="color: #800080;">0x4007</span>);         <span style="color: #008000;">//</span><span style="color: #008000;">不知到为何这里要用0x4007                 </span>
+        val = phy_read(phydev, <span style="color: #800080;">0xe</span><span style="color: #000000;">);                                                                
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">设置时钟125M                                                                          </span>
+        val &amp;= <span style="color: #800080;">0xffe3</span><span style="color: #000000;">;                                                                              
+        val </span>|= <span style="color: #800080;">0x18</span><span style="color: #000000;">;                                                                                
+        phy_write(phydev, </span><span style="color: #800080;">0xe</span><span style="color: #000000;">, val);                                                                
+                                                                                                    
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> 2.  0x1d确定设备地址, 0x1e读取其中的值                                       
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">将要配置的寄存器的值写入0x1d                                                  </span>
+         <span style="color: #008000;">/*</span><span style="color: #008000;"> introduce tx clock delay </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                             
+        phy_write(phydev, </span><span style="color: #800080;">0x1d</span>, <span style="color: #800080;">0x5</span>);    <span style="color: #008000;">//</span><span style="color: #008000;">debug register : 0x05                                    
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">从0x1e读取寄存器0x5的值                                                           </span>
+        val = phy_read(phydev, <span style="color: #800080;">0x1e</span><span style="color: #000000;">);                                                               
+        val </span>|= <span style="color: #800080;">0x0100</span>;                    <span style="color: #008000;">//</span><span style="color: #008000;">rgmii tx clock delay enable                             </span>
+        phy_write(phydev, <span style="color: #800080;">0x1e</span><span style="color: #000000;">, val);                                                               
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> 3.  一般的寄存器直接对地址进行操作，读取寄存器地址为0x0的值    </span>
+        val = phy_read(phydev, <span style="color: #800080;">0x0</span><span style="color: #000000;">);                                                                
+        </span><span style="color: #0000ff;">if</span> (val &amp;<span style="color: #000000;"> BMCR_PDOWN)                                                                       
+                phy_write(phydev, </span><span style="color: #800080;">0x0</span>, (val &amp; ~<span style="color: #000000;">BMCR_PDOWN));                                        
+                                                                                                    
+        </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                                   
+}                                                                                                   
+                                                                                                    
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> 驱动注册                                                                                          </span>
+kernel/drivers/net/<span style="color: #000000;">fec.c                                                                            
+                                                                                                    
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> __init                                                                                   
+fec_enet_module_init(</span><span style="color: #0000ff;">void</span><span style="color: #000000;">)                                                                          
+{                                                                                                   
+    printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">FEC Ethernet Driver\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                                      
+                                                                                                    
+    </span><span style="color: #0000ff;">return</span> platform_driver_register(&amp;<span style="color: #000000;">fec_driver);                                                   
+}                                    </span>|<span style="color: #000000;">                                                              
+                                     V                                                              
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_driver fec_driver =<span style="color: #000000;"> {                                                        
+    .driver    </span>=<span style="color: #000000;"> {                                                                                  
+        .name    </span>= DRIVER_NAME,        <span style="color: #008000;">//</span><span style="color: #008000;"> "fec"                                                     </span>
+        .owner    =<span style="color: #000000;"> THIS_MODULE,                                                                    
+#ifdef CONFIG_PM                                                                                    
+        .pm    </span>= &amp;<span style="color: #000000;">fec_pm_ops,                                                                       
+</span><span style="color: #0000ff;">#endif</span>                                                                                              <span style="color: #000000;">
+    },                                                                                              
+    .id_table </span>=<span style="color: #000000;"> fec_devtype,                                                                        
+    .probe    </span>= fec_probe,         -------------+<span style="color: #000000;">                                                   
+    .remove    </span>= __devexit_p(fec_drv_remove),   |<span style="color: #000000;">                                                   
+};                                              </span>|                                                   
+                                                |                                                   
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __devinit                            |<span style="color: #000000;">                                                   
+fec_probe(</span><span style="color: #0000ff;">struct</span> platform_device *pdev)   &lt;-----+<span style="color: #000000;">                                                   
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> fec_enet_private *<span style="color: #000000;">fep;                                                                   
+    </span><span style="color: #0000ff;">struct</span> fec_platform_data *<span style="color: #000000;">pdata;                                                                
+    </span><span style="color: #0000ff;">struct</span> net_device *<span style="color: #000000;">ndev;                                                                        
+    </span><span style="color: #0000ff;">int</span> i, irq, ret = <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                            
+    </span><span style="color: #0000ff;">struct</span> resource *<span style="color: #000000;">r;                                                                             
+                                                                                                    
+    r </span>= platform_get_resource(pdev, IORESOURCE_MEM, <span style="color: #800080;">0</span><span style="color: #000000;">);                                             
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">r)                                                                                         
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENXIO;                                                                              
+                                                                                                    
+    r </span>= request_mem_region(r-&gt;start, resource_size(r), pdev-&gt;<span style="color: #000000;">name);                                 
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">r)                                                                                         
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EBUSY;                                                                              
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Init network device </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                       
+    ndev </span>= alloc_etherdev(<span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span><span style="color: #000000;"> fec_enet_private));                                         
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">ndev) {                                                                                    
+        ret </span>= -<span style="color: #000000;">ENOMEM;                                                                              
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> failed_alloc_etherdev;                                                                 
+    }                                                                                               
+                                                                                                    
+    SET_NETDEV_DEV(ndev, </span>&amp;pdev-&gt;<span style="color: #000000;">dev);                                                               
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> setup board info structure </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                
+    fep </span>=<span style="color: #000000;"> netdev_priv(ndev);                                                                        
+                                                                                                    
+    fep</span>-&gt;hwp = ioremap(r-&gt;<span style="color: #000000;">start, resource_size(r));                                                 
+    fep</span>-&gt;pdev =<span style="color: #000000;"> pdev;                                                                               
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (!fep-&gt;<span style="color: #000000;">hwp) {                                                                                
+        ret </span>= -<span style="color: #000000;">ENOMEM;                                                                              
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> failed_ioremap;                                                                        
+    }                                                                                               
+                                                                                                    
+    platform_set_drvdata(pdev, ndev);                                                               
+                                                                                                    
+    pdata </span>= pdev-&gt;<span style="color: #000000;">dev.platform_data;                                                                
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (pdata)                                                                                      
+        fep</span>-&gt;phy_interface = pdata-&gt;<span style="color: #000000;">phy;                                                            
+                                                                                                    
+#ifdef CONFIG_MX6_ENET_IRQ_TO_GPIO                                                                  
+    gpio_request(pdata</span>-&gt;gpio_irq, <span style="color: #800000;">"</span><span style="color: #800000;">gpio_enet_irq</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                                 
+    gpio_direction_input(pdata</span>-&gt;<span style="color: #000000;">gpio_irq);                                                          
+                                                                                                    
+    irq </span>= gpio_to_irq(pdata-&gt;<span style="color: #000000;">gpio_irq);                                                             
+    ret </span>=<span style="color: #000000;"> request_irq(irq, fec_enet_interrupt,                                                      
+            IRQF_TRIGGER_RISING,                                                                    
+             pdev</span>-&gt;<span style="color: #000000;">name, ndev);                                                                     
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret)                                                                                        
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> failed_irq;                                                                            
+</span><span style="color: #0000ff;">#else</span>                                                                                               
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> This device has up to three irqs on some platforms </span><span style="color: #008000;">*/</span>                                        
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; <span style="color: #800080;">3</span>; i++<span style="color: #000000;">) {                                                                       
+        irq </span>=<span style="color: #000000;"> platform_get_irq(pdev, i);                                                            
+        </span><span style="color: #0000ff;">if</span> (i &amp;&amp; irq &lt; <span style="color: #800080;">0</span><span style="color: #000000;">)                                                                           
+            </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                                                  
+        ret </span>= request_irq(irq, fec_enet_interrupt, IRQF_DISABLED, pdev-&gt;<span style="color: #000000;">name, ndev);                
+        </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret) {                                                                                  
+            </span><span style="color: #0000ff;">while</span> (--i &gt;= <span style="color: #800080;">0</span><span style="color: #000000;">) {                                                                      
+                irq </span>=<span style="color: #000000;"> platform_get_irq(pdev, i);                                                    
+                free_irq(irq, ndev);                                                                
+            }                                                                                       
+            </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> failed_irq;                                                                        
+        }                                                                                           
+    }                                                                                               
+</span><span style="color: #0000ff;">#endif</span>                                                                                              <span style="color: #000000;">
+                                                                                                    
+    fep</span>-&gt;clk = clk_get(&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">fec_clk</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                                      
+    </span><span style="color: #0000ff;">if</span> (IS_ERR(fep-&gt;<span style="color: #000000;">clk)) {                                                                         
+        ret </span>= PTR_ERR(fep-&gt;<span style="color: #000000;">clk);                                                                    
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> failed_clk;                                                                            
+    }                                                                                               
+    clk_enable(fep</span>-&gt;<span style="color: #000000;">clk);                                                                           
+                                                                                                    
+    ret </span>= fec_enet_init(ndev);           ----------------------------------------------+            
+    <span style="color: #0000ff;">if</span> (ret)                                                                           |            
+        <span style="color: #0000ff;">goto</span> failed_init;                                                              |            
+                                                                                       |<span style="color: #000000;">            
+    ret </span>= fec_enet_mii_init(pdev);       -----------------------------------------+    |            
+    <span style="color: #0000ff;">if</span> (ret)                                                                      |    |            
+        <span style="color: #0000ff;">goto</span> failed_mii_init;                                                     |    |            
+                                                                                  |    |            
+    <span style="color: #0000ff;">if</span> (fec_ptp_malloc_priv(&amp;(fep-&gt;ptp_priv))) {                                  |    |            
+        <span style="color: #0000ff;">if</span> (fep-&gt;ptp_priv) {                                                      |    |<span style="color: #000000;">            
+            fep</span>-&gt;ptp_priv-&gt;hwp = fep-&gt;hwp;                                        |    |<span style="color: #000000;">            
+            ret </span>= fec_ptp_init(fep-&gt;ptp_priv, pdev-&gt;id);                          |    |            
+            <span style="color: #0000ff;">if</span> (ret)                                                              |    |<span style="color: #000000;">            
+                printk(KERN_WARNING </span><span style="color: #800000;">"</span><span style="color: #800000;">IEEE1588: ptp-timer is unavailable\n</span><span style="color: #800000;">"</span>);      |    |            
+            <span style="color: #0000ff;">else</span>                                                                  |    |<span style="color: #000000;">            
+                fep</span>-&gt;ptimer_present = <span style="color: #800080;">1</span>;                                          |    |<span style="color: #000000;">            
+        } </span><span style="color: #0000ff;">else</span>                                                                    |    |<span style="color: #000000;">            
+            printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">IEEE1588: failed to malloc memory\n</span><span style="color: #800000;">"</span>);               |    |<span style="color: #000000;">            
+    }                                                                             </span>|    |            
+                                                                                  |    |            
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Carrier starts down, phylib will bring it up </span><span style="color: #008000;">*/</span>                            |    |<span style="color: #000000;">            
+    netif_carrier_off(ndev);                                                      </span>|    |<span style="color: #000000;">            
+    clk_disable(fep</span>-&gt;clk);                                                        |    |            
+                                                                                  |    |<span style="color: #000000;">            
+    INIT_DELAYED_WORK(</span>&amp;fep-&gt;fixup_trigger_tx, fixup_trigger_tx_func);             |    |            
+                                                                                  |    |<span style="color: #000000;">            
+    ret </span>= register_netdev(ndev);                                                  |    |            
+    <span style="color: #0000ff;">if</span> (ret)                                                                      |    |            
+        <span style="color: #0000ff;">goto</span> failed_register;                                                     |    |            
+                                                                                  |    |            
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                                     |    |            
+                                                                                  |    |<span style="color: #000000;">            
+failed_register:                                                                  </span>|    |<span style="color: #000000;">            
+    fec_enet_mii_remove(fep);                                                     </span>|    |            
+    <span style="color: #0000ff;">if</span> (fep-&gt;ptimer_present)                                                      |    |<span style="color: #000000;">            
+        fec_ptp_cleanup(fep</span>-&gt;ptp_priv);                                           |    |<span style="color: #000000;">            
+    kfree(fep</span>-&gt;ptp_priv);                                                         |    |<span style="color: #000000;">            
+failed_mii_init:                                                                  </span>|    |<span style="color: #000000;">            
+failed_init:                                                                      </span>|    |<span style="color: #000000;">            
+    clk_disable(fep</span>-&gt;clk);                                                        |    |<span style="color: #000000;">            
+    clk_put(fep</span>-&gt;clk);                                                            |    |<span style="color: #000000;">            
+failed_clk:                                                                       </span>|    |<span style="color: #000000;">            
+#ifdef CONFIG_MX6_ENET_IRQ_TO_GPIO                                                </span>|    |<span style="color: #000000;">            
+    free_irq(irq, ndev);                                                          </span>|    |            
+<span style="color: #0000ff;">#else</span>                                                                             |    |            
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; <span style="color: #800080;">3</span>; i++) {                                                     |    |<span style="color: #000000;">            
+        irq </span>= platform_get_irq(pdev, i);                                          |    |            
+        <span style="color: #0000ff;">if</span> (irq &gt; <span style="color: #800080;">0</span>)                                                              |    |<span style="color: #000000;">            
+            free_irq(irq, ndev);                                                  </span>|    |<span style="color: #000000;">            
+    }                                                                             </span>|    |            
+<span style="color: #0000ff;">#endif</span>                                                                            |    |            <span style="color: #000000;">
+failed_irq:                                                                       </span>|    |<span style="color: #000000;">            
+    iounmap(fep</span>-&gt;hwp);                                                            |    |<span style="color: #000000;">            
+failed_ioremap:                                                                   </span>|    |<span style="color: #000000;">            
+    free_netdev(ndev);                                                            </span>|    |<span style="color: #000000;">            
+failed_alloc_etherdev:                                                            </span>|    |<span style="color: #000000;">            
+    release_mem_region(r</span>-&gt;start, resource_size(r));                               |    |            
+                                                                                  |    |            
+    <span style="color: #0000ff;">return</span> ret;                                                                   |    |<span style="color: #000000;">            
+}                                                                                 </span>|    |            
+                                                                                  |    |            
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> fec_enet_mii_init(<span style="color: #0000ff;">struct</span> platform_device *pdev)       &lt;----------------+    |<span style="color: #000000;">            
+{                                                                                      </span>|            
+    <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> mii_bus *fec0_mii_bus;                                               |            
+    <span style="color: #0000ff;">struct</span> net_device *ndev = platform_get_drvdata(pdev);                              |            
+    <span style="color: #0000ff;">struct</span> fec_enet_private *fep = netdev_priv(ndev);                                  |            
+    <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> platform_device_id *id_entry =                                        |<span style="color: #000000;">            
+                platform_get_device_id(fep</span>-&gt;pdev);                                     |            
+    <span style="color: #0000ff;">int</span> err = -ENXIO, i;                                                               |            
+                                                                                       |            
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                                 |            
+     * The dual fec interfaces are not equivalent with enet-mac.                       |            
+     * Here are the differences:                                                       |            
+     *                                                                                 |            
+     *  - fec0 supports MII &amp; RMII modes while fec1 only supports RMII                 |            
+     *  - fec0 acts as the 1588 time master while fec1 is slave                        |            
+     *  - external phys can only be configured by fec0                                 |            
+     *                                                                                 |            
+     * That is to say fec1 can not work independently. It only works                   |            
+     * when fec0 is working. The reason behind this design is that the                 |            
+     * second interface is added primarily for Switch mode.                            |            
+     *                                                                                 |            
+     * Because of the last point above, both phys are attached on fec0                 |            
+     * mdio interface in board design, and need to be configured by                    |            
+     * fec0 mii_bus.                                                                   |            
+     </span><span style="color: #008000;">*/</span>                                                                                |            
+    <span style="color: #0000ff;">if</span> ((id_entry-&gt;driver_data &amp; FEC_QUIRK_ENET_MAC) &amp;&amp; pdev-&gt;id) {                    |            
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> fec1 uses fec0 mii_bus </span><span style="color: #008000;">*/</span>                                                   |<span style="color: #000000;">            
+        fep</span>-&gt;mii_bus = fec0_mii_bus;                                                   |            
+        <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                                      |<span style="color: #000000;">            
+    }                                                                                  </span>|            
+                                                                                       |<span style="color: #000000;">            
+    fep</span>-&gt;mii_timeout = <span style="color: #800080;">0</span>;                                                              |            
+                                                                                       |            
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                                 |            
+     * Set MII speed to 2.5 MHz (= clk_get_rate() / 2 * phy_speed)                     |            
+     </span><span style="color: #008000;">*/</span>                                                                                |<span style="color: #000000;">            
+    fep</span>-&gt;phy_speed = DIV_ROUND_UP(clk_get_rate(fep-&gt;clk),                              |<span style="color: #000000;">            
+                    (FEC_ENET_MII_CLK </span>&lt;&lt; <span style="color: #800080;">2</span>)) &lt;&lt; <span style="color: #800080;">1</span>;                                     |            
+                                                                                       |            
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> set hold time to 2 internal clock cycle </span><span style="color: #008000;">*/</span>                                      |            
+    <span style="color: #0000ff;">if</span> (cpu_is_mx6q() || cpu_is_mx6dl())                                               |<span style="color: #000000;">            
+        fep</span>-&gt;phy_speed |= FEC_ENET_HOLD_TIME;                                          |            
+                                                                                       |<span style="color: #000000;">            
+    writel(fep</span>-&gt;phy_speed, fep-&gt;hwp + FEC_MII_SPEED);                                  |            
+                                                                                       |<span style="color: #000000;">            
+    fep</span>-&gt;mii_bus = mdiobus_alloc();                                                    |            
+    <span style="color: #0000ff;">if</span> (fep-&gt;mii_bus == NULL) {                                                        |<span style="color: #000000;">            
+        err </span>= -ENOMEM;                                                                 |            
+        <span style="color: #0000ff;">goto</span> err_out;                                                                  |<span style="color: #000000;">            
+    }                                                                                  </span>|            
+                                                                                       |<span style="color: #000000;">            
+    fep</span>-&gt;mii_bus-&gt;name = <span style="color: #800000;">"</span><span style="color: #800000;">fec_enet_mii_bus</span><span style="color: #800000;">"</span>;                                           |<span style="color: #000000;">            
+    fep</span>-&gt;mii_bus-&gt;read = fec_enet_mdio_read;                                           |<span style="color: #000000;">            
+    fep</span>-&gt;mii_bus-&gt;write = fec_enet_mdio_write;                                         |<span style="color: #000000;">            
+    fep</span>-&gt;mii_bus-&gt;reset = fec_enet_mdio_reset;                                         |<span style="color: #000000;">            
+    snprintf(fep</span>-&gt;mii_bus-&gt;id, MII_BUS_ID_SIZE, <span style="color: #800000;">"</span><span style="color: #800000;">%x</span><span style="color: #800000;">"</span>, pdev-&gt;id + <span style="color: #800080;">1</span>);                   |<span style="color: #000000;">            
+    fep</span>-&gt;mii_bus-&gt;priv = fep;                                                          |<span style="color: #000000;">            
+    fep</span>-&gt;mii_bus-&gt;parent = &amp;pdev-&gt;dev;                                                 |            
+                                                                                       |<span style="color: #000000;">            
+    fep</span>-&gt;mii_bus-&gt;irq = kmalloc(<span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">int</span>) * PHY_MAX_ADDR, GFP_KERNEL);               |            
+    <span style="color: #0000ff;">if</span> (!fep-&gt;mii_bus-&gt;irq) {                                                          |<span style="color: #000000;">            
+        err </span>= -ENOMEM;                                                                 |            
+        <span style="color: #0000ff;">goto</span> err_out_free_mdiobus;                                                     |<span style="color: #000000;">            
+    }                                                                                  </span>|            
+                                                                                       |            
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; PHY_MAX_ADDR; i++)                                                 |<span style="color: #000000;">            
+        fep</span>-&gt;mii_bus-&gt;irq[i] = PHY_POLL;                                               |            
+                                                                                       |            
+    <span style="color: #0000ff;">if</span> (mdiobus_register(fep-&gt;mii_bus))                                                |            
+        <span style="color: #0000ff;">goto</span> err_out_free_mdio_irq;                                                    |            
+                                                                                       |            
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> save fec0 mii_bus </span><span style="color: #008000;">*/</span>                                                            |            
+    <span style="color: #0000ff;">if</span> (id_entry-&gt;driver_data &amp; FEC_QUIRK_ENET_MAC)                                    |<span style="color: #000000;">            
+        fec0_mii_bus </span>= fep-&gt;mii_bus;                                                   |            
+                                                                                       |            
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                                          |            
+                                                                                       |<span style="color: #000000;">            
+err_out_free_mdio_irq:                                                                 </span>|<span style="color: #000000;">            
+    kfree(fep</span>-&gt;mii_bus-&gt;irq);                                                          |<span style="color: #000000;">            
+err_out_free_mdiobus:                                                                  </span>|<span style="color: #000000;">            
+    mdiobus_free(fep</span>-&gt;mii_bus);                                                        |<span style="color: #000000;">            
+err_out:                                                                               </span>|            
+    <span style="color: #0000ff;">return</span> err;                                                                        |<span style="color: #000000;">            
+}                                                                                      </span>|            
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> fec_enet_init(<span style="color: #0000ff;">struct</span> net_device *ndev)            &lt;-------------------------+<span style="color: #000000;">            
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> fec_enet_private *fep =<span style="color: #000000;"> netdev_priv(ndev);                                               
+    </span><span style="color: #0000ff;">struct</span> bufdesc *<span style="color: #000000;">cbd_base;                                                                       
+    </span><span style="color: #0000ff;">struct</span> bufdesc *<span style="color: #000000;">bdp;                                                                            
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> i;                                                                                          
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Allocate memory for buffer descriptors. </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                   
+    cbd_base </span>= dma_alloc_noncacheable(NULL, BUFDES_SIZE, &amp;fep-&gt;<span style="color: #000000;">bd_dma,                              
+            GFP_KERNEL);                                                                            
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">cbd_base) {                                                                                
+        printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">FEC: allocate descriptor memory failed?\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                        
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENOMEM;                                                                             
+    }                                                                                               
+                                                                                                    
+    spin_lock_init(</span>&amp;fep-&gt;<span style="color: #000000;">hw_lock);                                                                  
+                                                                                                    
+    fep</span>-&gt;netdev =<span style="color: #000000;"> ndev;                                                                             
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Get the Ethernet address </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                  
+    fec_get_mac(ndev);                                                                              
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Set receive and transmit descriptor base. </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                 
+    fep</span>-&gt;rx_bd_base =<span style="color: #000000;"> cbd_base;                                                                     
+    fep</span>-&gt;tx_bd_base = cbd_base +<span style="color: #000000;"> RX_RING_SIZE;                                                      
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> The FEC Ethernet specific entries in the device structure </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                 
+    ndev</span>-&gt;watchdog_timeo =<span style="color: #000000;"> TX_TIMEOUT;                                                              
+    ndev</span>-&gt;netdev_ops = &amp;fec_netdev_ops;                  -------------------------+<span style="color: #000000;">                 
+    ndev</span>-&gt;ethtool_ops = &amp;fec_enet_ethtool_ops;           ----------------------+  |                 
+                                                                               |  |<span style="color: #000000;">                 
+    fep</span>-&gt;use_napi = FEC_NAPI_ENABLE;                                           |  |<span style="color: #000000;">                 
+    fep</span>-&gt;napi_weight = FEC_NAPI_WEIGHT;                                        |  |                 
+    <span style="color: #0000ff;">if</span> (fep-&gt;use_napi) {                                                       |  |<span style="color: #000000;">                 
+        fec_rx_int_is_enabled(ndev, </span><span style="color: #0000ff;">false</span>);                                    |  |<span style="color: #000000;">                 
+        netif_napi_add(ndev, </span>&amp;fep-&gt;napi, fec_rx_poll, fep-&gt;napi_weight);       |  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Initialize the receive buffer descriptors. </span><span style="color: #008000;">*/</span>                           |  |<span style="color: #000000;">                 
+    bdp </span>= fep-&gt;rx_bd_base;                                                     |  |                 
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; RX_RING_SIZE; i++) {                                       |  |                 
+                                                                               |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> Initialize the BD for every fragment in the page. </span><span style="color: #008000;">*/</span>                |  |<span style="color: #000000;">                 
+        bdp</span>-&gt;cbd_sc = <span style="color: #800080;">0</span>;                                                       |  |<span style="color: #000000;">                 
+        bdp</span>-&gt;cbd_bufaddr = <span style="color: #800080;">0</span>;                                                  |  |<span style="color: #000000;">                 
+        bdp</span>++;                                                                 |  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set the last buffer to wrap </span><span style="color: #008000;">*/</span>                                          |  |<span style="color: #000000;">                 
+    bdp</span>--;                                                                     |  |<span style="color: #000000;">                 
+    bdp</span>-&gt;cbd_sc |= BD_SC_WRAP;                                                 |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Init transmit descriptors </span><span style="color: #008000;">*/</span>                                            |  |<span style="color: #000000;">                 
+    fec_enet_txbd_init(ndev);                                                  </span>|  |                 
+                                                                               |  |<span style="color: #000000;">                 
+    fec_restart(ndev, </span><span style="color: #800080;">0</span>);       ---------------------------+                   |  |                 
+                                                           |                   |  |                 
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                              |                   |  |<span style="color: #000000;">                 
+}                                                          </span>|                   |  |                 
+                                                           |                   |  |                 
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span>                                                |                   |  |<span style="color: #000000;">                 
+fec_restart(</span><span style="color: #0000ff;">struct</span> net_device *dev, <span style="color: #0000ff;">int</span> duplex)   &lt;--------+                   |  |<span style="color: #000000;">                 
+{                                                                              </span>|  |                 
+    <span style="color: #0000ff;">struct</span> fec_enet_private *fep = netdev_priv(dev);                           |  |                 
+    <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> platform_device_id *id_entry =                                |  |<span style="color: #000000;">                 
+                platform_get_device_id(fep</span>-&gt;pdev);                             |  |                 
+    <span style="color: #0000ff;">int</span> i, ret;                                                                |  |<span style="color: #000000;">                 
+    u32 val, temp_mac[</span><span style="color: #800080;">2</span>], reg = <span style="color: #800080;">0</span>;                                             |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Whack a reset.  We should wait for this. </span><span style="color: #008000;">*/</span>                             |  |<span style="color: #000000;">                 
+    writel(</span><span style="color: #800080;">1</span>, fep-&gt;hwp + FEC_ECNTRL);                                          |  |<span style="color: #000000;">                 
+    udelay(</span><span style="color: #800080;">10</span>);                                                                |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> if uboot don't set MAC address, get MAC address                         |  |                 
+     * from command line; if command line don't set MAC                        |  |                 
+     * address, get from OCOTP; otherwise, allocate random                     |  |                 
+     * address.                                                                |  |                 
+     </span><span style="color: #008000;">*/</span>                                                                        |  |<span style="color: #000000;">                 
+    memcpy(</span>&amp;temp_mac, dev-&gt;dev_addr, ETH_ALEN);                                |  |<span style="color: #000000;">                 
+    writel(cpu_to_be32(temp_mac[</span><span style="color: #800080;">0</span>]), fep-&gt;hwp + FEC_ADDR_LOW);                 |  |<span style="color: #000000;">                 
+    writel(cpu_to_be32(temp_mac[</span><span style="color: #800080;">1</span>]), fep-&gt;hwp + FEC_ADDR_HIGH);                |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Clear any outstanding interrupt. </span><span style="color: #008000;">*/</span>                                     |  |<span style="color: #000000;">                 
+    writel(</span><span style="color: #800080;">0xffc00000</span>, fep-&gt;hwp + FEC_IEVENT);                                 |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Reset all multicast.    </span><span style="color: #008000;">*/</span>                                              |  |<span style="color: #000000;">                 
+    writel(</span><span style="color: #800080;">0</span>, fep-&gt;hwp + FEC_GRP_HASH_TABLE_HIGH);                             |  |<span style="color: #000000;">                 
+    writel(</span><span style="color: #800080;">0</span>, fep-&gt;hwp + FEC_GRP_HASH_TABLE_LOW);                              |  |<span style="color: #000000;">                 
+#ifndef CONFIG_M5272                                                           </span>|  |<span style="color: #000000;">                 
+    writel(</span><span style="color: #800080;">0</span>, fep-&gt;hwp + FEC_HASH_TABLE_HIGH);                                 |  |<span style="color: #000000;">                 
+    writel(</span><span style="color: #800080;">0</span>, fep-&gt;hwp + FEC_HASH_TABLE_LOW);                                  |  |                 
+<span style="color: #0000ff;">#endif</span>                                                                         |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> FIXME: adjust RX FIFO size for performance</span><span style="color: #008000;">*/</span>                            |  |<span style="color: #000000;">                 
+#ifdef CONFIG_ARCH_MX53                                                        </span>|  |<span style="color: #000000;">                 
+       writel(FEC_RX_FIFO_BR, fep</span>-&gt;hwp + FEC_R_FSTART);                        |  |                 
+<span style="color: #0000ff;">#endif</span>                                                                         |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set maximum receive buffer size. </span><span style="color: #008000;">*/</span>                                     |  |<span style="color: #000000;">                 
+    writel(PKT_MAXBLR_SIZE, fep</span>-&gt;hwp + FEC_R_BUFF_SIZE);                       |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set receive and transmit descriptor base. </span><span style="color: #008000;">*/</span>                            |  |<span style="color: #000000;">                 
+    writel(fep</span>-&gt;bd_dma, fep-&gt;hwp + FEC_R_DES_START);                           |  |<span style="color: #000000;">                 
+    writel((unsigned </span><span style="color: #0000ff;">long</span>)fep-&gt;bd_dma + <span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span> bufdesc) * RX_RING_SIZE, |  |<span style="color: #000000;">                 
+            fep</span>-&gt;hwp + FEC_X_DES_START);                                       |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Reinit transmit descriptors </span><span style="color: #008000;">*/</span>                                          |  |<span style="color: #000000;">                 
+    fec_enet_txbd_init(dev);                                                   </span>|  |                 
+                                                                               |  |<span style="color: #000000;">                 
+    fep</span>-&gt;dirty_tx = fep-&gt;cur_tx = fep-&gt;tx_bd_base;                             |  |<span style="color: #000000;">                 
+    fep</span>-&gt;cur_rx = fep-&gt;rx_bd_base;                                             |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Reset SKB transmit buffers. </span><span style="color: #008000;">*/</span>                                          |  |<span style="color: #000000;">                 
+    fep</span>-&gt;skb_cur = fep-&gt;skb_dirty = <span style="color: #800080;">0</span>;                                         |  |                 
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt;= TX_RING_MOD_MASK; i++) {                                  |  |                 
+        <span style="color: #0000ff;">if</span> (fep-&gt;tx_skbuff[i]) {                                               |  |<span style="color: #000000;">                 
+            dev_kfree_skb_any(fep</span>-&gt;tx_skbuff[i]);                              |  |<span style="color: #000000;">                 
+            fep</span>-&gt;tx_skbuff[i] = NULL;                                          |  |<span style="color: #000000;">                 
+        }                                                                      </span>|  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Enable MII mode </span><span style="color: #008000;">*/</span>                                                      |  |                 
+    <span style="color: #0000ff;">if</span> (duplex) {                                                              |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> MII enable / FD enable </span><span style="color: #008000;">*/</span>                                           |  |<span style="color: #000000;">                 
+        writel(OPT_FRAME_SIZE </span>| <span style="color: #800080;">0x04</span>, fep-&gt;hwp + FEC_R_CNTRL);                 |  |<span style="color: #000000;">                 
+        writel(</span><span style="color: #800080;">0x04</span>, fep-&gt;hwp + FEC_X_CNTRL);                                  |  |<span style="color: #000000;">                 
+    } </span><span style="color: #0000ff;">else</span> {                                                                   |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> MII enable / No Rcv on Xmit </span><span style="color: #008000;">*/</span>                                      |  |<span style="color: #000000;">                 
+        writel(OPT_FRAME_SIZE </span>| <span style="color: #800080;">0x06</span>, fep-&gt;hwp + FEC_R_CNTRL);                 |  |<span style="color: #000000;">                 
+        writel(</span><span style="color: #800080;">0x0</span>, fep-&gt;hwp + FEC_X_CNTRL);                                   |  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |<span style="color: #000000;">                 
+    fep</span>-&gt;full_duplex = duplex;                                                 |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Set MII speed </span><span style="color: #008000;">*/</span>                                                        |  |<span style="color: #000000;">                 
+    writel(fep</span>-&gt;phy_speed, fep-&gt;hwp + FEC_MII_SPEED);                          |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                         |  |                 
+     * The phy interface and speed need to get configured                      |  |                 
+     * differently on enet-mac.                                                |  |                 
+     </span><span style="color: #008000;">*/</span>                                                                        |  |                 
+    <span style="color: #0000ff;">if</span> (id_entry-&gt;driver_data &amp; FEC_QUIRK_ENET_MAC) {                          |  |<span style="color: #000000;">                 
+        val </span>= readl(fep-&gt;hwp + FEC_R_CNTRL);                                   |  |                 
+                                                                               |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> MII or RMII </span><span style="color: #008000;">*/</span>                                                      |  |                 
+        <span style="color: #0000ff;">if</span> (fep-&gt;phy_interface == PHY_INTERFACE_MODE_RGMII) {                  |  |<span style="color: #000000;">                 
+            val </span>|= (<span style="color: #800080;">1</span> &lt;&lt; <span style="color: #800080;">6</span>);                                                   |  |<span style="color: #000000;">                 
+            printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">&lt;tony&gt; RGMII\n</span><span style="color: #800000;">"</span>);                                          |  |<span style="color: #000000;">                 
+        }                                                                      </span>|  |                 
+        <span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span> (fep-&gt;phy_interface == PHY_INTERFACE_MODE_RMII) {              |  |<span style="color: #000000;">                 
+            val </span>|= (<span style="color: #800080;">1</span> &lt;&lt; <span style="color: #800080;">8</span>);                                                   |  |<span style="color: #000000;">                 
+            printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">&lt;tony&gt; RMII\n</span><span style="color: #800000;">"</span>);                                           |  |<span style="color: #000000;">                 
+        }                                                                      </span>|  |                 
+        <span style="color: #0000ff;">else</span> {                                                                 |  |<span style="color: #000000;">                 
+            val </span>&amp;= ~(<span style="color: #800080;">1</span> &lt;&lt; <span style="color: #800080;">8</span>);                                                  |  |<span style="color: #000000;">                 
+            printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">&lt;tony&gt; MII\n</span><span style="color: #800000;">"</span>);                                            |  |<span style="color: #000000;">                 
+        }                                                                      </span>|  |                 
+        <span style="color: #008000;">//</span><span style="color: #008000;">时能10M/100M支持                                                      |  |                 </span>
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> 10M or 100M </span><span style="color: #008000;">*/</span>                                                      |  |                 
+        <span style="color: #0000ff;">if</span> (fep-&gt;phy_dev &amp;&amp; fep-&gt;phy_dev-&gt;speed == SPEED_100) {                |  |<span style="color: #000000;">                 
+            val </span>&amp;= ~(<span style="color: #800080;">1</span> &lt;&lt; <span style="color: #800080;">9</span>);                                                  |  |<span style="color: #000000;">                 
+            printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">&lt;tony&gt; 1702, speed:100\n</span><span style="color: #800000;">"</span>);                                |  |<span style="color: #000000;">                 
+        }                                                                      </span>|  |                 
+        <span style="color: #0000ff;">else</span> {                                                                 |  |<span style="color: #000000;">                 
+            val </span>|= (<span style="color: #800080;">1</span> &lt;&lt; <span style="color: #800080;">9</span>);                                                   |  |<span style="color: #000000;">                 
+            printk(</span><span style="color: #800000;">"</span><span style="color: #800000;">&lt;tony&gt; 1706, speed:10\n</span><span style="color: #800000;">"</span>);                                 |  |<span style="color: #000000;">                 
+        }                                                                      </span>|  |                 
+                                                                               |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> Enable pause frame                                                  |  |                 
+         * ENET pause frame has two issues as ticket TKT116501                 |  |                 
+         * The issues have been fixed on Rigel TO1.1 and Arik TO1.2            |  |                 
+         </span><span style="color: #008000;">*/</span>                                                                    |  |                 
+        <span style="color: #0000ff;">if</span> ((cpu_is_mx6q() &amp;&amp;                                                  |  |<span style="color: #000000;">                 
+            (mx6q_revision() </span>&gt;= IMX_CHIP_REVISION_1_2)) ||                     |  |<span style="color: #000000;">                 
+            (cpu_is_mx6dl() </span>&amp;&amp;                                                 |  |<span style="color: #000000;">                 
+            (mx6dl_revision() </span>&gt;= IMX_CHIP_REVISION_1_1)))                      |  |<span style="color: #000000;">                 
+            val </span>|= FEC_ENET_FCE;                                               |  |                 
+                                                                               |  |<span style="color: #000000;">                 
+        writel(val, fep</span>-&gt;hwp + FEC_R_CNTRL);                                   |  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |                 
+                                                                               |  |                 
+    <span style="color: #0000ff;">if</span> (fep-&gt;ptimer_present) {                                                 |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> Set Timer count </span><span style="color: #008000;">*/</span>                                                  |  |<span style="color: #000000;">                 
+        ret </span>= fec_ptp_start(fep-&gt;ptp_priv);                                    |  |                 
+        <span style="color: #0000ff;">if</span> (ret) {                                                             |  |<span style="color: #000000;">                 
+            fep</span>-&gt;ptimer_present = <span style="color: #800080;">0</span>;                                           |  |<span style="color: #000000;">                 
+            reg </span>= <span style="color: #800080;">0x0</span>;                                                         |  |<span style="color: #000000;">                 
+        } </span><span style="color: #0000ff;">else</span>                                                                 |  |                 
+<span style="color: #0000ff;">#if</span> defined(CONFIG_SOC_IMX28) || defined(CONFIG_ARCH_MX6)                      |  |                 <span style="color: #000000;">
+            reg </span>= <span style="color: #800080;">0x00000010</span>;                                                  |  |                 
+<span style="color: #0000ff;">#else</span>                                                                          |  |                 <span style="color: #000000;">
+            reg </span>= <span style="color: #800080;">0x0</span>;                                                         |  |                 
+<span style="color: #0000ff;">#endif</span>                                                                         |  |                 <span style="color: #000000;">
+    } </span><span style="color: #0000ff;">else</span>                                                                     |  |<span style="color: #000000;">                 
+        reg </span>= <span style="color: #800080;">0x0</span>;                                                             |  |                 
+                                                                               |  |                 
+    <span style="color: #0000ff;">if</span> (cpu_is_mx25() || cpu_is_mx53() || cpu_is_mx6sl()) {                    |  |                 
+        <span style="color: #0000ff;">if</span> (fep-&gt;phy_interface == PHY_INTERFACE_MODE_RMII) {                   |  |                 
+            <span style="color: #008000;">/*</span><span style="color: #008000;"> disable the gasket and wait </span><span style="color: #008000;">*/</span>                                  |  |<span style="color: #000000;">                 
+            writel(</span><span style="color: #800080;">0</span>, fep-&gt;hwp + FEC_MIIGSK_ENR);                              |  |                 
+            <span style="color: #0000ff;">while</span> (readl(fep-&gt;hwp + FEC_MIIGSK_ENR) &amp; <span style="color: #800080;">4</span>)                       |  |<span style="color: #000000;">                 
+                udelay(</span><span style="color: #800080;">1</span>);                                                     |  |                 
+                                                                               |  |                 
+            <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                 |  |                 
+             * configure the gasket:                                           |  |                 
+             *   RMII, 50 MHz, no loopback, no echo                            |  |                 
+             </span><span style="color: #008000;">*/</span>                                                                |  |<span style="color: #000000;">                 
+            writel(</span><span style="color: #800080;">1</span>, fep-&gt;hwp + FEC_MIIGSK_CFGR);                             |  |                 
+                                                                               |  |                 
+            <span style="color: #008000;">/*</span><span style="color: #008000;"> re-enable the gasket </span><span style="color: #008000;">*/</span>                                         |  |<span style="color: #000000;">                 
+            writel(</span><span style="color: #800080;">2</span>, fep-&gt;hwp + FEC_MIIGSK_ENR);                              |  |<span style="color: #000000;">                 
+            udelay(</span><span style="color: #800080;">10</span>);                                                        |  |                 
+            <span style="color: #0000ff;">if</span> (!(readl(fep-&gt;hwp + FEC_MIIGSK_ENR) &amp; <span style="color: #800080;">4</span>)) {                     |  |<span style="color: #000000;">                 
+                udelay(</span><span style="color: #800080;">100</span>);                                                   |  |                 
+                <span style="color: #0000ff;">if</span> (!(readl(fep-&gt;hwp + FEC_MIIGSK_ENR) &amp; <span style="color: #800080;">4</span>))                   |  |<span style="color: #000000;">                 
+                    dev_err(</span>&amp;fep-&gt;pdev-&gt;dev,                                   |  |                 
+                        <span style="color: #800000;">"</span><span style="color: #800000;">switch to RMII failed!\n</span><span style="color: #800000;">"</span>);                           |  |<span style="color: #000000;">                 
+            }                                                                  </span>|  |<span style="color: #000000;">                 
+        }                                                                      </span>|  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> ENET enable </span><span style="color: #008000;">*/</span>                                                          |  |<span style="color: #000000;">                 
+    val </span>= reg | (<span style="color: #800080;">0x1</span> &lt;&lt; <span style="color: #800080;">1</span>);                                                    |  |                 
+    <span style="color: #008000;">//</span><span style="color: #008000;">根据条件设置网络为1G                                                        |  |                 </span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> if phy work at 1G mode, set ENET RGMII speed to 1G </span><span style="color: #008000;">*/</span>                   |  |                 
+    <span style="color: #0000ff;">if</span> (fep-&gt;phy_dev &amp;&amp; (fep-&gt;phy_dev-&gt;supported &amp;                             |  |<span style="color: #000000;">                 
+        (SUPPORTED_1000baseT_Half </span>| SUPPORTED_1000baseT_Full)) &amp;&amp;              |  |<span style="color: #000000;">                 
+        fep</span>-&gt;phy_interface == PHY_INTERFACE_MODE_RGMII &amp;&amp;                      |  |<span style="color: #000000;">                 
+        fep</span>-&gt;phy_dev-&gt;speed == SPEED_1000) {                                   |  |<span style="color: #000000;">                 
+        val </span>|= (<span style="color: #800080;">0x1</span> &lt;&lt; <span style="color: #800080;">5</span>);        <span style="color: #008000;">//</span><span style="color: #008000;">使能1000M模式                               |  |             </span>
+        printk(KERN_WARNING <span style="color: #800000;">"</span><span style="color: #800000;">&lt;tony&gt; 1772 speed:1000\n</span><span style="color: #800000;">"</span>);                       |  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> RX FIFO threshold setting for ENET pause frame feature                  |  |                 
+     * Only set the parameters after ticket TKT116501 fixed.                   |  |                 
+     * The issue has been fixed on Rigel TO1.1 and Arik TO1.2                  |  |                 
+     </span><span style="color: #008000;">*/</span>                                                                        |  |                 
+    <span style="color: #0000ff;">if</span> ((cpu_is_mx6q() &amp;&amp;                                                      |  |<span style="color: #000000;">                 
+        (mx6q_revision() </span>&gt;= IMX_CHIP_REVISION_1_2)) ||                         |  |<span style="color: #000000;">                 
+        (cpu_is_mx6dl() </span>&amp;&amp;                                                     |  |<span style="color: #000000;">                 
+        (mx6dl_revision() </span>&gt;= IMX_CHIP_REVISION_1_1))) {                        |  |<span style="color: #000000;">                 
+        writel(FEC_ENET_RSEM_V, fep</span>-&gt;hwp + FEC_R_FIFO_RSEM);                   |  |<span style="color: #000000;">                 
+        writel(FEC_ENET_RSFL_V, fep</span>-&gt;hwp + FEC_R_FIFO_RSFL);                   |  |<span style="color: #000000;">                 
+        writel(FEC_ENET_RAEM_V, fep</span>-&gt;hwp + FEC_R_FIFO_RAEM);                   |  |<span style="color: #000000;">                 
+        writel(FEC_ENET_RAFL_V, fep</span>-&gt;hwp + FEC_R_FIFO_RAFL);                   |  |                 
+                                                                               |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> OPD </span><span style="color: #008000;">*/</span>                                                              |  |<span style="color: #000000;">                 
+        writel(FEC_ENET_OPD_V, fep</span>-&gt;hwp + FEC_OPD);                            |  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |                 
+                                                                               |  |                 
+    <span style="color: #0000ff;">if</span> (cpu_is_mx6q() || cpu_is_mx6dl()) {                                     |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> enable endian swap </span><span style="color: #008000;">*/</span>                                               |  |<span style="color: #000000;">                 
+        val </span>|= (<span style="color: #800080;">0x1</span> &lt;&lt; <span style="color: #800080;">8</span>);                                                     |  |                 
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> enable ENET store and forward mode </span><span style="color: #008000;">*/</span>                               |  |<span style="color: #000000;">                 
+        writel(</span><span style="color: #800080;">0x1</span> &lt;&lt; <span style="color: #800080;">8</span>, fep-&gt;hwp + FEC_X_WMRK);                               |  |<span style="color: #000000;">                 
+    }                                                                          </span>|  |<span style="color: #000000;">                 
+    writel(val, fep</span>-&gt;hwp + FEC_ECNTRL);                                        |  |                 
+                                                                               |  |<span style="color: #000000;">                 
+    writel(</span><span style="color: #800080;">0</span>, fep-&gt;hwp + FEC_R_DES_ACTIVE);                                    |  |                 
+                                                                               |  |                 
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Enable interrupts we wish to service </span><span style="color: #008000;">*/</span>                                 |  |                 
+    <span style="color: #0000ff;">if</span> (cpu_is_mx6q() || cpu_is_mx6dl() || cpu_is_mx2() || cpu_is_mx3())       |  |<span style="color: #000000;">                 
+        val </span>= (FEC_1588_IMASK | FEC_DEFAULT_IMASK);                            |  |                 
+    <span style="color: #0000ff;">else</span>                                                                       |  |<span style="color: #000000;">                 
+        val </span>= FEC_DEFAULT_IMASK;                                               |  |<span style="color: #000000;">                 
+    writel(val, fep</span>-&gt;hwp + FEC_IMASK);                                         |  |<span style="color: #000000;">                 
+}                                                                              </span>|  |                 
+                                                                               |  |               
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> ethtool_ops fec_enet_ethtool_ops = {             &lt;---------------+  |<span style="color: #000000;">                 
+    .get_settings        </span>= fec_enet_get_settings,                                 |<span style="color: #000000;">                 
+    .set_settings        </span>= fec_enet_set_settings,                                 |<span style="color: #000000;">                 
+    .get_drvinfo        </span>= fec_enet_get_drvinfo,                                   |<span style="color: #000000;">                 
+    .get_link        </span>= ethtool_op_get_link,                                       |<span style="color: #000000;">                 
+};                                                                                </span>|                 
+                                                                                  |                 
+                                                                                  |                 
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> net_device_ops fec_netdev_ops = {         &lt;-------------------+<span style="color: #000000;">                 
+    .ndo_open        </span>= fec_enet_open,                         ------------------+<span style="color: #000000;">                   
+    .ndo_stop        </span>= fec_enet_close,                                          |<span style="color: #000000;">                   
+    .ndo_start_xmit        </span>= fec_enet_start_xmit,                               |<span style="color: #000000;">                   
+    .ndo_set_multicast_list </span>= set_multicast_list,                               |<span style="color: #000000;">                   
+    .ndo_change_mtu        </span>= eth_change_mtu,                                    |<span style="color: #000000;">                   
+    .ndo_validate_addr    </span>= eth_validate_addr,                                  |<span style="color: #000000;">                   
+    .ndo_tx_timeout        </span>= fec_timeout,                                       |<span style="color: #000000;">                   
+    .ndo_set_mac_address    </span>= fec_set_mac_address,                              |<span style="color: #000000;">                   
+    .ndo_do_ioctl        </span>= fec_enet_ioctl,                                      |<span style="color: #000000;">                   
+#ifdef CONFIG_NET_POLL_CONTROLLER                                               </span>|<span style="color: #000000;">                   
+    .ndo_poll_controller    </span>= fec_enet_netpoll,                                 |                   
+<span style="color: #0000ff;">#endif</span>                                                                          |                   <span style="color: #000000;">
+};                                                                              </span>|                   
+                                                                                |                   
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span>                                                                      |<span style="color: #000000;">                   
+fec_enet_open(</span><span style="color: #0000ff;">struct</span> net_device *ndev)          &lt;-------------------------------+<span style="color: #000000;">                   
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> fec_enet_private *fep =<span style="color: #000000;"> netdev_priv(ndev);                                               
+    </span><span style="color: #0000ff;">struct</span> fec_platform_data *pdata = fep-&gt;pdev-&gt;<span style="color: #000000;">dev.platform_data;                                 
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;                                                                                        
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (fep-&gt;<span style="color: #000000;">use_napi)                                                                              
+        napi_enable(</span>&amp;fep-&gt;<span style="color: #000000;">napi);                                                                    
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> I should reset the ring buffers here, but I don't yet know                                   
+     * a simple way to do that.                                                                     
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                                             
+    clk_enable(fep</span>-&gt;<span style="color: #000000;">clk);                                                                           
+    ret </span>=<span style="color: #000000;"> fec_enet_alloc_buffers(ndev);                                                             
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret)                                                                                        
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;                                                                                 
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Probe and connect to PHY when open the interface </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                          
+    ret </span>= fec_enet_mii_probe(ndev);            ----------------------+                              
+    <span style="color: #0000ff;">if</span> (ret) {                                                       |<span style="color: #000000;">                              
+        fec_enet_free_buffers(ndev);                                 </span>|                              
+        <span style="color: #0000ff;">return</span> ret;                                                  |<span style="color: #000000;">                              
+    }                                                                </span>|                              
+                                                                     |<span style="color: #000000;">                              
+    phy_start(fep</span>-&gt;phy_dev);                                         |<span style="color: #000000;">                              
+    netif_start_queue(ndev);                                         </span>|<span style="color: #000000;">                              
+    fep</span>-&gt;opened = <span style="color: #800080;">1</span>;                                                 |                              
+                                                                     |<span style="color: #000000;">                              
+    ret </span>= -EINVAL;                                                   |                              
+    <span style="color: #0000ff;">if</span> (pdata-&gt;init &amp;&amp; pdata-&gt;init(fep-&gt;phy_dev))                    |                              
+        <span style="color: #0000ff;">return</span> ret;                                                  |                              
+                                                                     |                              
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                        |<span style="color: #000000;">                              
+}                                                                    </span>|                              
+                                                                     |<span style="color: #000000;">                              
+kernel</span>/drivers/net/fec.c                                             |                              
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> fec_enet_mii_probe(<span style="color: #0000ff;">struct</span> net_device *ndev)  &lt;------------+<span style="color: #000000;">                              
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> fec_enet_private *fep =<span style="color: #000000;"> netdev_priv(ndev);                                               
+    </span><span style="color: #0000ff;">struct</span> phy_device *phy_dev =<span style="color: #000000;"> NULL;                                                              
+    </span><span style="color: #0000ff;">char</span><span style="color: #000000;"> mdio_bus_id[MII_BUS_ID_SIZE];                                                              
+    </span><span style="color: #0000ff;">char</span> phy_name[MII_BUS_ID_SIZE + <span style="color: #800080;">3</span><span style="color: #000000;">];                                                             
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> phy_id;                                                                                     
+    </span><span style="color: #0000ff;">int</span> dev_id = fep-&gt;pdev-&gt;<span style="color: #000000;">id;                                                                     
+                                                                                                    
+    fep</span>-&gt;phy_dev =<span style="color: #000000;"> NULL;                                                                            
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> check for attached phy </span><span style="color: #008000;">*/</span>                                                                    
+    <span style="color: #0000ff;">for</span> (phy_id = <span style="color: #800080;">0</span>; (phy_id &lt; PHY_MAX_ADDR); phy_id++<span style="color: #000000;">) {                                           
+        </span><span style="color: #0000ff;">if</span> ((fep-&gt;mii_bus-&gt;phy_mask &amp; (<span style="color: #800080;">1</span> &lt;&lt;<span style="color: #000000;"> phy_id)))                                               
+            </span><span style="color: #0000ff;">continue</span><span style="color: #000000;">;                                                                               
+        </span><span style="color: #0000ff;">if</span> (fep-&gt;mii_bus-&gt;phy_map[phy_id] ==<span style="color: #000000;"> NULL)                                                  
+            </span><span style="color: #0000ff;">continue</span><span style="color: #000000;">;                                                                               
+        </span><span style="color: #0000ff;">if</span> (fep-&gt;mii_bus-&gt;phy_map[phy_id]-&gt;phy_id == <span style="color: #800080;">0</span><span style="color: #000000;">)                                             
+            </span><span style="color: #0000ff;">continue</span><span style="color: #000000;">;                                                                               
+        </span><span style="color: #0000ff;">if</span> (dev_id--<span style="color: #000000;">)                                                                               
+            </span><span style="color: #0000ff;">continue</span><span style="color: #000000;">;                                                                               
+        strncpy(mdio_bus_id, fep</span>-&gt;mii_bus-&gt;<span style="color: #000000;">id, MII_BUS_ID_SIZE);                                    
+        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                                                      
+    }                                                                                               
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (phy_id &gt;=<span style="color: #000000;"> PHY_MAX_ADDR) {                                                                   
+        printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: no PHY, assuming direct connection </span><span style="color: #800000;">"</span>                                  
+            <span style="color: #800000;">"</span><span style="color: #800000;">to switch\n</span><span style="color: #800000;">"</span>, ndev-&gt;<span style="color: #000000;">name);                                                             
+        strncpy(mdio_bus_id, </span><span style="color: #800000;">"</span><span style="color: #800000;">0</span><span style="color: #800000;">"</span><span style="color: #000000;">, MII_BUS_ID_SIZE);                                                 
+        phy_id </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                                 
+    }                                                                                               
+                                                                                                    
+    snprintf(phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);                           
+    phy_dev </span>= phy_connect(ndev, phy_name, &amp;fec_enet_adjust_link, <span style="color: #800080;">0</span><span style="color: #000000;">,                                 
+        fep</span>-&gt;phy_interface);                           |                                            
+                                                       +--------------------+                       
+    <span style="color: #0000ff;">if</span> (IS_ERR(phy_dev)) {                                                  |<span style="color: #000000;">                       
+        printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: could not attach to PHY\n</span><span style="color: #800000;">"</span>, ndev-&gt;name);       |                       
+        <span style="color: #0000ff;">return</span> PTR_ERR(phy_dev);                                            |<span style="color: #000000;">                       
+    }                                                                       </span>|                       
+                                                                            |                       
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> mask with MAC supported features </span><span style="color: #008000;">*/</span>                                  |                       
+    <span style="color: #0000ff;">if</span> (cpu_is_mx6q() || cpu_is_mx6dl())                                    |<span style="color: #000000;">                       
+        phy_dev</span>-&gt;supported &amp;= PHY_BASIC_FEATURES;                           |                       
+<span style="color: #008000;">//</span><span style="color: #008000;">        phy_dev-&gt;supported &amp;= PHY_GBIT_FEATURES;                          |                       </span>
+    <span style="color: #0000ff;">else</span>                                                                    |<span style="color: #000000;">                       
+        phy_dev</span>-&gt;supported &amp;= PHY_BASIC_FEATURES;                           |                       
+                                                                            |                       
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> enable phy pause frame for any platform </span><span style="color: #008000;">*/</span>                           |<span style="color: #000000;">                       
+    phy_dev</span>-&gt;supported |= ADVERTISED_Pause;                                 |                       
+                                                                            |<span style="color: #000000;">                       
+    phy_dev</span>-&gt;advertising = phy_dev-&gt;supported;                              |                       
+                                                                            |<span style="color: #000000;">                       
+    fep</span>-&gt;phy_dev = phy_dev;                                                 |<span style="color: #000000;">                       
+    fep</span>-&gt;link = <span style="color: #800080;">0</span>;                                                          |<span style="color: #000000;">                       
+    fep</span>-&gt;full_duplex = <span style="color: #800080;">0</span>;                                                   |                       
+                                                                            |<span style="color: #000000;">                       
+    printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">%s: Freescale FEC PHY driver [%s] </span><span style="color: #800000;">"</span>                   |                       
+        <span style="color: #800000;">"</span><span style="color: #800000;">(mii_bus:phy_addr=%s, irq=%d)\n</span><span style="color: #800000;">"</span>, ndev-&gt;name,                      |<span style="color: #000000;">                       
+        fep</span>-&gt;phy_dev-&gt;drv-&gt;name, dev_name(&amp;fep-&gt;phy_dev-&gt;dev),              |<span style="color: #000000;">                       
+        fep</span>-&gt;phy_dev-&gt;irq);                                                 |                       
+                                                                            |                       
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                               |<span style="color: #000000;">                       
+}                                                                           </span>|                       
+                                                                            |<span style="color: #000000;">                       
+kernel</span>/drivers/net/fec.c                                                    |                       
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> fec_enet_adjust_link(<span style="color: #0000ff;">struct</span> net_device *ndev)    &lt;--------------+<span style="color: #000000;">                       
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> fec_enet_private *fep =<span style="color: #000000;"> netdev_priv(ndev);                                               
+    </span><span style="color: #0000ff;">struct</span> phy_device *phy_dev = fep-&gt;<span style="color: #000000;">phy_dev;                                                      
+    </span><span style="color: #0000ff;">struct</span> fec_platform_data *pdata = fep-&gt;pdev-&gt;<span style="color: #000000;">dev.platform_data;                                 
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;"> flags;                                                                            
+                                                                                                    
+    </span><span style="color: #0000ff;">int</span> status_change = <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                          
+                                                                                                    
+    spin_lock_irqsave(</span>&amp;fep-&gt;<span style="color: #000000;">hw_lock, flags);                                                        
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Prevent a state halted on mii error </span><span style="color: #008000;">*/</span>                                                       
+    <span style="color: #0000ff;">if</span> (fep-&gt;mii_timeout &amp;&amp; phy_dev-&gt;state ==<span style="color: #000000;"> PHY_HALTED) {                                         
+        phy_dev</span>-&gt;state =<span style="color: #000000;"> PHY_RESUMING;                                                              
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> spin_unlock;                                                                           
+    }                                                                                               
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Duplex link change </span><span style="color: #008000;">*/</span>                                                                        
+    <span style="color: #0000ff;">if</span> (phy_dev-&gt;<span style="color: #000000;">link) {                                                                            
+        </span><span style="color: #0000ff;">if</span> (fep-&gt;full_duplex != phy_dev-&gt;<span style="color: #000000;">duplex) {                                                  
+            fec_restart(ndev, phy_dev</span>-&gt;<span style="color: #000000;">duplex);                                                     
+            status_change </span>= <span style="color: #800080;">1</span><span style="color: #000000;">;                                                                      
+        }                                                                                           
+    }                                                                                               
+                                                                                                    
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Link on or off change </span><span style="color: #008000;">*/</span>                                                                     
+    <span style="color: #0000ff;">if</span> (phy_dev-&gt;link != fep-&gt;<span style="color: #000000;">link) {                                                               
+        fep</span>-&gt;link = phy_dev-&gt;<span style="color: #000000;">link;                                                                  
+        </span><span style="color: #0000ff;">if</span> (phy_dev-&gt;<span style="color: #000000;">link) {                                                                        
+            fec_restart(ndev, phy_dev</span>-&gt;<span style="color: #000000;">duplex);                                                     
+            </span><span style="color: #0000ff;">if</span> (!fep-&gt;<span style="color: #000000;">tx_full)                                                                      
+                netif_wake_queue(ndev);                                                             
+        } </span><span style="color: #0000ff;">else</span><span style="color: #000000;">                                                                                      
+            fec_stop(ndev);                                                                         
+        status_change </span>= <span style="color: #800080;">1</span><span style="color: #000000;">;                                                                          
+    }                                                                                               
+                                                                                                    
+spin_unlock:                                                                                        
+    spin_unlock_irqrestore(</span>&amp;fep-&gt;<span style="color: #000000;">hw_lock, flags);                                                   
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (status_change) {                                                                            
+        </span><span style="color: #0000ff;">if</span> (!phy_dev-&gt;link &amp;&amp; phy_dev &amp;&amp; pdata &amp;&amp; pdata-&gt;<span style="color: #000000;">power_hibernate)                           
+            pdata</span>-&gt;<span style="color: #000000;">power_hibernate(phy_dev);                                                        
+        phy_print_status(phy_dev);                                                                  
+    }        </span>|<span style="color: #000000;">                                                                                      
+}            </span>|                                                                                      
+             |<span style="color: #000000;">                                                                                      
+             V                                                                                      
+</span>/drivers/net/phy/<span style="color: #000000;">phy.c                                                                              
+</span><span style="color: #0000ff;">void</span> phy_print_status(<span style="color: #0000ff;">struct</span> phy_device *phydev)     <span style="color: #008000;">//</span><span style="color: #008000;">这里使每次网线插拔之后会在串口打印输出的内容                                              </span>
+<span style="color: #000000;">{                                                                                                   
+    pr_info(</span><span style="color: #800000;">"</span><span style="color: #800000;">PHY: %s - Link is %s</span><span style="color: #800000;">"</span>, dev_name(&amp;phydev-&gt;<span style="color: #000000;">dev),                                         
+            phydev</span>-&gt;link ? <span style="color: #800000;">"</span><span style="color: #800000;">Up</span><span style="color: #800000;">"</span> : <span style="color: #800000;">"</span><span style="color: #800000;">Down</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                                          
+    </span><span style="color: #0000ff;">if</span> (phydev-&gt;<span style="color: #000000;">link)                                                                               
+        printk(KERN_CONT </span><span style="color: #800000;">"</span><span style="color: #800000;"> - %d/%s</span><span style="color: #800000;">"</span>, phydev-&gt;<span style="color: #000000;">speed,                                                 
+                DUPLEX_FULL </span>== phydev-&gt;duplex ?                                                     
+                <span style="color: #800000;">"</span><span style="color: #800000;">Full</span><span style="color: #800000;">"</span> : <span style="color: #800000;">"</span><span style="color: #800000;">Half</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                                                   
+                                                                                                    
+    printk(KERN_CONT </span><span style="color: #800000;">"</span><span style="color: #800000;">\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                                                         
+}                                                                                                   </span></pre>
+</div>
+<p>&nbsp;</p>

@@ -1,0 +1,68 @@
+<div class="cnblogs_code">
+<pre>#include &lt;linux/init.h&gt;<span style="color: #000000;">
+#include </span>&lt;linux/kernel.h&gt;<span style="color: #000000;">
+#include </span>&lt;linux/module.h&gt;<span style="color: #000000;">
+
+MODULE_LICENSE(</span><span style="color: #800000;">"</span><span style="color: #800000;">Duall BSD/GPL</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> HZ表示1秒中振动的次数
+ * 1秒钟产生的jiffies数量
+ </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">#define</span> FAST_INTERVAL 1*HZ  
+
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span><span style="color: #000000;"> timer_list led_slow_timer;
+
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> handler_timer(unsigned <span style="color: #0000ff;">long</span><span style="color: #000000;"> speed)
+{
+
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;">(speed) {
+        printk(KERN_DEBUG </span><span style="color: #800000;">"</span><span style="color: #800000;">speed1...</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+        printk(KERN_DEBUG </span><span style="color: #800000;">"</span><span style="color: #800000;">speed2...</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 内核定时器设置之后只执行一次，要循环执行，需要再次启动启动器 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    led_slow_timer.expires</span>=jiffies+<span style="color: #000000;">FAST_INTERVAL;
+    led_slow_timer.data </span>= !<span style="color: #000000;">speed;
+    add_timer(</span>&amp;<span style="color: #000000;">led_slow_timer);
+}
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init timer_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    printk(KERN_ALERT </span><span style="color: #800000;">"</span><span style="color: #800000;">hello, kitty\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+    init_timer(</span>&amp;<span style="color: #000000;">led_slow_timer);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 由于可能多个定时器调用一个函数，
+     * 为了使得这个函数能够区分不同的定时器，
+     * 通过在结构中data来标识这个定时器，
+     * 并且通过调用 function(data)使得function能区分它们，
+     * 也就是 data起到ID的作用
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    led_slow_timer.data</span>=<span style="color: #800080;">1</span><span style="color: #000000;">;
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 0.5秒定时一次 </span><span style="color: #008000;">*/</span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> jiffies用于记录当前的时间，这里表示在当期那时间之后的FAST_INTERVAL调用定时器函数 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    led_slow_timer.expires</span>=jiffies+<span style="color: #000000;">FAST_INTERVAL;
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 定时器调用的函数 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    led_slow_timer.function </span>=<span style="color: #000000;"> handler_timer;
+    add_timer(</span>&amp;<span style="color: #000000;">led_slow_timer);
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __exit timer_exit(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    printk(KERN_ALERT </span><span style="color: #800000;">"</span><span style="color: #800000;">goodbye, kitty\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 退出的时候需要关闭定时器，否则内核会出现错误
+     * 虽然定时器超时会自动从time_list链表中删除，
+     * 但是这个函数在定时器处理函数中循环启动定时器
+     * 需要手动进行关闭
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    del_timer(</span>&amp;<span style="color: #000000;">led_slow_timer);
+}
+
+module_init(timer_init);
+module_exit(timer_exit);</span></pre>
+</div>
+<p>编程模块，安装之后，查看定时器中的输出。</p>
+<p>dmesg | tail -10</p>
+<p>&nbsp;</p>

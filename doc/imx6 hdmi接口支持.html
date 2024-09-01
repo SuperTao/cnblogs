@@ -1,0 +1,60 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">************************************************************
+ *                    imx6 hdmi接口支持
+ *    新的板子需要使用到hdmi,今天就测试一下。
+ *      参考链接：
+ *        I.MX6 lcd lvds hdmi bootargs:
+ *            </span><span style="color: #008000; text-decoration: underline;">http://www.cnblogs.com/zengjfgit/p/5139546.html</span><span style="color: #008000;">
+ *        hdmi问题：
+ *            </span><span style="color: #008000; text-decoration: underline;">https://community.freescale.com/thread/366072</span><span style="color: #008000;">
+ *      
+ *                                    Tony, 2016-5-20, Shenzhen
+*************************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+1、按照参考链接更改uboot</span>/include/configs/<span style="color: #000000;">mx6dl_sabresd_android.h
+</span><span style="color: #0000ff;">#define</span> CONFIG_INITRD_TAG
+<span style="color: #0000ff;">#define</span>    CONFIG_EXTRA_ENV_SETTINGS                    \
+                <span style="color: #800000;">"</span><span style="color: #800000;">netdev=eth0\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                                         \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">ethprime=FEC0\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                                       \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">uboot=u-boot.bin\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                    \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">kernel=uImage\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                               \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">nfsroot=/opt/eldk/arm\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                               \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">bootargs_base=setenv bootargs console=ttymxc0,115200\0</span><span style="color: #800000;">"</span><span style="color: #000000;">\
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">bootargs_nfs=setenv bootargs ${bootargs} root=/dev/nfs </span><span style="color: #800000;">"</span><span style="color: #000000;">\
+                        </span><span style="color: #800000;">"</span><span style="color: #800000;">ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp\0</span><span style="color: #800000;">"</span><span style="color: #000000;">\
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">bootcmd_net=run bootargs_base bootargs_nfs; </span><span style="color: #800000;">"</span><span style="color: #000000;">          \
+                        </span><span style="color: #800000;">"</span><span style="color: #800000;">tftpboot ${loadaddr} ${kernel}; bootm\0</span><span style="color: #800000;">"</span><span style="color: #000000;">       \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">bootargs_mmc=setenv bootargs ${bootargs} ip=none </span><span style="color: #800000;">"</span><span style="color: #000000;">     \
+                        </span><span style="color: #800000;">"</span><span style="color: #800000;">root=/dev/mmcblk0p1 rootwait\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">bootcmd_mmc=run bootargs_base bootargs_mmc; </span><span style="color: #800000;">"</span><span style="color: #000000;">   \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">mmc dev 2; </span><span style="color: #800000;">"</span><span style="color: #000000;">   \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">mmc read ${loadaddr} 0x800 0x3000; bootm\0</span><span style="color: #800000;">"</span><span style="color: #000000;">    \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">bootcmd=run bootcmd_mmc\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                             \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">bootargs=console=ttymxc0,115200 init=/init video=mxcfb0:off video=mxcfb1:dev=hdmi,1920x1080M@60,if=RGB24,bpp=32 video=mxcfb2:off ldb=dul1 fbmem=10M,30M vmalloc=400M androidboot.console=ttymxc0 androidboot.hardware=freescale\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">splashimage=0x30000000\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">splashpos=m,m\0</span><span style="color: #800000;">"</span><span style="color: #000000;">                    \
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">lvds_num=1\0</span><span style="color: #800000;">"</span>             
+<span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+2.
+更改uboot参数之后，并没有生效.
+原因是bootargs采用了默认的参数。
+bootcmd </span>=<span style="color: #000000;"> run bootcmd_mmc
+bootcmd_mmc </span>=<span style="color: #000000;"> run bootargs_base bootargs_mmc
+在run bootargs_base 之后就不运行run bootargs_mmc
+</span><span style="color: #800000;">更改   "</span><span style="color: #800000;">bootcmd_mmc=run bootargs_base bootargs_mmc; </span><span style="color: #800000;">"</span>  
+<span style="color: #800000;">如下：<br />　　　　"</span><span style="color: #800000;">bootcmd_mmc=run bootargs_mmc; </span><span style="color: #800000;">"</span><span style="color: #000000;">  
+
+qt版本的目前不能同时支持2个屏，只能支持一种屏。qt只能支持配置一个framebuffer,参考</span>/etc/<span style="color: #000000;">profile.
+配置成功之后,kernel输出：
+Uncompressing Linux... done, booting the kernel.
+......
+Kernel command line: console</span>=ttymxc0,<span style="color: #800080;">115200</span> init=/init video=mxcfb0:off video=mxcfb1:dev=hdmi,1920x1080M@<span style="color: #800080;">60</span>,<span style="color: #0000ff;">if</span>=RGB24,bpp=<span style="color: #800080;">32</span> video=mxcfb2:off ldb=dul1 fbmem=10M,30M vmalloc=400M androidboot.console=ttymxc0 androidboot.hardware=freescale ip=none root=/dev/<span style="color: #000000;">mmcblk0p1 rootwait
+......
+<br />3.问题
+hdmi其中之后, 在串口一直输出：
+mxc_hdmi mxc_hdmi: same edid
+mxc_hdmi mxc_hdmi: same edid
+mxc_hdmi mxc_hdmi: same edid
+mxc_hdmi mxc_hdmi: same edid
+根据参考链接得知，HDMI的线没有插好。</span></pre>
+</div>
+<p>&nbsp;</p>

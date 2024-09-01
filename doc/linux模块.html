@@ -1,0 +1,95 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">主要内容：
+　　</span><span style="color: #800080;">1</span><span style="color: #000000;">、模块程序
+　　</span><span style="color: #800080;">2</span><span style="color: #000000;">、gcc编译
+　　</span><span style="color: #800080;">3</span><span style="color: #000000;">、交叉编译<br />　　4、模块安装与卸载
+　　参考：http:</span><span style="color: #008000;">//</span><span style="color: #008000;">blog.csdn.net/hanchaoman/article/details/6962293<br />　　　　 《Linux设备驱动程序》</span>
+
+<span style="color: #800080;">1</span><span style="color: #000000;">、hello.c
+#include </span>&lt;linux/init.h&gt;<span style="color: #000000;">
+#include </span>&lt;linux/module.h&gt;
+
+<span style="color: #008000;">/*</span><span style="color: #008000;"> 告诉内核,该模块带有一个自由许可证 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+MODULE_LICENSE(</span><span style="color: #800000;">"</span><span style="color: #800000;">Duall BSD/GPL</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init hello_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    printk(KERN_ALERT </span><span style="color: #800000;">"</span><span style="color: #800000;">hello, world\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __exit hello_exit(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    printk(KERN_ALERT </span><span style="color: #800000;">"</span><span style="color: #800000;">goodbye, cruel world\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+}
+
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> 模块初始化和退出函数 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+module_init(hello_init);
+module_exit(hello_exit);<br />
+</span><span style="color: #800080;">2</span><span style="color: #000000;">、常规编译Makefile
+# If KERNELRELEASE </span><span style="color: #0000ff;">is</span> defined, we<span style="color: #800000;">'</span><span style="color: #800000;">ve been invoked from the</span>
+<span style="color: #000000;"># kernel build system and can use its language.
+ifneq ($(KERNELRELEASE),)
+
+obj</span>-m :=<span style="color: #000000;"> hello.o
+
+# Otherwise we were called directly </span><span style="color: #0000ff;">from</span><span style="color: #000000;"> the command
+# line; invoke the kernel build system.
+</span><span style="color: #0000ff;">else</span><span style="color: #000000;">
+
+#系统内核所在目录
+KERNELDIR :</span>=/lib/modules/`uname -r`/<span style="color: #000000;">build
+PWD :</span>=<span style="color: #000000;"> $(shell pwd)
+#使用</span>-<span style="color: #000000;">C选项切换到内核目录
+#M</span>=<span style="color: #000000;">选项使 makefile 在试图建立模块目标前,回到你的模块源码目录
+all:
+    $(MAKE) </span>-C $(KERNELDIR) M=<span style="color: #000000;">$(PWD) modules
+clean:
+    rm </span>-f *.ko *.o *.mod.o *.mod.c *.order *<span style="color: #000000;">.symvers
+endif<br />
+这个 makefile 在一次典型的建立中要被读 </span><span style="color: #800080;">2</span><span style="color: #000000;"> 次. 当从命令行中调用这个 makefile , 它注意到 KERNELRELEASE 变量没有设置.它利用这样一个事实来定位内核源码目录, 即已安装模块目录中的符号连接指回内
+核建立树. 如果你实际上没有运行你在为其而建立的内核, 你可以在命令行提供一个KERNELDIR</span>=<span style="color: #000000;"> 选项, 设置 KERNELDIR 环境变量, 或者重写 makefile 中设置 KERNELDIR 的
+那一行. 一旦发现内核源码树, makefile 调用 all: 目标, 来运行第 </span><span style="color: #800080;">2</span> 个 make 命令( 在 makefile 里参数化成 $(MAKE))象前面&gt;描述过的一样来调用内核建立系统. 在第 <span style="color: #800080;">2</span><span style="color: #000000;">
+次读, makefile 设置 obj</span>-<span style="color: #000000;">m, 并且内核的 makefile 文件完成实际的建立模块工作.
+</span><span style="color: #800080;">3</span><span style="color: #000000;">、交叉编译Makefile
+ifneq ($(KERNELRELEASE),)
+
+obj</span>-m :=<span style="color: #000000;"> hello.o
+
+</span><span style="color: #0000ff;">else</span><span style="color: #000000;">
+
+#内核源码树的路径
+KERNELDIR :</span>= /home/tony/work/iproc/kernel/linux-<span style="color: #800080;">3.6</span>.<span style="color: #800080;">5</span><span style="color: #000000;">
+PWD :</span>=<span style="color: #000000;"> $(shell pwd)
+#指定交叉编译工具的路径
+CROSS_COMPILE :</span>= /home/tony/work/iproc/buildroot/host/usr/bin/arm-linux-<span style="color: #000000;">
+#架构
+ARCH </span>=<span style="color: #000000;"> arm 
+
+all:
+    make </span>-C $(KERNELDIR) M=$(PWD) modules ARCH=$(ARCH) CROSS_COMPILE=<span style="color: #000000;">$(CROSS_COMPILE)
+clean:
+    rm </span>-f *.ko *.o *.mod.o *.mod.c *.order *<span style="color: #000000;">.symvers
+
+endif
+#编译完成之后就，将hello.ko下载到开发板，就可以安装<br /></span></pre>
+<pre><span style="color: #000000;">4、<br />4.1 安装模块
+　　sudo insmod hello.ko
+查看输出信息
+　　dmesg | tail -<span style="color: #800080;">5<span style="color: #000000;">
+[  <span style="color: #800080;">101.312168] __ratelimit: <span style="color: #800080;">18<span style="color: #000000;"> callbacks suppressed
+[  <span style="color: #800080;">101.313230] type=<span style="color: #800080;">1503 audit(<span style="color: #800080;">1445259881.131:<span style="color: #800080;">18):  operation=<span style="color: #800000;">"<span style="color: #800000;">capable<span style="color: #800000;">" pid=<span style="color: #800080;">1665 parent=<span style="color: #800080;">1660 profile=<span style="color: #800000;">"<span style="color: #800000;">/usr/sbin/cupsd<span style="color: #800000;">" name=<span style="color: #800000;">"<span style="color: #800000;">sys_admin<span style="color: #800000;">"<span style="color: #000000;">
+[ <span style="color: #800080;">3009.787926] hello: module license <span style="color: #800000;">'<span style="color: #800000;">Duall BSD/GPL<span style="color: #800000;">'<span style="color: #000000;"> taints kernel.
+[ <span style="color: #800080;">3009.788507] Disabling <span style="color: #0000ff;">lock<span style="color: #000000;"> debugging due to kernel taint
+[ <span style="color: #800080;">3009.810441<span style="color: #000000;">] hello, world
+4.2 卸载模块
+　　sudo rmmod hello.ko
+　　dmesg | tail -<span style="color: #800080;">5<span style="color: #000000;">
+[  <span style="color: #800080;">101.313230] type=<span style="color: #800080;">1503 audit(<span style="color: #800080;">1445259881.131:<span style="color: #800080;">18):  operation=<span style="color: #800000;">"<span style="color: #800000;">capable<span style="color: #800000;">" pid=<span style="color: #800080;">1665 parent=<span style="color: #800080;">1660 profile=<span style="color: #800000;">"<span style="color: #800000;">/usr/sbin/cupsd<span style="color: #800000;">" name=<span style="color: #800000;">"<span style="color: #800000;">sys_admin<span style="color: #800000;">"<span style="color: #000000;">
+[ <span style="color: #800080;">3009.787926] hello: module license <span style="color: #800000;">'<span style="color: #800000;">Duall BSD/GPL<span style="color: #800000;">'<span style="color: #000000;"> taints kernel.
+[ <span style="color: #800080;">3009.788507] Disabling <span style="color: #0000ff;">lock<span style="color: #000000;"> debugging due to kernel taint
+[ <span style="color: #800080;">3009.810441<span style="color: #000000;">] hello, world
+[ <span style="color: #800080;">3052.781876<span style="color: #000000;">] goodbye, cruel world</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></pre>
+<pre><span style="color: #000000;">&nbsp;</span></pre>
+</div>
+<p>&nbsp;</p>

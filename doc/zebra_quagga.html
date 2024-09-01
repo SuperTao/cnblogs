@@ -1,0 +1,98 @@
+<div class="cnblogs_code">
+<pre>参考：http:<span style="color: #008000;">//</span><span style="color: #008000;">blog.chinaunix.net/uid-25513153-id-212328.html</span>
+<br /><br /><span style="color: #000000;">
+一、zebra安装
+
+</span><span style="color: #800080;">1</span><span style="color: #000000;">、编译安装
+
+vim .</span>/lib/zebra.h +<span style="color: #800080;">103</span><span style="color: #000000;">
+
+增加：
+
+#ifdef GNU_LINUX
+
+</span><span style="color: #0000ff;">#define</span>  __USE_GNU
+
+<span style="color: #0000ff;">#endif</span><span style="color: #000000;">
+
+.</span>/<span style="color: #000000;">configure
+
+sudo make
+
+sudo make install
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">、配置zebra运行环境
+
+因为系统中有简单的例子，于是就用现有的配置文件，配置登陆和进入特权模式的密码，主机名等。
+
+sudo cp zebra.conf.sample </span>/usr/local/etc/<span style="color: #000000;">zebra.conf
+
+配置vtysh
+
+sudo cp vtysh.conf.sample </span>/usr/local/etc/<span style="color: #000000;">vtysh.conf
+
+</span><span style="color: #800080;">3</span><span style="color: #000000;">、启动zebra demo程序
+
+.</span>/<span style="color: #000000;">zebra &ndash;d
+
+</span><span style="color: #800080;">4</span><span style="color: #000000;">、远程登陆
+
+telnet </span><span style="color: #800080;">127.0</span>.<span style="color: #800080;">0.1</span> <span style="color: #800080;">2601</span><span style="color: #000000;"> 
+
+二、quagga安装
+
+</span><span style="color: #800080;">1</span><span style="color: #000000;">、
+
+.</span>/configure --enable-<span style="color: #000000;">vtysh
+
+</span>--enable-user=<span style="color: #000000;">root
+
+</span>--enable-group=<span style="color: #000000;">root
+
+</span>--enable-vty-group=<span style="color: #000000;">root
+
+出现问题，提示少了libreadlin,解决方法：
+
+sudo apt</span>-<span style="color: #0000ff;">get</span> install libreadline5-<span style="color: #000000;">dev
+
+安装完成之后再重新用配置命令
+
+.</span>/configure --enable-<span style="color: #000000;">vtysh
+
+</span>--enable-user=<span style="color: #000000;">root
+
+</span>--enable-group=<span style="color: #000000;">root
+
+</span>--enable-vty-group=<span style="color: #000000;">root
+
+之后编译与安装
+
+make
+
+make install
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">、使用zebra自带的样例作为其启动的配置文件。
+
+cd zebra
+
+sudo cp .</span>/zebra.conf.sample /usr/local/etc/<span style="color: #000000;">zebra.conf
+
+</span><span style="color: #800080;">3</span><span style="color: #000000;">、启动zebra
+
+sudo .</span>/<span style="color: #000000;">zebra &ndash;d
+
+</span><span style="color: #800080;">4</span><span style="color: #000000;">、远程登录
+
+telnet </span><span style="color: #800080;">127.0</span>.<span style="color: #800080;">0.1</span> <span style="color: #800080;">2601</span>
+
+<span style="color: #800080;">5</span><span style="color: #000000;">、如果想启动rip
+
+cd ripd
+
+sudo cp .</span>/ripd/ripd.conf.sample /usr/local/etc/<span style="color: #000000;">ripd.conf
+
+sudo .</span>/ripd -<span style="color: #000000;">d
+
+telnet </span><span style="color: #800080;">127.0</span>.<span style="color: #800080;">0.1</span> <span style="color: #800080;">2602</span></pre>
+</div>
+<p>&nbsp;</p>

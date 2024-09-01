@@ -1,0 +1,19 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">*******************************************************************
+ *                qt 窗口控件自动调整大小 
+ *
+ *    在写gui的时候，希望窗口能够自动调整大小，这样就不许要手动调整。
+ * qt creator中就集成了这种方法，在qt中设置即可。
+ * 本文参考链接： 
+ *      </span><span style="color: #008000; text-decoration: underline;">http://www.cnblogs.com/emouse/archive/2013/05/19/3087708.html</span><span style="color: #008000;">
+ *
+ *                                          Tony, 2016-5-21, Shenzhen
+ *******************************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+按照参考链接操作：<br />　　1.在空白处右键，选择 Lay Out -&gt; Lay Out in a Form Layout.
+　　2.选中需要自动调整的控件,设置器布局方式为水平/垂直/栅格。调整部件到希望的位置。<br />　　3.设置sizePolicy为Expanding<br />例如groupBox,根据右边的属性中设置。
+    sizePolicy</span>-&gt;Horizontal Policy-&gt;<span style="color: #000000;">Expanding
+    sizePolicy</span>-&gt;Vertical Policy-&gt;<span style="color: #000000;">Expanding
+再将设置的这些控件放入gridLayout等布局中即可。<br />软件上可以使用widget.setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);</span></pre>
+</div>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201605/745188-20160521103856779-2029217430.png" alt="" /></p>

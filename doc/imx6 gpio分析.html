@@ -1,0 +1,99 @@
+<div class="cnblogs_code">
+<pre>本文主要介绍如何配置IOMUX寄存器，设置IO复用寄存器，配置为GPIO功能。<br /><span style="color: #000000;">参考：<br />　　http://www.jianshu.com/p/3c2053508342<br />　　http://www.embest-tech.com/community/index.php?topic=2822.0<br /><br /></span><span style="color: #000000;">查看板级文件
+kernel</span>/arch/arm/mach-mx6/<span style="color: #000000;">board_mx6q_sabresd.c
+
+MACHINE_START(MX6Q_SABRESD, </span><span style="color: #800000;">"</span><span style="color: #800000;">Freescale i.MX 6Quad/DualLite/Solo Sabre-SD Board</span><span style="color: #800000;">"</span><span style="color: #000000;">)
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Maintainer: Freescale Semiconductor, Inc. </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    .boot_params </span>= MX6_PHYS_OFFSET + <span style="color: #800080;">0x100</span><span style="color: #000000;">,
+    .fixup </span>=<span style="color: #000000;"> fixup_mxc_board,
+    .map_io </span>=<span style="color: #000000;"> mx6_map_io,
+    .init_irq </span>=<span style="color: #000000;"> mx6_init_irq,
+    .init_machine </span>=<span style="color: #000000;"> mx6_sabresd_board_init,　　　　//--------------------------------&gt;&gt;&gt;  mx6_sabresd_board_init
+    .timer </span>= &amp;<span style="color: #000000;">mx6_sabresd_timer,
+    .reserve </span>=<span style="color: #000000;"> mx6q_sabresd_reserve,
+MACHINE_END
+
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __init mx6_sabresd_board_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)　　//&lt;&lt;&lt;--------------------------------  mx6_sabresd_board_init
+{
+    ... ...
+    </span><span style="color: #008000;">//这里</span><span style="color: #008000;">这里已经将大部分寄存器都进行了配置。</span>
+    <span style="color: #0000ff;">if</span><span style="color: #000000;"> (cpu_is_mx6q())
+        mxc_iomux_v3_setup_multiple_pads(mx6q_sabresd_pads,　　　　// ------------------&gt;&gt;&gt; mxc_iomux_v3_setup_multiple_pads
+            ARRAY_SIZE(mx6q_sabresd_pads));　　　　　　　　　　　　　//  -----------------&gt;&gt;&gt; mx6q_sabresd_pads
+    </span><span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span><span style="color: #000000;"> (cpu_is_mx6dl()) {
+        mxc_iomux_v3_setup_multiple_pads(mx6dl_sabresd_pads,
+            ARRAY_SIZE(mx6dl_sabresd_pads));
+    }
+    ... ...
+}
+<br />mx6q_sabresd_pads结构体。
+kernel</span>/arch/arm/mach-mx6/<span style="color: #000000;">board_mx6q_sabresd.h
+</span><span style="color: #0000ff;">static</span> iomux_v3_cfg_t mx6q_sabresd_pads[] =<span style="color: #000000;"> {　　　　　　　　　　// &lt;&lt;&lt;---------------------  mx6q_sabresd_pads
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> AUDMUX </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    MX6Q_PAD_CSI0_DAT4__AUDMUX_AUD3_TXC,
+    MX6Q_PAD_CSI0_DAT5__AUDMUX_AUD3_TXD,
+    MX6Q_PAD_CSI0_DAT6__AUDMUX_AUD3_TXFS,
+    MX6Q_PAD_CSI0_DAT7__AUDMUX_AUD3_RXD,
+
+    MX6Q_PAD_SD1_DAT1__GPIO_1_17,       </span><span style="color: #008000;">/*</span><span style="color: #008000;"> FT5X06 RESET </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+    MX6Q_PAD_NANDF_CS3__GPIO_6_16,      </span><span style="color: #008000;">//</span><span style="color: #008000;">FT5X06_INT</span>
+<span style="color: #000000;">    ... ...
+}
+<br />文件：kernel/arch/arm/plat-mxc/include/mach/iomux-mx6q.h
+以MX6Q_PAD_SD1_DAT1__GPIO_1_17举例。 <br />//MX6Q_PAD_SD1_DAT1表示寄存器，表示IOMUXC_IOMUXC_SW_MUX_CTL_PAD_SD1_DAT1。芯片手册2160页。<br />//后面的GPIO_1_17表示将该引脚复用为GPIO17.<br />//0x0724,0x003c表示寄存器地址的偏移量。具体查看上面的参考链接和芯片手册。<br /></span><span style="color: #0000ff;">#define</span>  MX6Q_PAD_SD1_DAT1__GPIO_1_17       \<span style="color: #000000;">
+        (_MX6Q_PAD_SD1_DAT1__GPIO_1_17 </span>|<span style="color: #000000;"> MUX_PAD_CTRL(MX6Q_HIGH_DRV))
+</span><span style="color: #0000ff;">#define</span> _MX6Q_PAD_SD1_DAT1__GPIO_1_17           \<span style="color: #000000;">
+        IOMUX_PAD(</span><span style="color: #800080;">0x0724</span>, <span style="color: #800080;">0x033C</span>, <span style="color: #800080;">5</span>, <span style="color: #800080;">0x0000</span>, <span style="color: #800080;">0</span>, <span style="color: #800080;">0</span><span style="color: #000000;">)
+</span><span style="color: #0000ff;">#define</span> MUX_PAD_CTRL(x)     ((iomux_v3_cfg_t)(x) &lt;&lt; MUX_PAD_CTRL_SHIFT)<br /><br /></pre>
+<p>&nbsp; #define _MX6Q_PAD_SD2_DAT1__USDHC2_DAT1 \<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; IOMUX_PAD(0x0360, 0x004C, 0, 0x0000, 0, 0)<br />&nbsp; #define _MX6Q_PAD_SD2_DAT1__ECSPI5_SS0              \<br />&nbsp; &nbsp; &nbsp; &nbsp; 　IOMUX_PAD(0x0360, 0x004C, 1, 0x0834, 0, 0)<br />&nbsp; #define _MX6Q_PAD_SD2_DAT1__WEIM_WEIM_CS_2          \<br />        　　　　　　IOMUX_PAD(0x0360, 0x004C, 2, 0x0000, 0, 0)<br />&nbsp; #define _MX6Q_PAD_SD2_DAT1__AUDMUX_AUD4_TXFS            \<br />        　　　　　　IOMUX_PAD(0x0360, 0x004C, 3, 0x07C8, 0, 0)<br />&nbsp; #define _MX6Q_PAD_SD2_DAT1__KPP_COL_7               \<br />        　　　　　　IOMUX_PAD(0x0360, 0x004C, 4, 0x08F0, 0, 0)<br />&nbsp; #define _MX6Q_PAD_SD2_DAT1__GPIO_1_14               \<br />　　　　　　IOMUX_PAD(0x0360, 0x004C, 5, 0x0000, 0, 0)<br />&nbsp; #define _MX6Q_PAD_SD2_DAT1__CCM_WAIT                \<br />        　　　　　　IOMUX_PAD(0x0360, 0x004C, 6, 0x0000, 0, 0)<br />&nbsp; #define _MX6Q_PAD_SD2_DAT1__ANATOP_ANATOP_TESTO_0       \<br />        　　　　　　IOMUX_PAD(0x0360, 0x004C, 7, 0x0000, 0, 0)</p>
+<pre><br />文件：kernel/arch/arm/plat-mxc/include/mach/iomux-v3.h
+<span style="color: #0000ff;">#define</span> IOMUX_PAD(_pad_ctrl_ofs, _mux_ctrl_ofs, _mux_mode, _sel_input_ofs, \<span style="color: #000000;">
+        _sel_input, _pad_ctrl)                  \
+    (((iomux_v3_cfg_t)(_mux_ctrl_ofs) </span>&lt;&lt; MUX_CTRL_OFS_SHIFT) |<span style="color: #000000;">  \
+        ((iomux_v3_cfg_t)(_mux_mode) </span>&lt;&lt; MUX_MODE_SHIFT) |<span style="color: #000000;">   \
+        ((iomux_v3_cfg_t)(_pad_ctrl_ofs) </span>&lt;&lt; MUX_PAD_CTRL_OFS_SHIFT) |<span style="color: #000000;"> \
+        ((iomux_v3_cfg_t)(_pad_ctrl) </span>&lt;&lt; MUX_PAD_CTRL_SHIFT) |<span style="color: #000000;">   \
+        ((iomux_v3_cfg_t)(_sel_input_ofs) </span>&lt;&lt; MUX_SEL_INPUT_OFS_SHIFT) |<span style="color: #000000;"> \
+        ((iomux_v3_cfg_t)(_sel_input) </span>&lt;&lt;<span style="color: #000000;"> MUX_SEL_INPUT_SHIFT))<br /><br />
+</span><span style="color: #0000ff;">int</span> mxc_iomux_v3_setup_multiple_pads(iomux_v3_cfg_t *<span style="color: #000000;">pad_list, unsigned count)　　　//　&lt;&lt;&lt;-------- mxc_iomux_v3_setup_multiple_pads()
+{
+    iomux_v3_cfg_t </span>*p =<span style="color: #000000;"> pad_list;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> i;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;
+
+    </span><span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; count; i++<span style="color: #000000;">) {
+        ret </span>= mxc_iomux_v3_setup_pad(*<span style="color: #000000;">p);　　　　　　　　　　// ------------------------------&gt;&gt;&gt;  mxc_iomux_v3_setup_pad()
+        </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (ret)
+            </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;
+        p</span>++<span style="color: #000000;">;
+    }   
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+EXPORT_SYMBOL(mxc_iomux_v3_setup_multiple_pads);
+
+</span><span style="color: #008000;">/*</span><span style="color: #008000;"> 将定义的宏解析，提取其中数据，设置到寄存器中 </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">int</span><span style="color: #000000;"> mxc_iomux_v3_setup_pad(iomux_v3_cfg_t pad)　　　　　　　// &lt;&lt;&lt;---------------------------- mxc_iomux_v3_setup_pad()
+{
+    u32 mux_ctrl_ofs </span>= (pad &amp; MUX_CTRL_OFS_MASK) &gt;&gt;<span style="color: #000000;"> MUX_CTRL_OFS_SHIFT;
+    u32 mux_mode </span>= (pad &amp; MUX_MODE_MASK) &gt;&gt;<span style="color: #000000;"> MUX_MODE_SHIFT;
+    u32 sel_input_ofs </span>= (pad &amp; MUX_SEL_INPUT_OFS_MASK) &gt;&gt;<span style="color: #000000;"> MUX_SEL_INPUT_OFS_SHIFT;
+    u32 sel_input </span>= (pad &amp; MUX_SEL_INPUT_MASK) &gt;&gt;<span style="color: #000000;"> MUX_SEL_INPUT_SHIFT;
+    u32 pad_ctrl_ofs </span>= (pad &amp; MUX_PAD_CTRL_OFS_MASK) &gt;&gt;<span style="color: #000000;"> MUX_PAD_CTRL_OFS_SHIFT;
+    u32 pad_ctrl </span>= (pad &amp; MUX_PAD_CTRL_MASK) &gt;&gt;<span style="color: #000000;"> MUX_PAD_CTRL_SHIFT;
+
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (mux_ctrl_ofs)
+        __raw_writel(mux_mode, </span><span style="color: #0000ff;">base</span> +<span style="color: #000000;"> mux_ctrl_ofs);
+
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (sel_input_ofs)
+        __raw_writel(sel_input, </span><span style="color: #0000ff;">base</span> +<span style="color: #000000;"> sel_input_ofs);
+
+    </span><span style="color: #0000ff;">if</span> (!(pad_ctrl &amp; NO_PAD_CTRL) &amp;&amp;<span style="color: #000000;"> pad_ctrl_ofs)
+        __raw_writel(pad_ctrl, </span><span style="color: #0000ff;">base</span> +<span style="color: #000000;"> pad_ctrl_ofs);
+
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+EXPORT_SYMBOL(mxc_iomux_v3_setup_pad);</span></pre>
+</div>
+<p>&nbsp;</p>

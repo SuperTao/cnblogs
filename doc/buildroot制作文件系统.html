@@ -1,0 +1,48 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">******************************************************************
+ *               buildroot制作文件系统
+ * 使用buildroot制作文件系统，比busybox简单许多。虽然以前也使用过buildroot<br /> * 编译内核和文件系统，但是没有自己操作过详细的配置。今天总算体会到它的便捷。
+ *
+ * 参考文档：
+ *         </span><span style="color: #008000; text-decoration: underline;">http://www.cnblogs.com/zengjfgit/p/5174376.html<br /></span><span style="color: #008000;"> * <br /> * 　　　　　　　　　　　　　　　　　　　Tony Liu, 2016-5-16, Shenzhen
+ *****************************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+编译之后,下载的工具目录,dl:
+Qt@tony:</span>~/buildroot/buildroot-<span style="color: #800080;">2016.02</span>/dl$ ls -<span style="color: #000000;">lh
+total 105M
+</span>-rw-r--r-- <span style="color: #800080;">1</span> Qt Qt  98M May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">32</span> arm-<span style="color: #800080;">2014.05</span>-<span style="color: #800080;">29</span>-arm-none-linux-gnueabi-i686-pc-linux-<span style="color: #000000;">gnu.tar.bz2
+</span>-rw-r--r-- <span style="color: #800080;">1</span> Qt Qt <span style="color: #800080;">2.0M</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">33</span> busybox-<span style="color: #800080;">1.24</span>.<span style="color: #800080;">1</span><span style="color: #000000;">.tar.bz2
+</span>-rw-r--r-- <span style="color: #800080;">1</span> Qt Qt <span style="color: #800080;">4.6M</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">36</span> e2fsprogs-<span style="color: #800080;">1.42</span>.<span style="color: #800080;">13</span><span style="color: #000000;">.tar.xz
+</span>-rw-r--r-- <span style="color: #800080;">1</span> Qt Qt 320K May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span> fakeroot_1.<span style="color: #800080;">20.2</span><span style="color: #000000;">.orig.tar.bz2
+</span>-rw-r--r-- <span style="color: #800080;">1</span> Qt Qt 101K May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">36</span> genext2fs-<span style="color: #800080;">1.4</span>.<span style="color: #800080;">1</span><span style="color: #000000;">.tar.gz
+</span>-rw-r--r-- <span style="color: #800080;">1</span> Qt Qt  86K May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">35</span> pkgconf-<span style="color: #800080;">0.9</span>.<span style="color: #800080;">12</span><span style="color: #000000;">.tar.bz2
+
+打包好的镜像：
+Qt@tony:</span>~/buildroot/buildroot-<span style="color: #800080;">2016.02</span>/output/images$ ls -<span style="color: #000000;">lh
+total </span><span style="color: #800080;">9.3M</span>
+-rwxrwxrwx  <span style="color: #800080;">1</span> Qt   Qt   <span style="color: #800080;">6.5M</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span><span style="color: #000000;"> rootfs.ext2
+lrwxrwxrwx  </span><span style="color: #800080;">1</span> Qt   Qt     <span style="color: #800080;">11</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span> rootfs.ext4 -&gt;<span style="color: #000000;"> rootfs.ext2
+</span>-rwxrwxrwx  <span style="color: #800080;">1</span> Qt   Qt   <span style="color: #800080;">4.2M</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span><span style="color: #000000;"> rootfs.tar
+
+可以自己打包文件系统，制作成自己需要的压缩格式。<br />要将文件系统的own和group都改为root,否则会进不了文件系统。
+Qt@tony:</span>~/buildroot/buildroot-<span style="color: #800080;">2016.02</span>/output/target$ ls -<span style="color: #000000;">l
+total </span><span style="color: #800080;">64</span><span style="color: #000000;">
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span><span style="color: #000000;"> bin
+drwxr</span>-xr-x <span style="color: #800080;">4</span> root root <span style="color: #800080;">4096</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span><span style="color: #000000;"> dev
+drwxr</span>-xr-x <span style="color: #800080;">5</span> root root <span style="color: #800080;">4096</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">17</span>:<span style="color: #800080;">12</span><span style="color: #000000;"> etc
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span><span style="color: #000000;"> lib
+lrwxrwxrwx </span><span style="color: #800080;">1</span> Qt   Qt      <span style="color: #800080;">3</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">14</span>:<span style="color: #800080;">51</span> lib32 -&gt;<span style="color: #000000;"> lib
+lrwxrwxrwx </span><span style="color: #800080;">1</span> Qt   Qt     <span style="color: #800080;">11</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">34</span> linuxrc -&gt; bin/<span style="color: #000000;">busybox
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> Mar  <span style="color: #800080;">2</span> <span style="color: #800080;">04</span>:<span style="color: #800080;">47</span><span style="color: #000000;"> media
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> Mar  <span style="color: #800080;">2</span> <span style="color: #800080;">04</span>:<span style="color: #800080;">47</span><span style="color: #000000;"> mnt
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> Mar  <span style="color: #800080;">2</span> <span style="color: #800080;">04</span>:<span style="color: #800080;">47</span><span style="color: #000000;"> opt
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> Mar  <span style="color: #800080;">2</span> <span style="color: #800080;">04</span>:<span style="color: #800080;">47</span><span style="color: #000000;"> proc
+drwx</span>------ <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> Mar  <span style="color: #800080;">2</span> <span style="color: #800080;">04</span>:<span style="color: #800080;">47</span><span style="color: #000000;"> root
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> Mar  <span style="color: #800080;">2</span> <span style="color: #800080;">04</span>:<span style="color: #800080;">47</span><span style="color: #000000;"> run
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">34</span><span style="color: #000000;"> sbin
+drwxr</span>-xr-x <span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> Mar  <span style="color: #800080;">2</span> <span style="color: #800080;">04</span>:<span style="color: #800080;">47</span><span style="color: #000000;"> sys
+</span>-rw-r--r-- <span style="color: #800080;">1</span> root root <span style="color: #800080;">1336</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span><span style="color: #000000;"> THIS_IS_NOT_YOUR_ROOT_FILESYSTEM
+drwxrwxrwt </span><span style="color: #800080;">2</span> root root <span style="color: #800080;">4096</span> Mar  <span style="color: #800080;">2</span> <span style="color: #800080;">04</span>:<span style="color: #800080;">47</span><span style="color: #000000;"> tmp
+drwxr</span>-xr-x <span style="color: #800080;">6</span> root root <span style="color: #800080;">4096</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">34</span><span style="color: #000000;"> usr
+drwxr</span>-xr-x <span style="color: #800080;">4</span> root root <span style="color: #800080;">4096</span> May <span style="color: #800080;">16</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">37</span> <span style="color: #0000ff;">var</span></pre>
+</div>
+<p>&nbsp;</p>

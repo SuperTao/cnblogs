@@ -1,0 +1,88 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">***********************************************************************
+ *                             dhcpcd移植
+ * dhcpcd是DHCP client的实现，可以作为后台守护进程运行。
+ * 本文介绍移植过程，其中的配置文件并没有深究。
+ * 参考链接:
+ *     </span><span style="color: #008000; text-decoration: underline;">http://www.cnblogs.com/zengjfgit/p/5435126.html</span><span style="color: #008000;">
+ *     </span><span style="color: #008000; text-decoration: underline;">https://wiki.archlinux.org/index.php/Dhcpcd</span><span style="color: #008000;">#Running
+ *     </span><span style="color: #008000; text-decoration: underline;">http://www.linuxfromscratch.org/blfs/view/svn/basicnet/dhcpcd.html</span><span style="color: #008000;">
+ *                                                          
+ *                                                Tony, 2016-5-4,Shenzhen
+ **********************************************************************</span><span style="color: #008000;">*/</span>
+<span style="color: #800080;">1</span><span style="color: #000000;">.下载
+    ftp:</span><span style="color: #008000;">//</span><span style="color: #008000;">roy.marples.name/pub/dhcpcd</span>
+    我下载的版本是：dhcpcd-<span style="color: #800080;">6.9</span>.<span style="color: #800080;">4</span><span style="color: #000000;">.tar.xz
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">.编译
+    解压压缩包 
+
+    .</span>/configure --libexecdir=/lib/dhcpcd --dbdir=/<span style="color: #0000ff;">var</span>/lib/<span style="color: #000000;">dhcpcd
+
+    make CC</span>=arm-linux-gnueabihf-<span style="color: #000000;">gcc
+
+</span><span style="color: #800080;">3</span><span style="color: #000000;">.移植
+    </span><span style="color: #800080;">1</span><span style="color: #000000;">. 编译生成的dhcpcd添加到板中
+
+    </span><span style="color: #800080;">2</span>. dhcpcd.conf添加到/<span style="color: #000000;">etc目录 
+
+    </span><span style="color: #800080;">3</span>. 将dhcpcd-run-hooks脚本添加到开发板/lib/dhcpcd/<span style="color: #000000;">中。
+       dhcpcd</span>-hooks目录及其内容移动到放到开发板/lib/dhcpcd/<span style="color: #000000;">目录.
+       dhcpcd</span>-run-hooks脚本运行时会调用dhcpcd-<span style="color: #000000;">hooks中的脚本。
+
+</span><span style="color: #800080;">4</span><span style="color: #000000;">.运行
+    dhcpcd 
+    会保持在后台运行。重新插上网线，就能够获取ip。
+
+</span><span style="color: #800080;">5</span><span style="color: #000000;">.存在问题
+</span><span style="color: #800080;">5.1</span><span style="color: #000000;"> 电脑网卡和板子直连，运行dhcpcd也会配置ip
+    电脑网卡ip:</span><span style="color: #800080;">192.168</span>.<span style="color: #800080;">2.110</span><span style="color: #000000;">
+    root@tony:# dhcpcd  
+    control_open: Connection refused
+    all: IPv6 kernel autoconf disabled
+    eth0: IPv6 kernel autoconf disabled
+    eth0: adding address fe80::6eec:ebff:fef9:</span><span style="color: #800080;">1731</span><span style="color: #000000;">
+    if_addaddress6: Operation not supported
+    script_runreason: </span>/lib/dhcpcd/dhcpcd-run-hooks: WEXITSTATUS <span style="color: #800080;">127</span><span style="color: #000000;">
+    script_runreason: </span>/lib/dhcpcd/dhcpcd-run-hooks: WEXITSTATUS <span style="color: #800080;">127</span><span style="color: #000000;">
+    DUID </span><span style="color: #800080;">00</span>:<span style="color: #800080;">01</span>:<span style="color: #800080;">00</span>:<span style="color: #800080;">01</span>:1c:<span style="color: #800080;">62</span>:<span style="color: #800080;">04</span>:1e:6c:ec:eb:f9:<span style="color: #800080;">17</span>:<span style="color: #800080;">31</span><span style="color: #000000;">
+    eth0: IAID eb:f9:</span><span style="color: #800080;">17</span>:<span style="color: #800080;">31</span><span style="color: #000000;">
+    eth0: soliciting a DHCP lease
+    eth0: probing </span><span style="color: #0000ff;">for</span><span style="color: #000000;"> an IPv4LL address
+    eth0: </span><span style="color: #0000ff;">using</span> IPv4LL address <span style="color: #800080;">169.254</span>.<span style="color: #800080;">144.185</span><span style="color: #000000;">
+    eth0: adding route to </span><span style="color: #800080;">169.254</span>.<span style="color: #800080;">0.0</span>/<span style="color: #800080;">16</span><span style="color: #000000;">
+    eth0: adding </span><span style="color: #0000ff;">default</span><span style="color: #000000;"> route
+    script_runreason: </span>/lib/dhcpcd/dhcpcd-run-hooks: WEXITSTATUS <span style="color: #800080;">127</span><span style="color: #000000;">
+    forked to background, child pid </span><span style="color: #800080;">1922</span><span style="color: #000000;">
+    root@tony:# ifconfig
+    eth0      Link encap:Ethernet  HWaddr 6C:EC:EB:F9:</span><span style="color: #800080;">17</span>:<span style="color: #800080;">31</span><span style="color: #000000;">  
+              inet addr:</span><span style="color: #800080;">169.254</span>.<span style="color: #800080;">144.185</span>  Bcast:<span style="color: #800080;">169.254</span>.<span style="color: #800080;">255.255</span>  Mask:<span style="color: #800080;">255.255</span>.<span style="color: #800080;">0.0</span><span style="color: #000000;">
+              UP BROADCAST RUNNING ALLMULTI MULTICAST  MTU:</span><span style="color: #800080;">1500</span>  Metric:<span style="color: #800080;">1</span><span style="color: #000000;">
+              RX packets:</span><span style="color: #800080;">1142</span> errors:<span style="color: #800080;">0</span> dropped:<span style="color: #800080;">0</span> overruns:<span style="color: #800080;">0</span> frame:<span style="color: #800080;">0</span><span style="color: #000000;">
+              TX packets:</span><span style="color: #800080;">578</span> errors:<span style="color: #800080;">0</span> dropped:<span style="color: #800080;">0</span> overruns:<span style="color: #800080;">0</span> carrier:<span style="color: #800080;">0</span><span style="color: #000000;">
+              collisions:</span><span style="color: #800080;">0</span> txqueuelen:<span style="color: #800080;">1000</span><span style="color: #000000;"> 
+              RX bytes:</span><span style="color: #800080;">310397</span> (<span style="color: #800080;">303.1</span> KiB)  TX bytes:<span style="color: #800080;">70897</span> (<span style="color: #800080;">69.2</span><span style="color: #000000;"> KiB)
+    
+    lo        Link encap:Local Loopback  
+              inet addr:</span><span style="color: #800080;">127.0</span>.<span style="color: #800080;">0.1</span>  Mask:<span style="color: #800080;">255.0</span>.<span style="color: #800080;">0.0</span><span style="color: #000000;">
+              UP LOOPBACK RUNNING  MTU:</span><span style="color: #800080;">16436</span>  Metric:<span style="color: #800080;">1</span><span style="color: #000000;">
+              RX packets:</span><span style="color: #800080;">32421</span> errors:<span style="color: #800080;">0</span> dropped:<span style="color: #800080;">0</span> overruns:<span style="color: #800080;">0</span> frame:<span style="color: #800080;">0</span><span style="color: #000000;">
+              TX packets:</span><span style="color: #800080;">32421</span> errors:<span style="color: #800080;">0</span> dropped:<span style="color: #800080;">0</span> overruns:<span style="color: #800080;">0</span> carrier:<span style="color: #800080;">0</span><span style="color: #000000;">
+              collisions:</span><span style="color: #800080;">0</span> txqueuelen:<span style="color: #800080;">0</span><span style="color: #000000;"> 
+              RX bytes:</span><span style="color: #800080;">549649752</span> (<span style="color: #800080;">524.1</span> MiB)  TX bytes:<span style="color: #800080;">549649752</span> (<span style="color: #800080;">524.1</span><span style="color: #000000;"> MiB)
+    
+</span><span style="color: #800080;">5.2</span><span style="color: #000000;"> dhcpcd eth0 
+    这样启动的时候，如果没有连接网线，会导致dhcpcd配置超时，启动失败,程序退出。
+    root@tony:# dhcpcd eth0    
+    control_open: Connection refused
+    all: IPv6 kernel autoconf disabled
+    eth0: IPv6 kernel autoconf disabled
+    eth0: adding address fe80::6eec:ebff:fef9:</span><span style="color: #800080;">1731</span><span style="color: #000000;">
+    if_addaddress6: Operation not supported
+    script_runreason: </span>/lib/dhcpcd/dhcpcd-run-hooks: WEXITSTATUS <span style="color: #800080;">127</span><span style="color: #000000;">
+    script_runreason: </span>/lib/dhcpcd/dhcpcd-run-hooks: WEXITSTATUS <span style="color: #800080;">127</span><span style="color: #000000;">
+    eth0: waiting </span><span style="color: #0000ff;">for</span><span style="color: #000000;"> carrier
+    timed </span><span style="color: #0000ff;">out</span><span style="color: #000000;">
+    dhcpcd exited</span></pre>
+</div>
+<p>&nbsp;</p>

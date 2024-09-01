@@ -1,0 +1,311 @@
+<div class="cnblogs_code">
+<pre>--<span style="color: #000000;"> mib文件的开头指定文件名，并且使用BEGIN开始，文件的最后用END结束
+</span>--<span style="color: #000000;"> IMPORTS就相当与c语言中的include，包含需要使用的一些数据类型
+</span>--<span style="color: #000000;"> 通过FROM指定引用的来源
+MOXA</span>-CN2600-MIB DEFINITIONS ::=<span style="color: #000000;"> BEGIN
+    IMPORTS
+        enterprises,
+        IpAddress,
+        OBJECT</span>-TYPE            FROM SNMPv2-<span style="color: #000000;">SMI
+        DateAndTime,
+        TEXTUAL</span>-<span style="color: #000000;">CONVENTION,
+        MacAddress,
+        DisplayString       　　FROM SNMPv2</span>-<span style="color: #000000;">TC;
+
+</span>--<span style="color: #000000;"> 不同的公司在enterprises节点下注册注册自己的id，moxa的节点是8691
+</span>--<span style="color: #000000;"> 使用OBJECT IDENTIFIER指定OID
+    moxa                 OBJECT IDENTIFIER ::</span>= { enterprises <span style="color: #800080;">8691</span> }    -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691</span>
+--<span style="color: #000000;"> 指定nport串口服务器是在moxa节点下的分支，id是2
+</span>-- oid:  <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span><span style="color: #000000;">
+    nport OBJECT IDENTIFIER ::</span>= { moxa <span style="color: #800080;">2</span> }            -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>
+--<span style="color: #000000;"> 产品型号cn2600，是在nport串口服务器分支下,节点是11
+</span>-- oid:  <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11</span><span style="color: #000000;">
+    cn2600   MODULE</span>-<span style="color: #000000;">IDENTITY
+        LAST</span>-UPDATED <span style="color: #800000;">"</span><span style="color: #800000;">201003040000Z</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ORGANIZATION </span><span style="color: #800000;">"</span><span style="color: #800000;">Moxa Inc.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        CONTACT</span>-<span style="color: #000000;">INFO
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">Email: support@moxa.com</span>
+                 Tel  : +<span style="color: #800080;">886</span> <span style="color: #800080;">2</span> <span style="color: #800080;">89191230</span> ext.<span style="color: #800080;">300</span><span style="color: #800000;">"
+</span><span style="color: #000000;">                 
+        DESCRIPTION
+                </span><span style="color: #800000;">"</span><span style="color: #800000;">The MIB module for Moxa Terminal Server CN2600 series specific information.</span><span style="color: #800000;">"</span><span style="color: #000000;">            
+    
+        ::</span>= { nport <span style="color: #800080;">11</span> }    -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11</span>
+    
+-- -------------------------------------------------------------
+-- groups <span style="color: #0000ff;">in</span> the MOXA-CN2600-<span style="color: #000000;">2AC MIB
+</span>-- -------------------------------------------------------------<span style="color: #000000;">
+
+swMgmt        OBJECT IDENTIFIER ::</span>= { cn2600 <span style="color: #800080;">1</span> }            -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>    
+
+-- -------------------------------------------------------------
+--<span style="color: #000000;"> Textual Conventions
+</span>-- -------------------------------------------------------------<span style="color: #000000;">
+
+PortList ::</span>= TEXTUAL-<span style="color: #000000;">CONVENTION
+    STATUS            current
+    DESCRIPTION        
+        </span><span style="color: #800000;">"</span><span style="color: #800000;">Each octet within this value specifies a set of eight</span>
+        ports, with the first octet specifying ports <span style="color: #800080;">1</span><span style="color: #000000;"> through
+        </span><span style="color: #800080;">8</span>, the second octet specifying ports <span style="color: #800080;">9</span> through <span style="color: #800080;">16</span><span style="color: #000000;">, etc.
+        Within each octet, the most significant bit represents
+        the lowest numbered port, and the least significant bit
+        represents the highest numbered port.  Thus, each port
+        of the bridge </span><span style="color: #0000ff;">is</span><span style="color: #000000;"> represented by a single bit within the
+        value of </span><span style="color: #0000ff;">this</span> <span style="color: #0000ff;">object</span>.  If that bit has a value of <span style="color: #800000;">'</span><span style="color: #800000;">1</span><span style="color: #800000;">'</span><span style="color: #000000;">
+        then that port </span><span style="color: #0000ff;">is</span> included <span style="color: #0000ff;">in</span> the <span style="color: #0000ff;">set</span><span style="color: #000000;"> of ports; the port
+        </span><span style="color: #0000ff;">is</span> not included <span style="color: #0000ff;">if</span> its bit has a value of <span style="color: #800000;">'</span><span style="color: #800000;">0</span><span style="color: #800000;">'</span>.<span style="color: #800000;">"
+</span><span style="color: #000000;">    SYNTAX      OCTET STRING
+    
+</span>-- -------------------------------------------------------------
+--<span style="color: #000000;"> swMgmt group
+</span>-- -------------------------------------------------------------
+
+-- -------------------------------------------------------------
+--<span style="color: #000000;"> Overview
+</span>-- -------------------------------------------------------------<span style="color: #000000;">
+
+    overview OBJECT IDENTIFIER ::</span>= { swMgmt <span style="color: #800080;">1</span> }        -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">1</span>
+--<span style="color: #000000;"> 模块名称
+</span>--<span style="color: #000000;"> 类型：DisplayString,类似字符串
+</span>--<span style="color: #000000;"> 访问权限：只读
+</span>--<span style="color: #000000;"> 状态：当前
+</span>-- id: overview <span style="color: #800080;">1</span>
+-- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">1.1</span><span style="color: #000000;">
+    modelName OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX DisplayString
+        MAX</span>-ACCESS read-<span style="color: #000000;">only
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The model name of the CN2600.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { overview <span style="color: #800080;">1</span> }                            -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">1.1</span>
+--<span style="color: #000000;"> 数据类型：整型
+    serialNumber OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX INTEGER
+        MAX</span>-ACCESS read-<span style="color: #000000;">only
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The serial number of the CN2600. Every Terminal Server CN2600</span>
+            series <span style="color: #0000ff;">is</span><span style="color: #000000;"> assigned a unique serial
+            number before it </span><span style="color: #0000ff;">is</span> shipped.<span style="color: #800000;">"
+</span>        ::= { overview <span style="color: #800080;">2</span><span style="color: #000000;"> }
+    
+    firmwareVersion OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX DisplayString
+        MAX</span>-ACCESS read-<span style="color: #000000;">only                
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The version of the firmware currently running on the CN2600.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { overview <span style="color: #800080;">3</span><span style="color: #000000;"> }
+</span>--<span style="color: #000000;"> 类型:ip地址
+    viewLan1IpAddress OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX IpAddress
+        MAX</span>-ACCESS read-<span style="color: #000000;">only               
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The IP address of the CN2600's LAN1 interface.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { overview <span style="color: #800080;">4</span><span style="color: #000000;"> }
+</span>--<span style="color: #000000;"> 类型：mac地址
+    viewLan1MacAddress OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX MacAddress
+        MAX</span>-ACCESS read-<span style="color: #000000;">only               
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The MAC address of the CN2600's LAN1 interface.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { overview <span style="color: #800080;">5</span><span style="color: #000000;"> }
+
+</span>--<span style="color: #000000;"> 省略其中的一些。。。。。
+
+</span>--<span style="color: #000000;"> 可以指定整型的范围之后0，1两个值,类似枚举
+</span>-- 前面的<span style="color: #800000;">"</span><span style="color: #800000;">power-off</span><span style="color: #800000;">"</span>,<span style="color: #800000;">"</span><span style="color: #800000;">power-on</span><span style="color: #800000;">"</span><span style="color: #000000;">用于描述
+    power1Status  OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX INTEGER {
+            power</span>-off(<span style="color: #800080;">0</span><span style="color: #000000;">),
+            power</span>-on(<span style="color: #800080;">1</span><span style="color: #000000;">)
+        }
+        MAX</span>-ACCESS read-<span style="color: #000000;">only
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The on/off status of power 1</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { overview <span style="color: #800080;">11</span><span style="color: #000000;"> }
+
+    power2Status  OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX INTEGER {
+            power</span>-off(<span style="color: #800080;">0</span><span style="color: #000000;">),
+            power</span>-on(<span style="color: #800080;">1</span><span style="color: #000000;">)
+        }
+        MAX</span>-ACCESS read-<span style="color: #000000;">only
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The on/off status of power 2 for 2AC model</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { overview <span style="color: #800080;">12</span><span style="color: #000000;"> }
+
+</span>-- -------------------------------------------------------------
+--<span style="color: #000000;"> Basic settings
+</span>-- -------------------------------------------------------------<span style="color: #000000;">
+
+    basicSetting OBJECT IDENTIFIER ::</span>= { swMgmt <span style="color: #800080;">2</span>}            -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2</span>
+
+-- -------------------------------------------------------------
+-- Basic settings -&gt;<span style="color: #000000;"> Server settings
+</span>-- -------------------------------------------------------------<span style="color: #000000;">
+    
+    serverSetting OBJECT IDENTIFIER ::</span>= { basicSetting <span style="color: #800080;">1</span> }    -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.1</span><span style="color: #000000;">
+    
+    serverName OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX DisplayString
+        MAX</span>-ACCESS read-<span style="color: #000000;">write                
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">A text string used to identify the CN2600.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { serverSetting <span style="color: #800080;">1</span><span style="color: #000000;"> }
+       
+    serverLocation OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX DisplayString
+        MAX</span>-ACCESS read-<span style="color: #000000;">write                
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">A text string used to identify the location of the CN2600. This</span>
+            option <span style="color: #0000ff;">is</span> useful <span style="color: #0000ff;">for</span><span style="color: #000000;"> specifying the location or
+            application of different CN2600.</span><span style="color: #800000;">"
+</span>        ::= { serverSetting <span style="color: #800080;">2</span><span style="color: #000000;"> }
+        
+</span>-- -------------------------------------------------------------
+-- Basic settings -&gt;<span style="color: #000000;"> Time settings
+</span>-- -------------------------------------------------------------<span style="color: #000000;">
+    
+    timeSetting OBJECT IDENTIFIER ::</span>= { basicSetting <span style="color: #800080;">2</span> }    -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.2</span>
+--<span style="color: #000000;"> 时间设置，可以进行读写    
+    timeZone OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX INTEGER
+        MAX</span>-ACCESS read-<span style="color: #000000;">write                
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The time-zone index of the CN2600.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { timeSetting <span style="color: #800080;">1</span><span style="color: #000000;"> }
+    
+    localTime OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX DateAndTime
+        MAX</span>-ACCESS read-<span style="color: #000000;">write               
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The system time in seconds since 1970/1/1.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { timeSetting <span style="color: #800080;">2</span><span style="color: #000000;"> }
+
+</span>-- -------------------------------------------------------------
+--<span style="color: #000000;"> Serial port settings
+</span>-- -------------------------------------------------------------<span style="color: #000000;">
+
+    portSetting OBJECT IDENTIFIER ::</span>= { swMgmt <span style="color: #800080;">4</span> }            -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.4</span>
+    
+-- -------------------------------------------------------------
+-- Serial port settings -&gt;<span style="color: #000000;"> Operation Modes settings
+</span>-- -------------------------------------------------------------<span style="color: #000000;">
+
+    opModeSetting OBJECT IDENTIFIER ::</span>= { portSetting <span style="color: #800080;">1</span> }    -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.4</span>.<span style="color: #800080;">1</span>
+    
+-- --------------------------------------------------------------------------------------
+-- Serial port settings -&gt; Operation Modes settings -&gt;<span style="color: #000000;"> Operation Modes
+</span>-- --------------------------------------------------------------------------------------<span style="color: #000000;">
+
+    opMode OBJECT IDENTIFIER ::</span>= { opModeSetting <span style="color: #800080;">1</span> }        -- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.4</span>.<span style="color: #800080;">1.1</span>
+--<span style="color: #000000;"> 表类型的定义    
+</span>--<span style="color: #000000;"> 使用SEQUENCE OF定义一种新的类型OpModePortEntry
+</span>--<span style="color: #000000;"> 有点像C语言中结构体的定义
+</span>-- opModePortTable是表名，开头必须小写，并且结尾必须包含<span style="color: #800000;">"</span><span style="color: #800000;">Table</span><span style="color: #800000;">"</span>
+-- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.4</span>.<span style="color: #800080;">1.1</span>.<span style="color: #800080;">1</span><span style="color: #000000;">
+    opModePortTable OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX SEQUENCE OF OpModePortEntry
+        MAX</span>-ACCESS not-<span style="color: #000000;">accessible               
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The serial ports' operation mode table.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { opMode <span style="color: #800080;">1</span><span style="color: #000000;"> }
+</span>--<span style="color: #000000;"> 表中一行的名称：opModePortEntry,每行数据的数据类型是一样的
+</span>--<span style="color: #000000;"> 类型是：OpModePortEntry
+</span>-- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.4</span>.<span style="color: #800080;">1.1</span>.<span style="color: #800080;">1.1</span>
+--<span style="color: #000000;"> 表中第一个必须是INDEX，作为索引，并且是不可访问的。
+    opModePortEntry OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX OpModePortEntry
+        MAX</span>-ACCESS not-<span style="color: #000000;">accessible               
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The serial port's operation mode entry.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        INDEX { portIndex }
+        ::</span>= { opModePortTable <span style="color: #800080;">1</span><span style="color: #000000;"> }
+
+</span>--<span style="color: #000000;"> 表中数据类型 ，类似结构体定义,并且第一个是INDEX
+</span>--<span style="color: #000000;"> 一行中，每一列的数据类型定义如下
+</span>--<span style="color: #000000;"> INDEX如果前面定义了，就说使用前面一个表的索引，那么这里也可以省略
+    OpModePortEntry ::</span>=<span style="color: #000000;">
+        SEQUENCE {
+            portIndex
+                INTEGER,
+            portApplication
+                INTEGER,
+            portMode
+                INTEGER
+        }
+</span>--<span style="color: #000000;"> 对索引的定义，权限不可访问,里面没有数据,所以访问也没有意义
+</span>-- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.4</span>.<span style="color: #800080;">1.1</span>.<span style="color: #800080;">1.1</span>.<span style="color: #800080;">1</span>
+--<span style="color: #000000;"> 在一行opModePortEntry中，第一个元素
+    portIndex OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX INTEGER
+        MAX</span>-ACCESS read-<span style="color: #000000;">only                
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The serial port index.</span><span style="color: #800000;">"</span><span style="color: #000000;">
+        ::</span>= { opModePortEntry <span style="color: #800080;">1</span><span style="color: #000000;"> }
+
+</span>--<span style="color: #000000;"> 表中一行中第二个元素的定义
+</span>-- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.4</span>.<span style="color: #800080;">1.1</span>.<span style="color: #800080;">1.1</span>.<span style="color: #800080;">2</span><span style="color: #000000;">
+    portApplication OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX INTEGER {
+            disable(</span><span style="color: #800080;">0</span><span style="color: #000000;">),
+            device</span>-Control(<span style="color: #800080;">4</span><span style="color: #000000;">),
+            socket(</span><span style="color: #800080;">11</span><span style="color: #000000;">),
+            redundant</span>-Com(<span style="color: #800080;">5</span><span style="color: #000000;">),
+            drdas(</span><span style="color: #800080;">9</span><span style="color: #000000;">),
+            terminal(</span><span style="color: #800080;">2</span><span style="color: #000000;">),
+            reverse</span>-Terminal(<span style="color: #800080;">3</span><span style="color: #000000;">),               
+            dial</span>-InOut(<span style="color: #800080;">1</span><span style="color: #000000;">)
+        }
+        MAX</span>-ACCESS read-<span style="color: #000000;">write                
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The application of the serial port.</span>
+            Note that changing <span style="color: #0000ff;">this</span><span style="color: #000000;"> setting may also change the
+            operation mode.</span><span style="color: #800000;">"
+</span>        ::= { opModePortEntry <span style="color: #800080;">2</span><span style="color: #000000;"> }
+    
+</span>-- <span style="color: #800080;">1.3</span>.<span style="color: #800080;">6.1</span>.<span style="color: #800080;">4.1</span>.<span style="color: #800080;">8691.2</span>.<span style="color: #800080;">11.1</span>.<span style="color: #800080;">2.4</span>.<span style="color: #800080;">1.1</span>.<span style="color: #800080;">1.1</span>.<span style="color: #800080;">3</span><span style="color: #000000;">
+    portMode OBJECT</span>-<span style="color: #000000;">TYPE
+        SYNTAX INTEGER {  
+            real</span>-Com(<span style="color: #800080;">2</span><span style="color: #000000;">),
+            slip(</span><span style="color: #800080;">4</span><span style="color: #000000;">),
+            slipd(</span><span style="color: #800080;">5</span><span style="color: #000000;">),
+            ppp(</span><span style="color: #800080;">6</span><span style="color: #000000;">),
+            disable(</span><span style="color: #800080;">7</span><span style="color: #000000;">),
+            telnetd(</span><span style="color: #800080;">8</span><span style="color: #000000;">),
+            dynamic(</span><span style="color: #800080;">9</span><span style="color: #000000;">),
+            tcp</span>-Server(<span style="color: #800080;">10</span><span style="color: #000000;">),
+            tcp</span>-Client(<span style="color: #800080;">13</span><span style="color: #000000;">),
+            udp(</span><span style="color: #800080;">14</span><span style="color: #000000;">),
+            pppd(</span><span style="color: #800080;">15</span><span style="color: #000000;">),
+            term</span>-ASC(<span style="color: #800080;">16</span><span style="color: #000000;">),
+            term</span>-BIN(<span style="color: #800080;">17</span><span style="color: #000000;">),
+            rfc</span>-<span style="color: #800080;">2217</span>(<span style="color: #800080;">20</span><span style="color: #000000;">),
+            redundant</span>-Com(<span style="color: #800080;">22</span><span style="color: #000000;">),
+            drdas</span>-Real-Com(<span style="color: #800080;">23</span><span style="color: #000000;">),
+            drdas</span>-Tcp-Server(<span style="color: #800080;">24</span><span style="color: #000000;">),
+        }
+        MAX</span>-ACCESS read-<span style="color: #000000;">write                
+        STATUS current
+        DESCRIPTION
+            </span><span style="color: #800000;">"</span><span style="color: #800000;">The operation mode of the serial port. Note that</span>
+            changing <span style="color: #0000ff;">this</span> setting may also change the application.<span style="color: #800000;">"
+</span>        ::= { opModePortEntry <span style="color: #800080;">3</span><span style="color: #000000;"> }
+        
+END</span></pre>
+</div>
+<p>&nbsp;<br /><br /></p>

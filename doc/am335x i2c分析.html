@@ -1,0 +1,548 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">****************************************************************************
+ *                     am335x i2c分析
+ *  i2c驱动主要关注i2c_algorithm结构体,不同芯片实现自己的master_xfer函数.
+ *  不同芯片i2c驱动框架都类似。
+ *  本文主要描述am335x_i2c设备和驱动的注册，提及文件:
+ *          arch/arm/mach-omap2/board-am335xevm.c
+ *          drivers/i2c/busses/i2c-omap.c
+ *          drivers/i2c/i2c-core.c<br /> *　　　　　　　　　　　　　　　　　　　　　　　　　　Tony Liu, 2016-5-2, Shenzhen　　<br /> **************************************************************************</span><span style="color: #008000;">*/</span>
+<span style="color: #800080;">1</span><span style="color: #000000;">. i2c设备注册，配置引脚复用
+arch</span>/arm/mach-omap2/board-<span style="color: #000000;">am335xevm.c
+MACHINE_START(AM335XEVM, </span><span style="color: #800000;">"</span><span style="color: #800000;">am335xevm</span><span style="color: #800000;">"</span><span style="color: #000000;">)
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Maintainer: Texas Instruments </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    .atag_offset    </span>= <span style="color: #800080;">0x100</span><span style="color: #000000;">,
+    .map_io        </span>=<span style="color: #000000;"> am335x_evm_map_io,
+    .init_early    </span>=<span style="color: #000000;"> am33xx_init_early,
+    .init_irq    </span>=<span style="color: #000000;"> ti81xx_init_irq,
+    .handle_irq     </span>=<span style="color: #000000;"> omap3_intc_handle_irq,
+    .timer        </span>= &amp;<span style="color: #000000;">omap3_am33xx_timer,
+    .init_machine    </span>=<span style="color: #000000;"> am335x_evm_init,
+MACHINE_END
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __init am335x_evm_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    am33xx_cpuidle_init();
+    am33xx_mux_init(board_mux);
+    omap_serial_init();
+    am335x_evm_i2c_init();                                 </span>---------------------+ <span style="color: #008000;">//</span><span style="color: #008000;">i2c0</span>
+    omap_sdrc_init(NULL, NULL);                                                 |<span style="color: #000000;">
+    usb_musb_init(</span>&amp;musb_board_data);                                            |
+                                                                                |<span style="color: #000000;">
+    omap_board_config </span>= am335x_evm_config;                                      |<span style="color: #000000;">
+    omap_board_config_size </span>= ARRAY_SIZE(am335x_evm_config);                     |
+                                                                                |<span style="color: #000000;">
+    daughter_brd_detected </span>= <span style="color: #0000ff;">false</span>;                                              |<span style="color: #000000;">
+    setup_xxx_xxxx();                                            </span>---------------|--+   <span style="color: #008000;">//</span><span style="color: #008000;">i2c1, i2c2</span>
+                                                                                |  |
+    <span style="color: #008000;">/*</span><span style="color: #008000;">create  /proc/boardname to export info to userspace</span><span style="color: #008000;">*/</span>                     |  |<span style="color: #000000;">
+    proc_init();                                                                </span>|  |
+                                                                                |  |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Create an alias for icss clock </span><span style="color: #008000;">*/</span>                                        |  |
+    <span style="color: #0000ff;">if</span> (clk_add_alias(<span style="color: #800000;">"</span><span style="color: #800000;">pruss</span><span style="color: #800000;">"</span>, NULL, <span style="color: #800000;">"</span><span style="color: #800000;">pruss_uart_gclk</span><span style="color: #800000;">"</span>, NULL))                  |  |<span style="color: #000000;">
+        pr_warn(</span><span style="color: #800000;">"</span><span style="color: #800000;">failed to create an alias: icss_uart_gclk --&gt; pruss\n</span><span style="color: #800000;">"</span>);       |  |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Create an alias for gfx/sgx clock </span><span style="color: #008000;">*/</span>                                     |  |
+    <span style="color: #0000ff;">if</span> (clk_add_alias(<span style="color: #800000;">"</span><span style="color: #800000;">sgx_ck</span><span style="color: #800000;">"</span>, NULL, <span style="color: #800000;">"</span><span style="color: #800000;">gfx_fclk</span><span style="color: #800000;">"</span>, NULL))                        |  |<span style="color: #000000;">
+        pr_warn(</span><span style="color: #800000;">"</span><span style="color: #800000;">failed to create an alias: gfx_fclk --&gt; sgx_ck\n</span><span style="color: #800000;">"</span>);            |  |<span style="color: #000000;">
+}                                                                               </span>|  |
+<span style="color: #008000;">//</span><span style="color: #008000;">初始化i2c 0,由于i2c0引脚的mode0就是i2c功能，所以不需要配置引脚复用            |  |</span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __init am335x_evm_i2c_init(<span style="color: #0000ff;">void</span>)                      &lt;-------------+  |<span style="color: #000000;">
+{                                                                                  </span>|
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Initially assume General Purpose EVM Config </span><span style="color: #008000;">*/</span>                              |<span style="color: #000000;">
+    am335x_evm_id </span>= EVM_SK;                                                        |
+    <span style="color: #008000;">//</span><span style="color: #008000;"> i2c 0, speed: 100k                                                          |</span>
+    omap_register_i2c_bus(<span style="color: #800080;">1</span>, <span style="color: #800080;">100</span>, i2c0_boardinfo,ARRAY_SIZE(i2c0_boardinfo)); --+  |<span style="color: #000000;">
+}                                                               </span>|               |  |
+                                                                |               |  |
+<span style="color: #008000;">//</span><span style="color: #008000;"> i2c设备的设备地址                                            |               |  |</span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> i2c_board_info i2c0_boardinfo[] = {         &lt;-----+               |  |<span style="color: #000000;">
+    {                                                                           </span>|  |<span style="color: #000000;">
+        I2C_BOARD_INFO(</span><span style="color: #800000;">"</span><span style="color: #800000;">tps65910</span><span style="color: #800000;">"</span>, TPS65910_I2C_ID1),                           |  |<span style="color: #000000;">
+        .platform_data  </span>= &amp;am335x_tps65910_info,                                |  |<span style="color: #000000;">
+    },                                                                          </span>|  |<span style="color: #000000;">
+    {                                                                           </span>|  |<span style="color: #000000;">
+        I2C_BOARD_INFO(</span><span style="color: #800000;">"</span><span style="color: #800000;">24c02</span><span style="color: #800000;">"</span>, <span style="color: #800080;">0x50</span>),                                          |  |<span style="color: #000000;">
+    },                                                                          </span>|  |<span style="color: #000000;">
+};                                                                              </span>|  |
+                                                                                |  |
+<span style="color: #0000ff;">int</span> __init omap_register_i2c_bus(<span style="color: #0000ff;">int</span> bus_id, u32 clkrate,                  &lt;----+  |
+              <span style="color: #0000ff;">struct</span> i2c_board_info <span style="color: #0000ff;">const</span> *info,                                   |<span style="color: #000000;">
+              unsigned len)                                                        </span>|<span style="color: #000000;">
+{                                                                                  </span>|
+    <span style="color: #0000ff;">int</span> err;                                                                       |
+                                                                                   |<span style="color: #000000;">
+    BUG_ON(bus_id </span>&lt; <span style="color: #800080;">1</span> || bus_id &gt; omap_i2c_nr_ports());                            |
+                                                                                   |
+    <span style="color: #0000ff;">if</span> (info) {                                                                    |<span style="color: #000000;">
+        err </span>= i2c_register_board_info(bus_id, info, len);                          |
+        <span style="color: #0000ff;">if</span> (err)                                                                   |
+            <span style="color: #0000ff;">return</span> err;                                                            |<span style="color: #000000;">
+    }                                                                              </span>|
+                                                                                   |
+    <span style="color: #0000ff;">if</span> (!i2c_pdata[bus_id - <span style="color: #800080;">1</span>].clkrate)                                            |<span style="color: #000000;">
+        i2c_pdata[bus_id </span>- <span style="color: #800080;">1</span>].clkrate = clkrate;                                   |
+                                                                                   |<span style="color: #000000;">
+    i2c_pdata[bus_id </span>- <span style="color: #800080;">1</span>].clkrate &amp;= ~OMAP_I2C_CMDLINE_SETUP;                      |
+    <span style="color: #008000;">//</span><span style="color: #008000;">注册i2c设备                                                                  |</span>
+    <span style="color: #0000ff;">return</span> omap_i2c_add_bus(bus_id);                                               |<span style="color: #000000;">
+}                                                                                  </span>|
+                                                                                   |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> setup_xxx_xxxx(<span style="color: #0000ff;">void</span>)                                     &lt;-------------+<span style="color: #000000;">
+{
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">which doesn't have Write Protect pin LAN8710A_PHY_ID </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    am335x_mmc[</span><span style="color: #800080;">0</span>].gpio_wp = -<span style="color: #000000;">EINVAL;
+
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;
+
+    _configure_device(EVM_SK, xxx_xxxx_dev_cfg, PROFILE_NONE);    </span>---+<span style="color: #000000;">
+    ......                                                           </span>|<span style="color: #000000;">
+}                                                                    </span>|
+                                                                     |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> evm_dev_cfg xxx_xxxx_dev_cfg[] = {                  &lt;--+<span style="color: #000000;">
+    ......                                                        </span>---+<span style="color: #000000;">
+    {i2c1_init,    DEV_ON_BASEBOARD, PROFILE_ALL},                   </span>|<span style="color: #000000;">
+    {i2c2_init,    DEV_ON_BASEBOARD, PROFILE_ALL},                   </span>|<span style="color: #000000;">
+    ......                                                           </span>|<span style="color: #000000;">
+    {NULL, </span><span style="color: #800080;">0</span>, <span style="color: #800080;">0</span>},                                                    |<span style="color: #000000;">
+};                                                                   </span>|
+<span style="color: #008000;">//</span><span style="color: #008000;">初始化i2c1                                                         |</span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> i2c1_init(<span style="color: #0000ff;">int</span> evm_id, <span style="color: #0000ff;">int</span> profile)                  &lt;----+<span style="color: #000000;">
+{
+    setup_pin_mux(i2c1_pin_mux);  </span><span style="color: #008000;">//</span><span style="color: #008000;">设置i2c引脚复用                                     -----------+</span>
+          omap_register_i2c_bus(<span style="color: #800080;">2</span>, <span style="color: #800080;">100</span>, am335x_i2c1_boardinfo2,ARRAY_SIZE(am335x_i2c1_boardinfo2));|
+    <span style="color: #0000ff;">return</span>;                                                                                        |<span style="color: #000000;">
+}                                                                                                  </span>|
+                                                                                                   |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> i2c_board_info am335x_i2c1_boardinfo2[] = {                                          |<span style="color: #000000;">
+    {                                                                                              </span>|<span style="color: #000000;">
+        I2C_BOARD_INFO(</span><span style="color: #800000;">"</span><span style="color: #800000;">ds1337</span><span style="color: #800000;">"</span>, <span style="color: #800080;">0x68</span>),                                                            |<span style="color: #000000;">
+    },                                                                                             </span>|<span style="color: #000000;">
+    {                                                                                              </span>|<span style="color: #000000;">
+        I2C_BOARD_INFO(</span><span style="color: #800000;">"</span><span style="color: #800000;">tlv320aic3x</span><span style="color: #800000;">"</span>, <span style="color: #800080;">0x1b</span>),                                                       |<span style="color: #000000;">
+    },                                                                                             </span>|<span style="color: #000000;">
+};                                                                                                 </span>|
+                                                                                                   |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> pinmux_config i2c1_pin_mux[] = {                                             &lt;-------+<span style="color: #000000;">
+    {</span><span style="color: #800000;">"</span><span style="color: #800000;">spi0_d1.i2c1_sda</span><span style="color: #800000;">"</span>,    OMAP_MUX_MODE2 | AM33XX_SLEWCTRL_SLOW |<span style="color: #000000;">
+                    AM33XX_PULL_ENBL </span>|<span style="color: #000000;"> AM33XX_INPUT_EN},
+    {</span><span style="color: #800000;">"</span><span style="color: #800000;">spi0_cs0.i2c1_scl</span><span style="color: #800000;">"</span>,   OMAP_MUX_MODE2 | AM33XX_SLEWCTRL_SLOW |<span style="color: #000000;">
+                    AM33XX_PULL_ENBL </span>|<span style="color: #000000;"> AM33XX_INPUT_EN},
+    {NULL, </span><span style="color: #800080;">0</span><span style="color: #000000;">},
+};
+
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">. i2c 驱动注册
+drivers</span>/i2c/busses/i2c-<span style="color: #000000;">omap.c
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span><span style="color: #000000;"> __init
+omap_i2c_init_driver(</span><span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    </span><span style="color: #0000ff;">return</span> platform_driver_register(&amp;omap_i2c_driver);    -----+<span style="color: #000000;">
+}                                                              </span>|<span style="color: #000000;">
+subsys_initcall(omap_i2c_init_driver);                         </span>|
+                                                               |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_driver omap_i2c_driver = {         &lt;----+<span style="color: #000000;">
+    .probe        </span>= omap_i2c_probe,            -----+<span style="color: #000000;">
+    .remove        </span>= omap_i2c_remove,               |<span style="color: #000000;">
+    .driver        </span>= {                              |<span style="color: #000000;">
+        .name    </span>= <span style="color: #800000;">"</span><span style="color: #800000;">omap_i2c</span><span style="color: #800000;">"</span>,                      |<span style="color: #000000;">
+        .owner    </span>= THIS_MODULE,                    |<span style="color: #000000;">
+        .pm    </span>= OMAP_I2C_PM_OPS,                   |<span style="color: #000000;">
+    },                                              </span>|<span style="color: #000000;">
+};                                                  </span>|
+                                                    |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __devinit                                |<span style="color: #000000;">
+omap_i2c_probe(</span><span style="color: #0000ff;">struct</span> platform_device *pdev)    &lt;---+<span style="color: #000000;">
+{
+    </span><span style="color: #0000ff;">struct</span> omap_i2c_dev    *<span style="color: #000000;">dev;
+    </span><span style="color: #0000ff;">struct</span> i2c_adapter    *<span style="color: #000000;">adap;
+    </span><span style="color: #0000ff;">struct</span> resource        *mem, *irq, *<span style="color: #000000;">ioarea;
+    </span><span style="color: #0000ff;">struct</span> omap_i2c_bus_platform_data *pdata = pdev-&gt;<span style="color: #000000;">dev.platform_data;
+    irq_handler_t isr;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> r;
+    u32 speed </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> NOTE: driver uses the static register mapping </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    mem </span>= platform_get_resource(pdev, IORESOURCE_MEM, <span style="color: #800080;">0</span><span style="color: #000000;">);
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">mem) {
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">no mem resource?\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENODEV;
+    }
+    irq </span>= platform_get_resource(pdev, IORESOURCE_IRQ, <span style="color: #800080;">0</span><span style="color: #000000;">);
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">irq) {
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">no irq resource?\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENODEV;
+    }
+
+    ioarea </span>= request_mem_region(mem-&gt;<span style="color: #000000;">start, resource_size(mem),
+            pdev</span>-&gt;<span style="color: #000000;">name);
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">ioarea) {
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">I2C region already claimed\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EBUSY;
+    }
+
+    dev </span>= kzalloc(<span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span><span style="color: #000000;"> omap_i2c_dev), GFP_KERNEL);
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">dev) {
+        r </span>= -<span style="color: #000000;">ENOMEM;
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> err_release_region;
+    }
+
+    </span><span style="color: #0000ff;">if</span> (pdata !=<span style="color: #000000;"> NULL) {
+        speed </span>= pdata-&gt;<span style="color: #000000;">clkrate;
+        dev</span>-&gt;set_mpu_wkup_lat = pdata-&gt;<span style="color: #000000;">set_mpu_wkup_lat;
+    } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+        speed </span>= <span style="color: #800080;">100</span>;    <span style="color: #008000;">/*</span><span style="color: #008000;"> Default speed </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        dev</span>-&gt;set_mpu_wkup_lat =<span style="color: #000000;"> NULL;
+    }
+
+    dev</span>-&gt;speed =<span style="color: #000000;"> speed;
+    dev</span>-&gt;dev = &amp;pdev-&gt;<span style="color: #000000;">dev;
+    dev</span>-&gt;irq = irq-&gt;<span style="color: #000000;">start;
+    dev</span>-&gt;<span style="color: #0000ff;">base</span> = ioremap(mem-&gt;<span style="color: #000000;">start, resource_size(mem));
+    </span><span style="color: #0000ff;">if</span> (!dev-&gt;<span style="color: #0000ff;">base</span><span style="color: #000000;">) {
+        r </span>= -<span style="color: #000000;">ENOMEM;
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> err_free_mem;
+    }
+
+    platform_set_drvdata(pdev, dev);
+
+    dev</span>-&gt;reg_shift = (pdata-&gt;flags &gt;&gt; OMAP_I2C_FLAG_BUS_SHIFT__SHIFT) &amp; <span style="color: #800080;">3</span><span style="color: #000000;">;
+
+    </span><span style="color: #0000ff;">if</span> (pdata-&gt;rev ==<span style="color: #000000;"> OMAP_I2C_IP_VERSION_2)
+        dev</span>-&gt;regs = (u8 *<span style="color: #000000;">)reg_map_ip_v2;
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;">
+        dev</span>-&gt;regs = (u8 *<span style="color: #000000;">)reg_map_ip_v1;
+
+    pm_runtime_enable(dev</span>-&gt;<span style="color: #000000;">dev);
+    pm_runtime_get_sync(dev</span>-&gt;<span style="color: #000000;">dev);
+
+    dev</span>-&gt;rev = omap_i2c_read_reg(dev, OMAP_I2C_REV_REG) &amp; <span style="color: #800080;">0xff</span><span style="color: #000000;">;
+
+    </span><span style="color: #0000ff;">if</span> (dev-&gt;rev &lt;=<span style="color: #000000;"> OMAP_I2C_REV_ON_3430)
+        dev</span>-&gt;errata |=<span style="color: #000000;"> I2C_OMAP3_1P153;
+
+    </span><span style="color: #0000ff;">if</span> (!(pdata-&gt;flags &amp;<span style="color: #000000;"> OMAP_I2C_FLAG_NO_FIFO)) {
+        u16 s;
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Set up the fifo size - Get total size </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        s </span>= (omap_i2c_read_reg(dev, OMAP_I2C_BUFSTAT_REG) &gt;&gt; <span style="color: #800080;">14</span>) &amp; <span style="color: #800080;">0x3</span><span style="color: #000000;">;
+        dev</span>-&gt;fifo_size = <span style="color: #800080;">0x8</span> &lt;&lt;<span style="color: #000000;"> s;
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+         * Set up notification threshold as half the total available
+         * size. This is to ensure that we can handle the status on int
+         * call back latencies.
+         </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+        dev</span>-&gt;fifo_size = (dev-&gt;fifo_size / <span style="color: #800080;">2</span><span style="color: #000000;">);
+
+        </span><span style="color: #0000ff;">if</span> (dev-&gt;rev &gt;=<span style="color: #000000;"> OMAP_I2C_REV_ON_3530_4430)
+            dev</span>-&gt;b_hw = <span style="color: #800080;">0</span>; <span style="color: #008000;">/*</span><span style="color: #008000;"> Disable hardware fixes </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">else</span><span style="color: #000000;">
+            dev</span>-&gt;b_hw = <span style="color: #800080;">1</span>; <span style="color: #008000;">/*</span><span style="color: #008000;"> Enable hardware fixes </span><span style="color: #008000;">*/</span>
+
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> calculate wakeup latency constraint for MPU </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (dev-&gt;set_mpu_wkup_lat !=<span style="color: #000000;"> NULL)
+            dev</span>-&gt;latency = (<span style="color: #800080;">1000000</span> * dev-&gt;fifo_size) /<span style="color: #000000;">
+                       (</span><span style="color: #800080;">1000</span> * speed / <span style="color: #800080;">8</span><span style="color: #000000;">);
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> reset ASAP, clearing any IRQs </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    omap_i2c_init(dev);
+
+    isr </span>= (dev-&gt;rev &lt; OMAP_I2C_OMAP1_REV_2) ?<span style="color: #000000;"> omap_i2c_omap1_isr :
+                                   omap_i2c_isr;
+    r </span>= request_irq(dev-&gt;irq, isr, IRQF_NO_SUSPEND, pdev-&gt;<span style="color: #000000;">name, dev);
+
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (r) {
+        dev_err(dev</span>-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">failure requesting irq %i\n</span><span style="color: #800000;">"</span>, dev-&gt;<span style="color: #000000;">irq);
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> err_unuse_clocks;
+    }
+
+    dev_info(dev</span>-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">bus %d rev%d.%d.%d at %d kHz\n</span><span style="color: #800000;">"</span>, pdev-&gt;<span style="color: #000000;">id,
+         pdata</span>-&gt;rev, dev-&gt;rev &gt;&gt; <span style="color: #800080;">4</span>, dev-&gt;rev &amp; <span style="color: #800080;">0xf</span>, dev-&gt;<span style="color: #000000;">speed);
+
+    pm_runtime_put(dev</span>-&gt;<span style="color: #000000;">dev);
+
+    adap </span>= &amp;dev-&gt;<span style="color: #000000;">adapter;
+    i2c_set_adapdata(adap, dev);
+    adap</span>-&gt;owner =<span style="color: #000000;"> THIS_MODULE;
+    adap</span>-&gt;<span style="color: #0000ff;">class</span> =<span style="color: #000000;"> I2C_CLASS_HWMON;
+    strlcpy(adap</span>-&gt;name, <span style="color: #800000;">"</span><span style="color: #800000;">OMAP I2C adapter</span><span style="color: #800000;">"</span>, <span style="color: #0000ff;">sizeof</span>(adap-&gt;<span style="color: #000000;">name));
+    adap</span>-&gt;algo = &amp;omap_i2c_algo;        <span style="color: #008000;">//</span><span style="color: #008000;">i2c发送和接受的算法函数   ------+</span>
+    adap-&gt;dev.parent = &amp;pdev-&gt;dev;                                        |
+                                                                          |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> i2c device drivers may be active on return from add_adapter() </span><span style="color: #008000;">*/</span>   |<span style="color: #000000;">
+    adap</span>-&gt;nr = pdev-&gt;id;                                                  |<span style="color: #000000;">
+    r </span>= i2c_add_numbered_adapter(adap);                         ----------|--+
+    <span style="color: #0000ff;">if</span> (r) {                                                              |  |<span style="color: #000000;">
+        dev_err(dev</span>-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">failure adding adapter\n</span><span style="color: #800000;">"</span>);                    |  |
+        <span style="color: #0000ff;">goto</span> err_free_irq;                                                |  |<span style="color: #000000;">
+    }                                                                     </span>|  |
+                                                                          |  |
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                             |  |
+                                                                          |  |<span style="color: #000000;">
+err_free_irq:                                                             </span>|  |<span style="color: #000000;">
+    free_irq(dev</span>-&gt;irq, dev);                                              |  |<span style="color: #000000;">
+err_unuse_clocks:                                                         </span>|  |<span style="color: #000000;">
+    omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, </span><span style="color: #800080;">0</span>);                         |  |<span style="color: #000000;">
+    pm_runtime_put(dev</span>-&gt;dev);                                             |  |<span style="color: #000000;">
+    iounmap(dev</span>-&gt;<span style="color: #0000ff;">base</span>);                                                   |  |<span style="color: #000000;">
+err_free_mem:                                                             </span>|  |<span style="color: #000000;">
+    platform_set_drvdata(pdev, NULL);                                     </span>|  |<span style="color: #000000;">
+    kfree(dev);                                                           </span>|  |<span style="color: #000000;">
+err_release_region:                                                       </span>|  |<span style="color: #000000;">
+    release_mem_region(mem</span>-&gt;start, resource_size(mem));                   |  |
+                                                                          |  |
+    <span style="color: #0000ff;">return</span> r;                                                             |  |<span style="color: #000000;">
+}                                                                         </span>|  |
+                                                                          |  |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> i2c_algorithm omap_i2c_algo = {                 &lt;-----+  |<span style="color: #000000;">
+    .master_xfer    </span>= omap_i2c_xfer,                                ------+  |<span style="color: #000000;">
+    .functionality    </span>= omap_i2c_func,                                    |  |<span style="color: #000000;">
+};                           </span>|                                            |  |<span style="color: #000000;">
+                             V                                            </span>|  |<span style="color: #000000;">
+omap_i2c_func(</span><span style="color: #0000ff;">struct</span> i2c_adapter *adap)                                   |  |<span style="color: #000000;">
+{                                                                         </span>|  |
+    <span style="color: #0000ff;">return</span> I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL &amp; ~I2C_FUNC_SMBUS_QUICK);  |  |<span style="color: #000000;">
+}                                                                         </span>|  |
+                                                                          |  |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span>                                                                |  |<span style="color: #000000;">
+omap_i2c_xfer(</span><span style="color: #0000ff;">struct</span> i2c_adapter *adap, <span style="color: #0000ff;">struct</span> i2c_msg msgs[], <span style="color: #0000ff;">int</span> num) &lt;-+  |<span style="color: #000000;">
+{                                                                            </span>|
+    <span style="color: #0000ff;">struct</span> omap_i2c_dev *dev = i2c_get_adapdata(adap);                       |
+    <span style="color: #0000ff;">int</span> i;                                                                   |
+    <span style="color: #0000ff;">int</span> r;                                                                   |
+                                                                             |<span style="color: #000000;">
+    pm_runtime_get_sync(dev</span>-&gt;dev);                                           |
+                                                                             |<span style="color: #000000;">
+    r </span>= omap_i2c_wait_for_bb(dev);                                           |
+    <span style="color: #0000ff;">if</span> (r &lt; <span style="color: #800080;">0</span>)                                                               |
+        <span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span>;                                                            |
+                                                                             |
+    <span style="color: #0000ff;">if</span> (dev-&gt;set_mpu_wkup_lat != NULL)                                       |<span style="color: #000000;">
+        dev</span>-&gt;set_mpu_wkup_lat(dev-&gt;dev, dev-&gt;latency);                       |
+                                                                             |
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; num; i++) {                                              |<span style="color: #000000;">
+        r </span>= omap_i2c_xfer_msg(adap, &amp;msgs[i], (i == (num - <span style="color: #800080;">1</span>)));    -----+   |
+        <span style="color: #0000ff;">if</span> (r != <span style="color: #800080;">0</span>)                                                      |   |
+            <span style="color: #0000ff;">break</span>;                                                       |   |<span style="color: #000000;">
+    }                                                                    </span>|   |
+                                                                         |   |
+    <span style="color: #0000ff;">if</span> (dev-&gt;set_mpu_wkup_lat != NULL)                                   |   |<span style="color: #000000;">
+        dev</span>-&gt;set_mpu_wkup_lat(dev-&gt;dev, -<span style="color: #800080;">1</span>);                             |   |
+                                                                         |   |
+    <span style="color: #0000ff;">if</span> (r == <span style="color: #800080;">0</span>)                                                          |   |<span style="color: #000000;">
+        r </span>= num;                                                         |   |
+                                                                         |   |<span style="color: #000000;">
+    omap_i2c_wait_for_bb(dev);                                           </span>|   |
+<span style="color: #0000ff;">out</span>:                                                                     |   |<span style="color: #000000;">
+    pm_runtime_put(dev</span>-&gt;dev);                                            |   |
+    <span style="color: #0000ff;">return</span> r;                                                            |   |<span style="color: #000000;">
+}                                                                        </span>|   |
+                                                                         |   |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> omap_i2c_xfer_msg(<span style="color: #0000ff;">struct</span> i2c_adapter *adap,              &lt;----+   |
+                 <span style="color: #0000ff;">struct</span> i2c_msg *msg, <span style="color: #0000ff;">int</span> stop)                              |<span style="color: #000000;">
+{                                                                            </span>|
+    <span style="color: #0000ff;">struct</span> omap_i2c_dev *dev = i2c_get_adapdata(adap);                       |
+    <span style="color: #0000ff;">int</span> r;                                                                   |<span style="color: #000000;">
+    u16 w;                                                                   </span>|
+                                                                             |<span style="color: #000000;">
+    dev_dbg(dev</span>-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">addr: 0x%04x, len: %d, flags: 0x%x, stop: %d\n</span><span style="color: #800000;">"</span>,      |<span style="color: #000000;">
+        msg</span>-&gt;addr, msg-&gt;len, msg-&gt;flags, stop);                              |
+                                                                             |
+    <span style="color: #0000ff;">if</span> (msg-&gt;len == <span style="color: #800080;">0</span>)                                                       |
+        <span style="color: #0000ff;">return</span> -EINVAL;                                                      |
+    <span style="color: #008000;">//</span><span style="color: #008000;">写设备地址                                                             |</span>
+    omap_i2c_write_reg(dev, OMAP_I2C_SA_REG, msg-&gt;addr);                     |
+                                                                             |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> REVISIT: Could the STB bit of I2C_CON be used with probing? </span><span style="color: #008000;">*/</span>        |<span style="color: #000000;">
+    dev</span>-&gt;buf = msg-&gt;buf;                                                     |<span style="color: #000000;">
+    dev</span>-&gt;buf_len = msg-&gt;len;                                                 |
+    <span style="color: #008000;">//</span><span style="color: #008000;">接受数据的长度                                                         |</span>
+    omap_i2c_write_reg(dev, OMAP_I2C_CNT_REG, dev-&gt;buf_len);                 |
+                                                                             |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> Clear the FIFO Buffers </span><span style="color: #008000;">*/</span>                                             |<span style="color: #000000;">
+    w </span>= omap_i2c_read_reg(dev, OMAP_I2C_BUF_REG);                            |<span style="color: #000000;">
+    w </span>|= OMAP_I2C_BUF_RXFIF_CLR | OMAP_I2C_BUF_TXFIF_CLR;                    |<span style="color: #000000;">
+    omap_i2c_write_reg(dev, OMAP_I2C_BUF_REG, w);                            </span>|
+                                                                             |<span style="color: #000000;">
+    init_completion(</span>&amp;dev-&gt;cmd_complete);                                     |<span style="color: #000000;">
+    dev</span>-&gt;cmd_err = <span style="color: #800080;">0</span>;                                                        |
+                                                                             |<span style="color: #000000;">
+    w </span>= OMAP_I2C_CON_EN | OMAP_I2C_CON_MST | OMAP_I2C_CON_STT;               |
+                                                                             |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> High speed configuration </span><span style="color: #008000;">*/</span>                                           |
+    <span style="color: #0000ff;">if</span> (dev-&gt;speed &gt; <span style="color: #800080;">400</span>)                                                    |<span style="color: #000000;">
+        w </span>|= OMAP_I2C_CON_OPMODE_HS;                                         |
+                                                                             |
+    <span style="color: #0000ff;">if</span> (msg-&gt;flags &amp; I2C_M_TEN)                                              |<span style="color: #000000;">
+        w </span>|= OMAP_I2C_CON_XA;                                                |
+    <span style="color: #0000ff;">if</span> (!(msg-&gt;flags &amp; I2C_M_RD))                                            |<span style="color: #000000;">
+        w </span>|= OMAP_I2C_CON_TRX;                                               |
+                                                                             |
+    <span style="color: #0000ff;">if</span> (!dev-&gt;b_hw &amp;&amp; stop)                                                  |<span style="color: #000000;">
+        w </span>|= OMAP_I2C_CON_STP;                                               |
+                                                                             |<span style="color: #000000;">
+    omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, w);                            </span>|
+                                                                             |
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                       |
+     * Don't write stt and stp together on some hardware.                    |
+     </span><span style="color: #008000;">*/</span>                                                                      |
+    <span style="color: #0000ff;">if</span> (dev-&gt;b_hw &amp;&amp; stop) {                                                 |<span style="color: #000000;">
+        unsigned </span><span style="color: #0000ff;">long</span> delay = jiffies + OMAP_I2C_TIMEOUT;                    |<span style="color: #000000;">
+        u16 con </span>= omap_i2c_read_reg(dev, OMAP_I2C_CON_REG);                  |
+        <span style="color: #0000ff;">while</span> (con &amp; OMAP_I2C_CON_STT) {                                     |<span style="color: #000000;">
+            con </span>= omap_i2c_read_reg(dev, OMAP_I2C_CON_REG);                  |
+                                                                             |
+            <span style="color: #008000;">/*</span><span style="color: #008000;"> Let the user know if i2c is in a bad state </span><span style="color: #008000;">*/</span>                 |
+            <span style="color: #0000ff;">if</span> (time_after(jiffies, delay)) {                                |<span style="color: #000000;">
+                dev_err(dev</span>-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">controller timed out </span><span style="color: #800000;">"</span>                    |
+                <span style="color: #800000;">"</span><span style="color: #800000;">waiting for start condition to finish\n</span><span style="color: #800000;">"</span>);                  |
+                <span style="color: #0000ff;">return</span> -ETIMEDOUT;                                           |<span style="color: #000000;">
+            }                                                                </span>|<span style="color: #000000;">
+            cpu_relax();                                                     </span>|<span style="color: #000000;">
+        }                                                                    </span>|
+                                                                             |<span style="color: #000000;">
+        w </span>|= OMAP_I2C_CON_STP;                                               |<span style="color: #000000;">
+        w </span>&amp;= ~OMAP_I2C_CON_STT;                                              |<span style="color: #000000;">
+        omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, w);                        </span>|<span style="color: #000000;">
+    }                                                                        </span>|
+                                                                             |
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                       |
+     * REVISIT: We should abort the transfer on signals, but the bus goes    |
+     * into arbitration and we're currently unable to recover from it.       |
+     </span><span style="color: #008000;">*/</span>                                                                      |<span style="color: #000000;">
+    r </span>= wait_for_completion_timeout(&amp;dev-&gt;cmd_complete,                      |<span style="color: #000000;">
+                    OMAP_I2C_TIMEOUT);                                       </span>|<span style="color: #000000;">
+    dev</span>-&gt;buf_len = <span style="color: #800080;">0</span>;                                                        |
+    <span style="color: #0000ff;">if</span> (r &lt; <span style="color: #800080;">0</span>)                                                               |
+        <span style="color: #0000ff;">return</span> r;                                                            |
+    <span style="color: #0000ff;">if</span> (r == <span style="color: #800080;">0</span>) {                                                            |<span style="color: #000000;">
+        dev_err(dev</span>-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">controller timed out\n</span><span style="color: #800000;">"</span>);                         |<span style="color: #000000;">
+        omap_i2c_init(dev);                                                  </span>|
+        <span style="color: #0000ff;">return</span> -ETIMEDOUT;                                                   |<span style="color: #000000;">
+    }                                                                        </span>|
+                                                                             |
+    <span style="color: #0000ff;">if</span> (likely(!dev-&gt;cmd_err))                                               |
+        <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                            |
+                                                                             |
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> We have an error </span><span style="color: #008000;">*/</span>                                                   |
+    <span style="color: #0000ff;">if</span> (dev-&gt;cmd_err &amp; (OMAP_I2C_STAT_AL | OMAP_I2C_STAT_ROVR |              |<span style="color: #000000;">
+                OMAP_I2C_STAT_XUDF)) {                                       </span>|<span style="color: #000000;">
+        omap_i2c_init(dev);                                                  </span>|
+        <span style="color: #0000ff;">return</span> -EIO;                                                         |<span style="color: #000000;">
+    }                                                                        </span>|
+                                                                             |
+    <span style="color: #0000ff;">if</span> (dev-&gt;cmd_err &amp; OMAP_I2C_STAT_NACK) {                                 |
+        <span style="color: #0000ff;">if</span> (msg-&gt;flags &amp; I2C_M_IGNORE_NAK)                                   |
+            <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                        |
+        <span style="color: #0000ff;">if</span> (stop) {                                                          |<span style="color: #000000;">
+            w </span>= omap_i2c_read_reg(dev, OMAP_I2C_CON_REG);                    |<span style="color: #000000;">
+            w </span>|= OMAP_I2C_CON_STP;                                           |<span style="color: #000000;">
+            omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, w);                    </span>|<span style="color: #000000;">
+        }                                                                    </span>|
+        <span style="color: #0000ff;">return</span> -EREMOTEIO;                                                   |<span style="color: #000000;">
+    }                                                                        </span>|
+    <span style="color: #0000ff;">return</span> -EIO;                                                             |<span style="color: #000000;">
+}                                                                            </span>|
+                                                                             |
+<span style="color: #0000ff;">int</span> i2c_add_numbered_adapter(<span style="color: #0000ff;">struct</span> i2c_adapter *adap)                &lt;------+<span style="color: #000000;">
+{
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;">    id;
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;">    status;
+
+    </span><span style="color: #0000ff;">if</span> (adap-&gt;nr == -<span style="color: #800080;">1</span>) <span style="color: #008000;">/*</span><span style="color: #008000;"> -1 means dynamically assign bus id </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">return</span><span style="color: #000000;"> i2c_add_adapter(adap);
+    </span><span style="color: #0000ff;">if</span> (adap-&gt;nr &amp; ~<span style="color: #000000;">MAX_ID_MASK)
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;
+
+retry:
+    </span><span style="color: #0000ff;">if</span> (idr_pre_get(&amp;i2c_adapter_idr, GFP_KERNEL) == <span style="color: #800080;">0</span><span style="color: #000000;">)
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENOMEM;
+
+    mutex_lock(</span>&amp;<span style="color: #000000;">core_lock);
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> "above" here means "above or equal to", sigh;
+     * we need the "equal to" result to force the result
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    status </span>= idr_get_new_above(&amp;i2c_adapter_idr, adap, adap-&gt;nr, &amp;<span style="color: #000000;">id);
+    </span><span style="color: #0000ff;">if</span> (status == <span style="color: #800080;">0</span> &amp;&amp; id != adap-&gt;<span style="color: #000000;">nr) {
+        status </span>= -<span style="color: #000000;">EBUSY;
+        idr_remove(</span>&amp;<span style="color: #000000;">i2c_adapter_idr, id);
+    }
+    mutex_unlock(</span>&amp;<span style="color: #000000;">core_lock);
+    </span><span style="color: #0000ff;">if</span> (status == -<span style="color: #000000;">EAGAIN)
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> retry;
+
+    </span><span style="color: #0000ff;">if</span> (status == <span style="color: #800080;">0</span><span style="color: #000000;">)
+        status </span>= i2c_register_adapter(adap);               ----+
+    <span style="color: #0000ff;">return</span> status;                                             |<span style="color: #000000;">
+}                                                              </span>|<span style="color: #000000;">
+EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);                   </span>|
+                                                               |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> i2c_register_adapter(<span style="color: #0000ff;">struct</span> i2c_adapter *adap)  &lt;---+<span style="color: #000000;">
+{
+    </span><span style="color: #0000ff;">int</span> res = <span style="color: #800080;">0</span><span style="color: #000000;">;
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Can't register until after driver model init </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (unlikely(WARN_ON(!<span style="color: #000000;">i2c_bus_type.p))) {
+        res </span>= -<span style="color: #000000;">EAGAIN;
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> out_list;
+    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Sanity checks </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (unlikely(adap-&gt;name[<span style="color: #800080;">0</span>] == <span style="color: #800000;">'</span><span style="color: #800000;">\0</span><span style="color: #800000;">'</span><span style="color: #000000;">)) {
+        pr_err(</span><span style="color: #800000;">"</span><span style="color: #800000;">i2c-core: Attempt to register an adapter with </span><span style="color: #800000;">"</span>
+               <span style="color: #800000;">"</span><span style="color: #800000;">no name!\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;
+    }
+    </span><span style="color: #0000ff;">if</span> (unlikely(!adap-&gt;<span style="color: #000000;">algo)) {
+        pr_err(</span><span style="color: #800000;">"</span><span style="color: #800000;">i2c-core: Attempt to register adapter '%s' with </span><span style="color: #800000;">"</span>
+               <span style="color: #800000;">"</span><span style="color: #800000;">no algo!\n</span><span style="color: #800000;">"</span>, adap-&gt;<span style="color: #000000;">name);
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;
+    }
+
+    rt_mutex_init(</span>&amp;adap-&gt;<span style="color: #000000;">bus_lock);
+    mutex_init(</span>&amp;adap-&gt;<span style="color: #000000;">userspace_clients_lock);
+    INIT_LIST_HEAD(</span>&amp;adap-&gt;<span style="color: #000000;">userspace_clients);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Set default timeout to 1 second if not already set </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (adap-&gt;timeout == <span style="color: #800080;">0</span><span style="color: #000000;">)
+        adap</span>-&gt;timeout =<span style="color: #000000;"> HZ;
+
+    dev_set_name(</span>&amp;adap-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">i2c-%d</span><span style="color: #800000;">"</span>, adap-&gt;nr);          <span style="color: #008000;">//</span><span style="color: #008000;"> i2c 设备名</span>
+    adap-&gt;dev.bus = &amp;<span style="color: #000000;">i2c_bus_type;
+    adap</span>-&gt;dev.type = &amp;<span style="color: #000000;">i2c_adapter_type;
+    res </span>= device_register(&amp;adap-&gt;<span style="color: #000000;">dev);
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (res)
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> out_list;
+
+    dev_dbg(</span>&amp;adap-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">adapter [%s] registered\n</span><span style="color: #800000;">"</span>, adap-&gt;<span style="color: #000000;">name);
+
+#ifdef CONFIG_I2C_COMPAT
+    res </span>= class_compat_create_link(i2c_adapter_compat_class, &amp;adap-&gt;<span style="color: #000000;">dev,
+                       adap</span>-&gt;<span style="color: #000000;">dev.parent);
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (res)
+        dev_warn(</span>&amp;adap-&gt;<span style="color: #000000;">dev,
+             </span><span style="color: #800000;">"</span><span style="color: #800000;">Failed to create compatibility class link\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+</span><span style="color: #0000ff;">#endif</span>
+
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> create pre-declared device nodes </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (adap-&gt;nr &lt;<span style="color: #000000;"> __i2c_first_dynamic_bus_num)
+        i2c_scan_static_board_info(adap);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Notify drivers </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    mutex_lock(</span>&amp;<span style="color: #000000;">core_lock);
+    bus_for_each_drv(</span>&amp;<span style="color: #000000;">i2c_bus_type, NULL, adap, __process_new_adapter);
+    mutex_unlock(</span>&amp;<span style="color: #000000;">core_lock);
+
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+
+out_list:
+    mutex_lock(</span>&amp;<span style="color: #000000;">core_lock);
+    idr_remove(</span>&amp;i2c_adapter_idr, adap-&gt;<span style="color: #000000;">nr);
+    mutex_unlock(</span>&amp;<span style="color: #000000;">core_lock);
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> res;
+}</span></pre>
+</div>
+<p>&nbsp;</p>

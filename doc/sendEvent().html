@@ -1,0 +1,6 @@
+<div class="cnblogs_code">
+<pre>sendEvent()(QObject *<em>receiver</em>, QEvent *<em>event</em>)可以将自己创建事件event发送给制定的receiver<br /><br />例如，<br />　　　<br />　　 //创建按键事件</pre>
+<pre>    QKeyEvent keyPress(QEvent::KeyPress, character.unicode(), Qt::NoModifier, QString(character));</pre>
+<pre>    //将按键是事件发送给指定的w,w再对KeyEvent处理,和真是的KeyEvnet一样处理。 <br />　　QApplication::sendEvent(w, &amp;keyPress);//w为事件接收</pre>
+</div>
+<p>&nbsp;</p>

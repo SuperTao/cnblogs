@@ -1,0 +1,625 @@
+<div class="cnblogs_code">
+<pre> <br />本文主要记录：<br />　　1、uart设备注册<br />　　2、uart驱动注册<br />　　3、上层应用调用<br />有些地方理解的还不是很透彻，希望指正。<br /><br />                                                                               
+<span style="color: #008000;">1、uart设备注册过程                                                        </span>
+MACHINE_START(MX6Q_SABRESD, <span style="color: #800000;">"</span><span style="color: #800000;">Freescale i.MX 6Quad/DualLite/Solo Sabre-SD Board</span><span style="color: #800000;">"</span><span style="color: #000000;">)
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Maintainer: Freescale Semiconductor, Inc. </span><span style="color: #008000;">*/</span><span style="color: #000000;">                             
+    .boot_params </span>= MX6_PHYS_OFFSET + <span style="color: #800080;">0x100</span><span style="color: #000000;">,                                     
+    .fixup </span>=<span style="color: #000000;"> fixup_mxc_board,                                                   
+    .map_io </span>=<span style="color: #000000;"> mx6_map_io,                                                       
+    .init_irq </span>=<span style="color: #000000;"> mx6_init_irq,                                                   
+    .init_machine </span>= mx6_sabresd_board_init,        ------------------------+<span style="color: #000000;">    
+    .timer </span>= &amp;mx6_sabresd_timer,                                           |<span style="color: #000000;">    
+    .reserve </span>= mx6q_sabresd_reserve,                                       |<span style="color: #000000;">    
+MACHINE_END                                                                </span>|    
+                                                                           |    
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __init mx6_sabresd_board_init(<span style="color: #0000ff;">void</span>)    &lt;-----------------------+<span style="color: #000000;">    
+{                                                                               
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> i;                                                                      
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;                                                                    
+    </span><span style="color: #0000ff;">struct</span> clk *clko, *<span style="color: #000000;">clko2;                                                   
+    </span><span style="color: #0000ff;">struct</span> clk *<span style="color: #000000;">new_parent;                                                     
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> rate;                                                                   
+                                                                                
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (cpu_is_mx6q())                                                          
+        mxc_iomux_v3_setup_multiple_pads(mx6q_sabresd_pads,  </span>----+<span style="color: #000000;">              
+            ARRAY_SIZE(mx6q_sabresd_pads));                      </span>|              
+    <span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span> (cpu_is_mx6dl()) {                                   |<span style="color: #000000;">              
+        mxc_iomux_v3_setup_multiple_pads(mx6dl_sabresd_pads,     </span>|<span style="color: #000000;">              
+            ARRAY_SIZE(mx6dl_sabresd_pads));                     </span>|<span style="color: #000000;">              
+    }                                                            </span>|<span style="color: #000000;">              
+    ... ...                                                      </span>|<span style="color: #000000;">              
+    mx6q_sabresd_init_uart();            </span>------------------------|----+<span style="color: #000000;">         
+    ... ...                                                      </span>|    |<span style="color: #000000;">         
+ }                                                               </span>|    |         
+<span style="color: #008000;">//</span><span style="color: #008000;">设置IOMUX寄存器，将有功能复用的引脚设置为UART功能                    |    |</span>
+<span style="color: #0000ff;">static</span> iomux_v3_cfg_t mx6q_sabresd_pads[] = {    &lt;---------------+    |<span style="color: #000000;"> 
+    ... ...                                                           </span>|         
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> UART1 for debug </span><span style="color: #008000;">*/</span>                                             |<span style="color: #000000;">         
+    MX6Q_PAD_CSI0_DAT10__UART1_TXD,                                   </span>|<span style="color: #000000;">         
+    MX6Q_PAD_CSI0_DAT11__UART1_RXD,                                   </span>|         
+                                                                      |         
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> UART2</span><span style="color: #008000;">*/</span>                                                        |<span style="color: #000000;">         
+    MX6Q_PAD_EIM_D26__UART2_TXD,                                      </span>|<span style="color: #000000;">         
+    MX6Q_PAD_EIM_D27__UART2_RXD,                                      </span>|         
+                                                                      |         
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> UART3 for gps </span><span style="color: #008000;">*/</span>                                               |<span style="color: #000000;">         
+    MX6Q_PAD_EIM_D24__UART3_TXD,                                      </span>|<span style="color: #000000;">         
+    MX6Q_PAD_EIM_D25__UART3_RXD,                                      </span>|         
+                                                                      |         
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> UART4</span><span style="color: #008000;">*/</span>                                                        |<span style="color: #000000;">         
+    MX6Q_PAD_KEY_COL0__UART4_TXD,                                     </span>|<span style="color: #000000;">         
+    MX6Q_PAD_KEY_ROW0__UART4_RXD,                                     </span>|         
+                                                                      |         
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> UART5</span><span style="color: #008000;">*/</span>                                                        |<span style="color: #000000;">         
+    MX6Q_PAD_KEY_COL1__UART5_TXD,                                     </span>|<span style="color: #000000;">         
+    MX6Q_PAD_KEY_ROW1__UART5_RXD,                                     </span>|<span style="color: #000000;">         
+    ... ...                                                           </span>|<span style="color: #000000;">         
+};                                                                    </span>|         
+                                                                      |         
+<span style="color: #008000;">//</span><span style="color: #008000;">uart初始化                                                          |      </span>
+<span style="color: #0000ff;">static</span> inline <span style="color: #0000ff;">void</span> mx6q_sabresd_init_uart(<span style="color: #0000ff;">void</span>)      &lt;----------------+<span style="color: #000000;">         
+{                                                                               
+    imx6q_add_imx_uart(</span><span style="color: #800080;">0</span><span style="color: #000000;">, NULL);                                                
+    imx6q_add_imx_uart(</span><span style="color: #800080;">1</span><span style="color: #000000;">, NULL);                                                
+    imx6q_add_imx_uart(</span><span style="color: #800080;">2</span><span style="color: #000000;">, NULL);                                                
+    imx6q_add_imx_uart(</span><span style="color: #800080;">3</span><span style="color: #000000;">, NULL);                                                
+    imx6q_add_imx_uart(</span><span style="color: #800080;">4</span><span style="color: #000000;">, NULL);                                                
+}                                                                               
+                                                                                
+</span><span style="color: #0000ff;">#define</span> imx6q_add_imx_uart(id, pdata)    \                                      <span style="color: #000000;">
+    imx_add_imx_uart_1irq(</span>&amp;<span style="color: #000000;">imx6q_imx_uart_data[id], pdata)                      
+                                                                                
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> 注册为平台设备                                                        </span>
+<span style="color: #0000ff;">struct</span> platform_device *<span style="color: #000000;">__init imx_add_imx_uart_1irq(                           
+        </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> imx_imx_uart_1irq_data *<span style="color: #000000;">data,                              
+        </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> imxuart_platform_data *<span style="color: #000000;">pdata)                              
+{                                                                               
+    </span><span style="color: #0000ff;">struct</span> resource res[] =<span style="color: #000000;"> {                                                   
+        {                                                                       
+            .start </span>= data-&gt;<span style="color: #000000;">iobase,                                              
+            .end </span>= data-&gt;iobase + data-&gt;iosize - <span style="color: #800080;">1</span><span style="color: #000000;">,                             
+            .flags </span>=<span style="color: #000000;"> IORESOURCE_MEM,                                            
+        }, {                                                                    
+            .start </span>= data-&gt;<span style="color: #000000;">irq,                                                 
+            .end </span>= data-&gt;<span style="color: #000000;">irq,                                                   
+            .flags </span>=<span style="color: #000000;"> IORESOURCE_IRQ,                                            
+        },                                                                      
+    };                                                                          
+                                                                                
+    </span><span style="color: #0000ff;">return</span> imx_add_platform_device(<span style="color: #800000;">"</span><span style="color: #800000;">imx-uart</span><span style="color: #800000;">"</span>, data-&gt;<span style="color: #000000;">id, res, ARRAY_SIZE(res),  
+            pdata, </span><span style="color: #0000ff;">sizeof</span>(*pdata));                    |<span style="color: #000000;">                        
+}                                                      </span>|                        
+                                                       |<span style="color: #000000;">                        
+                                                       V                        
+</span><span style="color: #0000ff;">static</span> inline <span style="color: #0000ff;">struct</span> platform_device *<span style="color: #000000;">imx_add_platform_device(                  
+        </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *name, <span style="color: #0000ff;">int</span><span style="color: #000000;"> id,                                               
+        </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> resource *res, unsigned <span style="color: #0000ff;">int</span><span style="color: #000000;"> num_resources,                 
+        </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">void</span> *<span style="color: #000000;">data, size_t size_data)                                     
+{                                                                               
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> imx_add_platform_device_dmamask(                                     
+            name, id, res, num_resources, data, size_data, </span><span style="color: #800080;">0</span><span style="color: #000000;">);                  
+}                                                                               
+                                                                                
+</span><span style="color: #008000;">2、驱动注册                                                                  </span>
+kernel/drivers/tty/serial/<span style="color: #000000;">imx.c                                                 
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init imx_serial_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)                                         
+{                                                                               
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;                                                                    
+                                                                                
+    printk(KERN_INFO </span><span style="color: #800000;">"</span><span style="color: #800000;">Serial: IMX driver\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                                   
+                                                                                
+    ret </span>= uart_register_driver(&amp;imx_reg);   ----------------------------+       
+    <span style="color: #0000ff;">if</span> (ret)                       |                                    |       
+        <span style="color: #0000ff;">return</span> ret;                +----------------------------+       |       
+    <span style="color: #008000;">//</span><span style="color: #008000;">注册uart驱动                                              |       |   </span>
+    ret = platform_driver_register(&amp;serial_imx_driver);         |       |       
+    <span style="color: #0000ff;">if</span> (ret != <span style="color: #800080;">0</span>)                                |              |       |<span style="color: #000000;">       
+        uart_unregister_driver(</span>&amp;imx_reg);        |              |       |       
+                                                 +--------------|-------|----+  
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                   |       |    |<span style="color: #000000;">  
+}                                                               </span>|       |    |  
+                                                                |       |    |  
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> uart_driver imx_reg = {    &lt;----------------------+       |    |<span style="color: #000000;">  
+    .owner          </span>= THIS_MODULE,                                      |    |<span style="color: #000000;">  
+    .driver_name    </span>= DRIVER_NAME,                <span style="color: #008000;">//</span><span style="color: #008000;"> IMX-uart           |    |  </span>
+    .dev_name       = DEV_NAME,                   <span style="color: #008000;">//</span><span style="color: #008000;"> ttymxc             |    |  </span>
+    .major          = SERIAL_IMX_MAJOR,           <span style="color: #008000;">//</span><span style="color: #008000;"> 207                |    |  </span>
+    .minor          = MINOR_START,                <span style="color: #008000;">//</span><span style="color: #008000;"> 16                 |    |  </span>
+    .nr             = ARRAY_SIZE(imx_ports),                            |    |<span style="color: #000000;">  
+    .cons           </span>= IMX_CONSOLE,                                      |    |<span style="color: #000000;">  
+};                                                                      </span>|    |  
+                                                                        |    |  
+<span style="color: #008000;">//</span><span style="color: #008000;"> kernel/drivers/tty/serial/serial_core.c                              |    |  </span>
+<span style="color: #0000ff;">int</span> uart_register_driver(<span style="color: #0000ff;">struct</span> uart_driver *drv)            &lt;----------+    |<span style="color: #000000;">  
+{                                                                            </span>|  
+    <span style="color: #0000ff;">struct</span> tty_driver *normal;                                               |  
+    <span style="color: #0000ff;">int</span> i, retval;                                                           |  
+                                                                             |<span style="color: #000000;">  
+    BUG_ON(drv</span>-&gt;state);                                                      |  
+    <span style="color: #008000;">//</span><span style="color: #008000;">分配uart_state空间，一个串口对应一个                                       |  </span>
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                       |  
+     * Maybe we should be using a slab cache for this, especially if         |  
+     * we have a large number of ports to handle.                            |  
+     </span><span style="color: #008000;">*/</span>                                                                      |<span style="color: #000000;">  
+    drv</span>-&gt;state = kzalloc(<span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span> uart_state) * drv-&gt;nr, GFP_KERNEL);   |  
+    <span style="color: #0000ff;">if</span> (!drv-&gt;state)                                                         |  
+        <span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span>;                                                            |  
+    <span style="color: #008000;">//</span><span style="color: #008000;">所有的串口只有一个tty_driver                                              |  </span>
+    normal = alloc_tty_driver(drv-&gt;nr);                                      |  
+    <span style="color: #0000ff;">if</span> (!normal)                                                             |  
+        <span style="color: #0000ff;">goto</span> out_kfree;                                                      |  
+                                                                             |<span style="color: #000000;">  
+    drv</span>-&gt;tty_driver = normal;                                                |  
+                                                                             |<span style="color: #000000;">  
+    normal</span>-&gt;owner        = drv-&gt;owner;                                       |<span style="color: #000000;">  
+    normal</span>-&gt;driver_name    = drv-&gt;driver_name;                               |<span style="color: #000000;">  
+    normal</span>-&gt;name        = drv-&gt;dev_name;                                     |<span style="color: #000000;">  
+    normal</span>-&gt;major        = drv-&gt;major;                                       |<span style="color: #000000;">  
+    normal</span>-&gt;minor_start    = drv-&gt;minor;                                     |<span style="color: #000000;">  
+    normal</span>-&gt;type        = TTY_DRIVER_TYPE_SERIAL;                            |<span style="color: #000000;">  
+    normal</span>-&gt;subtype        = SERIAL_TYPE_NORMAL;                             |<span style="color: #000000;">  
+    normal</span>-&gt;init_termios    = tty_std_termios;                               |<span style="color: #000000;">  
+    normal</span>-&gt;init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;     |<span style="color: #000000;">  
+    normal</span>-&gt;init_termios.c_ispeed = normal-&gt;init_termios.c_ospeed = <span style="color: #800080;">9600</span>;    |<span style="color: #000000;">  
+    normal</span>-&gt;flags        = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;     |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;"> tty_driver和uart_driver结构体关联，                                     |
+     * 当驱动和设备匹配之后，调用probe函数，                                      |
+     *                                                                       |
+     </span><span style="color: #008000;">*/</span>                                                                      |<span style="color: #000000;">
+    normal</span>-&gt;driver_state    = drv;                                           |<span style="color: #000000;">  
+    tty_set_operations(normal, </span>&amp;uart_ops);                                   |  
+                                                                             |  
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                       |  
+     * Initialise the UART state(s).                                         |  
+     </span><span style="color: #008000;">*/</span>                                                                      |  
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; drv-&gt;nr; i++) {                                          |  
+        <span style="color: #0000ff;">struct</span> uart_state *state = drv-&gt;state + i;                           |  
+        <span style="color: #0000ff;">struct</span> tty_port *port = &amp;state-&gt;port;                                |  
+                                                                             |<span style="color: #000000;">  
+        tty_port_init(port);                                                 </span>|<span style="color: #000000;">  
+        port</span>-&gt;ops = &amp;uart_port_ops;                                          |<span style="color: #000000;">  
+        port</span>-&gt;close_delay     = <span style="color: #800080;">500</span>;    <span style="color: #008000;">/*</span><span style="color: #008000;"> .5 seconds </span><span style="color: #008000;">*/</span>                     |<span style="color: #000000;">  
+        port</span>-&gt;closing_wait    = <span style="color: #800080;">30000</span>;    <span style="color: #008000;">/*</span><span style="color: #008000;"> 30 seconds </span><span style="color: #008000;">*/</span>                   |<span style="color: #000000;">  
+        tasklet_init(</span>&amp;state-&gt;tlet, uart_tasklet_action,                      |<span style="color: #000000;">  
+                 (unsigned </span><span style="color: #0000ff;">long</span>)state);                                      |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |<span style="color: #000000;">  
+    retval </span>= tty_register_driver(normal);         ------------------------+  |  
+    <span style="color: #0000ff;">if</span> (retval &gt;= <span style="color: #800080;">0</span>)                                                      |  |  
+        <span style="color: #0000ff;">return</span> retval;                                                    |  |  
+                                                                          |  |<span style="color: #000000;">  
+    put_tty_driver(normal);                                               </span>|  |<span style="color: #000000;">  
+out_kfree:                                                                </span>|  |<span style="color: #000000;">  
+    kfree(drv</span>-&gt;state);                                                    |  |  
+<span style="color: #0000ff;">out</span>:                                                                      |  |  
+    <span style="color: #0000ff;">return</span> -ENOMEM;                                                       |  |<span style="color: #000000;">  
+}                                                                         </span>|  |  
+<span style="color: #008000;">//</span><span style="color: #008000;"> kernel/drivers/tty/tty_io.c                                            |  |  </span>
+<span style="color: #0000ff;">int</span> tty_register_driver(<span style="color: #0000ff;">struct</span> tty_driver *driver)    &lt;-------------------+  |<span style="color: #000000;">  
+{                                                                            </span>|  
+    <span style="color: #0000ff;">int</span> error;                                                               |  
+    <span style="color: #0000ff;">int</span> i;                                                                   |<span style="color: #000000;">  
+    dev_t dev;                                                               </span>|  
+    <span style="color: #0000ff;">void</span> **p = NULL;                                                         |  
+    <span style="color: #0000ff;">struct</span> device *d;                                                        |  
+                                                                             |  
+    <span style="color: #0000ff;">if</span> (!(driver-&gt;flags &amp; TTY_DRIVER_DEVPTS_MEM) &amp;&amp; driver-&gt;num) {           |<span style="color: #000000;">  
+        p </span>= kzalloc(driver-&gt;num * <span style="color: #800080;">2</span> * <span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">void</span> *), GFP_KERNEL);           |  
+        <span style="color: #0000ff;">if</span> (!p)                                                              |  
+            <span style="color: #0000ff;">return</span> -ENOMEM;                                                  |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |  
+    <span style="color: #0000ff;">if</span> (!driver-&gt;major) {                                                    |<span style="color: #000000;">  
+        error </span>= alloc_chrdev_region(&amp;dev, driver-&gt;minor_start,               |<span style="color: #000000;">  
+                        driver</span>-&gt;num, driver-&gt;name);                          |  
+        <span style="color: #0000ff;">if</span> (!error) {                                                        |<span style="color: #000000;">  
+            driver</span>-&gt;major = MAJOR(dev);                                      |<span style="color: #000000;">  
+            driver</span>-&gt;minor_start = MINOR(dev);                                |<span style="color: #000000;">  
+        }                                                                    </span>|<span style="color: #000000;">  
+    } </span><span style="color: #0000ff;">else</span> {                                                                 |<span style="color: #000000;">  
+        dev </span>= MKDEV(driver-&gt;major, driver-&gt;minor_start);                     |  
+        <span style="color: #008000;">/*</span><span style="color: #008000;"> 为设备分配主设备号和次设备号                                          |  
+         * 主设备号207，次设备号从16开始                                        |
+         * 所以注册的串口设备次设备号是16,17,18,19...                            |  
+         </span><span style="color: #008000;">*/</span>                                                                  |<span style="color: #000000;">  
+        error </span>= register_chrdev_region(dev, driver-&gt;num, driver-&gt;name);      |<span style="color: #000000;">  
+    }                                                                        </span>|  
+    <span style="color: #0000ff;">if</span> (error &lt; <span style="color: #800080;">0</span>) {                                                         |<span style="color: #000000;">  
+        kfree(p);                                                            </span>|  
+        <span style="color: #0000ff;">return</span> error;                                                        |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |  
+    <span style="color: #0000ff;">if</span> (p) {                                                                 |<span style="color: #000000;">  
+        driver</span>-&gt;ttys = (<span style="color: #0000ff;">struct</span> tty_struct **)p;                              |<span style="color: #000000;">  
+        driver</span>-&gt;termios = (<span style="color: #0000ff;">struct</span> ktermios **)(p + driver-&gt;num);             |<span style="color: #000000;">  
+    } </span><span style="color: #0000ff;">else</span> {                                                                 |<span style="color: #000000;">  
+        driver</span>-&gt;ttys = NULL;                                                 |<span style="color: #000000;">  
+        driver</span>-&gt;termios = NULL;                                              |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |<span style="color: #000000;">  
+    cdev_init(</span>&amp;driver-&gt;cdev, &amp;tty_fops);                                     |<span style="color: #000000;">  
+    driver</span>-&gt;cdev.owner = driver-&gt;owner;                                      |<span style="color: #000000;">  
+    error </span>= cdev_add(&amp;driver-&gt;cdev, dev, driver-&gt;num);                       |  
+    <span style="color: #0000ff;">if</span> (error) {                                                             |<span style="color: #000000;">  
+        unregister_chrdev_region(dev, driver</span>-&gt;num);                          |<span style="color: #000000;">  
+        driver</span>-&gt;ttys = NULL;                                                 |<span style="color: #000000;">  
+        driver</span>-&gt;termios = NULL;                                              |<span style="color: #000000;">  
+        kfree(p);                                                            </span>|  
+        <span style="color: #0000ff;">return</span> error;                                                        |<span style="color: #000000;">  
+    }                                                                        </span>|  
+                                                                             |<span style="color: #000000;">  
+    mutex_lock(</span>&amp;tty_mutex);                                                  |<span style="color: #000000;">  
+    list_add(</span>&amp;driver-&gt;tty_drivers, &amp;tty_drivers);                            |<span style="color: #000000;">  
+    mutex_unlock(</span>&amp;tty_mutex);                                                |  
+                                                                             |  
+    <span style="color: #0000ff;">if</span> (!(driver-&gt;flags &amp; TTY_DRIVER_DYNAMIC_DEV)) {                         |  
+        <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; driver-&gt;num; i++) {                                  |<span style="color: #000000;">  
+            d </span>= tty_register_device(driver, i, NULL);                        |  
+            <span style="color: #0000ff;">if</span> (IS_ERR(d)) {                                                 |<span style="color: #000000;">  
+                error </span>= PTR_ERR(d);                                          |  
+                <span style="color: #0000ff;">goto</span> err;                                                    |<span style="color: #000000;">  
+            }                                                                </span>|<span style="color: #000000;">  
+        }                                                                    </span>|<span style="color: #000000;">  
+    }                                                                        </span>|<span style="color: #000000;">  
+    proc_tty_register_driver(driver);                                        </span>|<span style="color: #000000;">  
+    driver</span>-&gt;flags |= TTY_DRIVER_INSTALLED;                                   |  
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                                |  
+                                                                             |<span style="color: #000000;">  
+err:                                                                         </span>|  
+    <span style="color: #0000ff;">for</span> (i--; i &gt;= <span style="color: #800080;">0</span>; i--)                                                   |<span style="color: #000000;">  
+        tty_unregister_device(driver, i);                                    </span>|  
+                                                                             |<span style="color: #000000;">  
+    mutex_lock(</span>&amp;tty_mutex);                                                  |<span style="color: #000000;">  
+    list_del(</span>&amp;driver-&gt;tty_drivers);                                          |<span style="color: #000000;">  
+    mutex_unlock(</span>&amp;tty_mutex);                                                |  
+                                                                             |<span style="color: #000000;">  
+    unregister_chrdev_region(dev, driver</span>-&gt;num);                              |<span style="color: #000000;">  
+    driver</span>-&gt;ttys = NULL;                                                     |<span style="color: #000000;">  
+    driver</span>-&gt;termios = NULL;                                                  |<span style="color: #000000;">  
+    kfree(p);                                                                </span>|  
+    <span style="color: #0000ff;">return</span> error;                                                            |<span style="color: #000000;">  
+}                                                                            </span>|  
+                                                                             |  
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_driver serial_imx_driver = {         &lt;----------------+<span style="color: #000000;">  
+    .probe        </span>=<span style="color: #000000;"> serial_imx_probe,                                           
+    .remove        </span>=<span style="color: #000000;"> serial_imx_remove,                                         
+                                                                                
+    .suspend    </span>=<span style="color: #000000;"> serial_imx_suspend,                                           
+    .resume        </span>=<span style="color: #000000;"> serial_imx_resume,                                         
+    .driver        </span>=<span style="color: #000000;"> {                                                          
+        .name    </span>= <span style="color: #800000;">"</span><span style="color: #800000;">imx-uart</span><span style="color: #800000;">"</span><span style="color: #000000;">,                                                  
+        .owner    </span>=<span style="color: #000000;"> THIS_MODULE,                                                
+    },                                                                          
+};                                                                              
+</span><span style="color: #008000;">//</span><span style="color: #008000;">当设备和驱动匹配之后，会调用probe函数，其中就指定了读写函数              </span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> serial_imx_probe(<span style="color: #0000ff;">struct</span> platform_device *<span style="color: #000000;">pdev)                       
+{                                                                               
+    ... ...                                                                     
+    sport</span>-&gt;port.ops = &amp;imx_pops;                            -------+<span style="color: #000000;">            
+    ... ...                                                        </span>|            
+    <span style="color: #008000;">//</span><span style="color: #008000;">将初始化用到的uart_driver和imx_port关联起来                      |            
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">最终就将操作imx_pops结构体定义的函数与上层应用关联起来              |            
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">初始化的时候，就已经将uart_driver与tty_driver关联                |            </span>
+    ret = uart_add_one_port(&amp;imx_reg, &amp;sport-&gt;port);   -------+    |<span style="color: #000000;">            
+}                                                             </span>|    |            
+                                                              |    |            
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> uart_ops imx_pops = {                     &lt;-----|----+<span style="color: #000000;">            
+    .tx_empty    </span>= imx_tx_empty,                              |<span style="color: #000000;">                 
+    .set_mctrl    </span>= imx_set_mctrl,                            |<span style="color: #000000;">                 
+    .get_mctrl    </span>= imx_get_mctrl,                            |<span style="color: #000000;">                 
+    .stop_tx    </span>= imx_stop_tx,                                |<span style="color: #000000;">                 
+    .start_tx    </span>= imx_start_tx,                              |<span style="color: #000000;">                 
+    .stop_rx    </span>= imx_stop_rx,                                |<span style="color: #000000;">                 
+    .enable_ms    </span>= imx_enable_ms,                            |<span style="color: #000000;">                 
+    .break_ctl    </span>= imx_break_ctl,                            |<span style="color: #000000;">                 
+    .startup    </span>= imx_startup,                                |<span style="color: #000000;">                 
+    .shutdown    </span>= imx_shutdown,                              |<span style="color: #000000;">                 
+    .set_termios    </span>= imx_set_termios,                        |<span style="color: #000000;">                 
+    .type        </span>= imx_type,                                  |<span style="color: #000000;">                 
+    .release_port    </span>= imx_release_port,                      |<span style="color: #000000;">                 
+    .request_port    </span>= imx_request_port,                      |<span style="color: #000000;">                 
+    .config_port    </span>= imx_config_port,                        |<span style="color: #000000;">                 
+    .verify_port    </span>= imx_verify_port,                        |                 
+<span style="color: #0000ff;">#if</span> defined(CONFIG_CONSOLE_POLL)                              |                 <span style="color: #000000;">
+    .poll_get_char  </span>= imx_poll_get_char,                      |<span style="color: #000000;">                 
+    .poll_put_char  </span>= imx_poll_put_char,                      |                 
+<span style="color: #0000ff;">#endif</span>                                                        |                 <span style="color: #000000;">
+};                                                            </span>|<span style="color: #000000;">                 
+                                                              V                 
+</span><span style="color: #0000ff;">int</span> uart_add_one_port(<span style="color: #0000ff;">struct</span> uart_driver *drv, <span style="color: #0000ff;">struct</span> uart_port *<span style="color: #000000;">uport)         
+{                                                                               
+    </span><span style="color: #0000ff;">struct</span> uart_state *<span style="color: #000000;">state;                                                   
+    </span><span style="color: #0000ff;">struct</span> tty_port *<span style="color: #000000;">port;                                                      
+    </span><span style="color: #0000ff;">int</span> ret = <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                
+    </span><span style="color: #0000ff;">struct</span> device *<span style="color: #000000;">tty_dev;                                                     
+                                                                                
+    BUG_ON(in_interrupt());                                                     
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (uport-&gt;line &gt;= drv-&gt;<span style="color: #000000;">nr)                                                 
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;                                                         
+                                                                                
+    state </span>= drv-&gt;state + uport-&gt;<span style="color: #000000;">line;                                           
+    port </span>= &amp;state-&gt;<span style="color: #000000;">port;                                                        
+                                                                                
+    mutex_lock(</span>&amp;<span style="color: #000000;">port_mutex);                                                    
+    mutex_lock(</span>&amp;port-&gt;<span style="color: #000000;">mutex);                                                   
+    </span><span style="color: #0000ff;">if</span> (state-&gt;<span style="color: #000000;">uart_port) {                                                     
+        ret </span>= -<span style="color: #000000;">EINVAL;                                                          
+        </span><span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span><span style="color: #000000;">;                                                               
+    }                                                                           
+                                                                                
+    state</span>-&gt;uart_port =<span style="color: #000000;"> uport;                                                   
+    state</span>-&gt;pm_state = -<span style="color: #800080;">1</span><span style="color: #000000;">;                                                       
+                                                                                
+    uport</span>-&gt;cons = drv-&gt;<span style="color: #000000;">cons;                                                    
+    uport</span>-&gt;state =<span style="color: #000000;"> state;                                                       
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">                                                                          
+     * If this port is a console, then the spinlock is already                  
+     * initialised.                                                             
+     </span><span style="color: #008000;">*/</span>                                                                         
+    <span style="color: #0000ff;">if</span> (!(uart_console(uport) &amp;&amp; (uport-&gt;cons-&gt;flags &amp;<span style="color: #000000;"> CON_ENABLED))) {         
+        spin_lock_init(</span>&amp;uport-&gt;<span style="color: #0000ff;">lock</span><span style="color: #000000;">);                                           
+        lockdep_set_class(</span>&amp;uport-&gt;<span style="color: #0000ff;">lock</span>, &amp;<span style="color: #000000;">port_lock_key);                        
+    }                                                                           
+                                                                                
+    uart_configure_port(drv, state, uport);                                     
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">                                                                          
+     * Register the port whether it's detected or not.  This allows             
+     * setserial to be used to alter this ports parameters.                     
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                         
+    tty_dev </span>= tty_register_device(drv-&gt;tty_driver, uport-&gt;line, uport-&gt;<span style="color: #000000;">dev);    
+    </span><span style="color: #0000ff;">if</span> (likely(!<span style="color: #000000;">IS_ERR(tty_dev))) {                                             
+        device_set_wakeup_capable(tty_dev, </span><span style="color: #800080;">1</span><span style="color: #000000;">);                                  
+    } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {                                                                    
+        printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">Cannot register tty device on line %d\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,              
+               uport</span>-&gt;<span style="color: #000000;">line);                                                    
+    }                                                                           
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">                                                                          
+     * Ensure UPF_DEAD is not set.                                              
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                         
+    uport</span>-&gt;flags &amp;= ~<span style="color: #000000;">UPF_DEAD;                                                  
+                                                                                
+ </span><span style="color: #0000ff;">out</span><span style="color: #000000;">:                                                                           
+    mutex_unlock(</span>&amp;port-&gt;<span style="color: #000000;">mutex);                                                 
+    mutex_unlock(</span>&amp;<span style="color: #000000;">port_mutex);                                                  
+                                                                                
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;                                                                 
+}                                                                               
+                                                                                
+</span><span style="color: #008000;">3、 上层调用                                                                 </span>
+kernel/drivers/tty/<span style="color: #000000;">tty_io.c                                                     
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> file_operations tty_fops =<span style="color: #000000;"> {                                
+    .llseek     </span>=<span style="color: #000000;"> no_llseek,                                                    
+    .read       </span>=<span style="color: #000000;"> tty_read,                                                     
+    .write      </span>=<span style="color: #000000;"> tty_write,                                                    
+    .poll       </span>=<span style="color: #000000;"> tty_poll,                                                     
+    .unlocked_ioctl </span>=<span style="color: #000000;"> tty_ioctl,                                                
+    .compat_ioctl   </span>=<span style="color: #000000;"> tty_compat_ioctl,                                         
+    .open       </span>=<span style="color: #000000;"> tty_open,                                                     
+    .release    </span>=<span style="color: #000000;"> tty_release,                                                  
+    .fasync     </span>=<span style="color: #000000;"> tty_fasync,                                                   
+};                                                                              
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> kernel/drivers/tty/tty_io.c                                           </span>
+<span style="color: #0000ff;">static</span> ssize_t tty_write(<span style="color: #0000ff;">struct</span> file *file, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> __user *<span style="color: #000000;">buf,             
+                        size_t count, loff_t </span>*<span style="color: #000000;">ppos)                             
+{                                                                               
+    </span><span style="color: #0000ff;">struct</span> inode *inode = file-&gt;f_path.dentry-&gt;<span style="color: #000000;">d_inode;                         
+    </span><span style="color: #0000ff;">struct</span> tty_struct *tty =<span style="color: #000000;"> file_tty(file);                                    
+     </span><span style="color: #0000ff;">struct</span> tty_ldisc *<span style="color: #000000;">ld;                                                      
+    ssize_t ret;                                                                
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (tty_paranoia_check(tty, inode, <span style="color: #800000;">"</span><span style="color: #800000;">tty_write</span><span style="color: #800000;">"</span><span style="color: #000000;">))                            
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EIO;                                                            
+    </span><span style="color: #0000ff;">if</span> (!tty || !tty-&gt;ops-&gt;write ||<span style="color: #000000;">                                             
+        (test_bit(TTY_IO_ERROR, </span>&amp;tty-&gt;<span style="color: #000000;">flags)))                                  
+            </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EIO;                                                        
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Short term debug to catch buggy drivers </span><span style="color: #008000;">*/</span>                               
+    <span style="color: #0000ff;">if</span> (tty-&gt;ops-&gt;write_room ==<span style="color: #000000;"> NULL)                                           
+        printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">tty driver %s lacks a write_room method.\n</span><span style="color: #800000;">"</span><span style="color: #000000;">,           
+            tty</span>-&gt;driver-&gt;<span style="color: #000000;">name);                                                 
+    ld </span>=<span style="color: #000000;"> tty_ldisc_ref_wait(tty);                                               
+    </span><span style="color: #0000ff;">if</span> (!ld-&gt;ops-&gt;<span style="color: #000000;">write)                                                        
+        ret </span>= -<span style="color: #000000;">EIO;                                                             
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;">                                                                        
+        ret </span>= do_tty_write(ld-&gt;ops-&gt;<span style="color: #000000;">write, tty, file, buf, count);              
+    tty_ldisc_deref(ld);      </span>|                                                 
+    <span style="color: #0000ff;">return</span> ret;               |<span style="color: #000000;">                                                 
+}                             </span>|<span style="color: #000000;">                                                 
+                              V                                                 
+</span><span style="color: #0000ff;">static</span><span style="color: #000000;"> inline ssize_t do_tty_write(                                             
+    ssize_t (</span>*write)(<span style="color: #0000ff;">struct</span> tty_struct *, <span style="color: #0000ff;">struct</span> file *, <span style="color: #0000ff;">const</span> unsigned <span style="color: #0000ff;">char</span> *<span style="color: #000000;">, size_t),
+    </span><span style="color: #0000ff;">struct</span> tty_struct *<span style="color: #000000;">tty,                                                     
+    </span><span style="color: #0000ff;">struct</span> file *<span style="color: #000000;">file,                                                          
+    </span><span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> __user *<span style="color: #000000;">buf,                                                     
+    size_t count)                                                               
+{                                                                               
+    ssize_t ret, written </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                   
+    unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> chunk;                                                         
+                                                                                
+    ret </span>= tty_write_lock(tty, file-&gt;f_flags &amp;<span style="color: #000000;"> O_NDELAY);                        
+    </span><span style="color: #0000ff;">if</span> (ret &lt; <span style="color: #800080;">0</span><span style="color: #000000;">)                                                                
+        </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> ret;                                                             
+                                                                                
+    chunk </span>= <span style="color: #800080;">2048</span><span style="color: #000000;">;                                                               
+    </span><span style="color: #0000ff;">if</span> (test_bit(TTY_NO_WRITE_SPLIT, &amp;tty-&gt;<span style="color: #000000;">flags))                              
+        chunk </span>= <span style="color: #800080;">65536</span><span style="color: #000000;">;                                                          
+    </span><span style="color: #0000ff;">if</span> (count &lt;<span style="color: #000000;"> chunk)                                                          
+        chunk </span>=<span style="color: #000000;"> count;                                                          
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> write_buf/write_cnt is protected by the atomic_write_lock mutex </span><span style="color: #008000;">*/</span>       
+    <span style="color: #0000ff;">if</span> (tty-&gt;write_cnt &lt;<span style="color: #000000;"> chunk) {                                               
+        unsigned </span><span style="color: #0000ff;">char</span> *<span style="color: #000000;">buf_chunk;                                               
+                                                                                
+        </span><span style="color: #0000ff;">if</span> (chunk &lt; <span style="color: #800080;">1024</span><span style="color: #000000;">)                                                       
+            chunk </span>= <span style="color: #800080;">1024</span><span style="color: #000000;">;                                                       
+                                                                                
+        buf_chunk </span>=<span style="color: #000000;"> kmalloc(chunk, GFP_KERNEL);                                 
+        </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">buf_chunk) {                                                       
+            ret </span>= -<span style="color: #000000;">ENOMEM;                                                      
+            </span><span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span><span style="color: #000000;">;                                                           
+        }                                                                       
+        kfree(tty</span>-&gt;<span style="color: #000000;">write_buf);                                                  
+        tty</span>-&gt;write_cnt =<span style="color: #000000;"> chunk;                                                 
+        tty</span>-&gt;write_buf =<span style="color: #000000;"> buf_chunk;                                             
+    }                                                                           
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Do the write .. </span><span style="color: #008000;">*/</span>                                                       
+    <span style="color: #0000ff;">for</span><span style="color: #000000;"> (;;) {                                                                  
+        size_t size </span>=<span style="color: #000000;"> count;                                                    
+        </span><span style="color: #0000ff;">if</span> (size &gt;<span style="color: #000000;"> chunk)                                                       
+            size </span>=<span style="color: #000000;"> chunk;                                                       
+        ret </span>= -<span style="color: #000000;">EFAULT;                                                          
+        </span><span style="color: #0000ff;">if</span> (copy_from_user(tty-&gt;<span style="color: #000000;">write_buf, buf, size))                          
+            </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                              
+        ret </span>= write(tty, file, tty-&gt;write_buf, size);    -----------+          
+        <span style="color: #0000ff;">if</span> (ret &lt;= <span style="color: #800080;">0</span>)                                               |           
+            <span style="color: #0000ff;">break</span>;                                                  |<span style="color: #000000;">           
+        written </span>+= ret;                                             |<span style="color: #000000;">           
+        buf </span>+= ret;                                                 |<span style="color: #000000;">           
+        count </span>-= ret;                                               |           
+        <span style="color: #0000ff;">if</span> (!count)                                                 |           
+            <span style="color: #0000ff;">break</span>;                                                  |<span style="color: #000000;">           
+        ret </span>= -ERESTARTSYS;                                         |           
+        <span style="color: #0000ff;">if</span> (signal_pending(current))                                |           
+            <span style="color: #0000ff;">break</span>;                                                  |<span style="color: #000000;">           
+        cond_resched();                                             </span>|<span style="color: #000000;">           
+    }                                                               </span>|           
+    <span style="color: #0000ff;">if</span> (written) {                                                  |           
+        <span style="color: #0000ff;">struct</span> inode *inode = file-&gt;f_path.dentry-&gt;d_inode;         |<span style="color: #000000;">           
+        inode</span>-&gt;i_mtime = current_fs_time(inode-&gt;i_sb);              |<span style="color: #000000;">           
+        ret </span>= written;                                              |<span style="color: #000000;">           
+    }                                                               </span>|           
+<span style="color: #0000ff;">out</span>:                                                                |<span style="color: #000000;">           
+    tty_write_unlock(tty);                                          </span>|           
+    <span style="color: #0000ff;">return</span> ret;                                                     |<span style="color: #000000;">           
+}                                                                   </span>|<span style="color: #000000;">           
+                                                                    V           
+</span><span style="color: #008000;">//</span><span style="color: #008000;">kernel/drivers/tty/n_tty.c                                             </span>
+<span style="color: #0000ff;">static</span> ssize_t n_tty_write(<span style="color: #0000ff;">struct</span> tty_struct *tty, <span style="color: #0000ff;">struct</span> file *<span style="color: #000000;">file,           
+               </span><span style="color: #0000ff;">const</span> unsigned <span style="color: #0000ff;">char</span> *<span style="color: #000000;">buf, size_t nr)                             
+{                                                                               
+    </span><span style="color: #0000ff;">const</span> unsigned <span style="color: #0000ff;">char</span> *b =<span style="color: #000000;"> buf;                                               
+    DECLARE_WAITQUEUE(wait, current);                                           
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> c;                                                                      
+    ssize_t retval </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                         
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Job control check -- must be done at start (POSIX.1 7.1.1.4). </span><span style="color: #008000;">*/</span>         
+    <span style="color: #0000ff;">if</span> (L_TOSTOP(tty) &amp;&amp; file-&gt;f_op-&gt;write !=<span style="color: #000000;"> redirected_tty_write) {           
+        retval </span>=<span style="color: #000000;"> tty_check_change(tty);                                         
+        </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (retval)                                                             
+            </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> retval;                                                      
+    }                                                                           
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Write out any echoed characters that are still pending </span><span style="color: #008000;">*/</span><span style="color: #000000;">                
+    process_echoes(tty);                                                        
+                                                                                
+    add_wait_queue(</span>&amp;tty-&gt;write_wait, &amp;<span style="color: #000000;">wait);                                    
+    </span><span style="color: #0000ff;">while</span> (<span style="color: #800080;">1</span><span style="color: #000000;">) {                                                                 
+        set_current_state(TASK_INTERRUPTIBLE);                                  
+        </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (signal_pending(current)) {                                          
+            retval </span>= -<span style="color: #000000;">ERESTARTSYS;                                              
+            </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                              
+        }                                                                       
+        </span><span style="color: #0000ff;">if</span> (tty_hung_up_p(file) || (tty-&gt;link &amp;&amp; !tty-&gt;link-&gt;<span style="color: #000000;">count)) {          
+            retval </span>= -<span style="color: #000000;">EIO;                                                      
+            </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                              
+        }                                                                       
+        </span><span style="color: #0000ff;">if</span> (O_OPOST(tty) &amp;&amp; !(test_bit(TTY_HW_COOK_OUT, &amp;tty-&gt;<span style="color: #000000;">flags))) {        
+            </span><span style="color: #0000ff;">while</span> (nr &gt; <span style="color: #800080;">0</span><span style="color: #000000;">) {                                                    
+                ssize_t num </span>=<span style="color: #000000;"> process_output_block(tty, b, nr);                 
+                </span><span style="color: #0000ff;">if</span> (num &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {                                                  
+                    </span><span style="color: #0000ff;">if</span> (num == -<span style="color: #000000;">EAGAIN)                                         
+                        </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                  
+                    retval </span>=<span style="color: #000000;"> num;                                               
+                    </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> break_out;                                             
+                }                                                               
+                b </span>+=<span style="color: #000000;"> num;                                                       
+                nr </span>-=<span style="color: #000000;"> num;                                                      
+                </span><span style="color: #0000ff;">if</span> (nr == <span style="color: #800080;">0</span><span style="color: #000000;">)                                                    
+                    </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                      
+                c </span>= *<span style="color: #000000;">b;                                                         
+                </span><span style="color: #0000ff;">if</span> (process_output(c, tty) &lt; <span style="color: #800080;">0</span><span style="color: #000000;">)                                 
+                    </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;                                                      
+                b</span>++; nr--<span style="color: #000000;">;                                                      
+            }                                                                   
+            </span><span style="color: #0000ff;">if</span> (tty-&gt;ops-&gt;<span style="color: #000000;">flush_chars)                                          
+                tty</span>-&gt;ops-&gt;<span style="color: #000000;">flush_chars(tty);                                     
+        } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {                                                                
+            </span><span style="color: #0000ff;">while</span> (nr &gt; <span style="color: #800080;">0</span><span style="color: #000000;">) {                                                    
+                c </span>= tty-&gt;ops-&gt;write(tty, b, nr);        -------------------+    
+                <span style="color: #0000ff;">if</span> (c &lt; <span style="color: #800080;">0</span>) {                                               |<span style="color: #000000;">    
+                    retval </span>= c;                                            |    
+                    <span style="color: #0000ff;">goto</span> break_out;                                        |<span style="color: #000000;">    
+                }                                                          </span>|    
+                <span style="color: #0000ff;">if</span> (!c)                                                    |    
+                    <span style="color: #0000ff;">break</span>;                                                 |<span style="color: #000000;">    
+                b </span>+= c;                                                    |<span style="color: #000000;">    
+                nr </span>-= c;                                                   |<span style="color: #000000;">    
+            }                                                              </span>|<span style="color: #000000;">    
+        }                                                                  </span>|    
+        <span style="color: #0000ff;">if</span> (!nr)                                                           |    
+            <span style="color: #0000ff;">break</span>;                                                         |    
+        <span style="color: #0000ff;">if</span> (file-&gt;f_flags &amp; O_NONBLOCK) {                                  |<span style="color: #000000;">    
+            retval </span>= -EAGAIN;                                              |    
+            <span style="color: #0000ff;">break</span>;                                                         |<span style="color: #000000;">    
+        }                                                                  </span>|<span style="color: #000000;">    
+        schedule();                                                        </span>|<span style="color: #000000;">    
+    }                                                                      </span>|<span style="color: #000000;">    
+break_out:                                                                 </span>|<span style="color: #000000;">    
+    __set_current_state(TASK_RUNNING);                                     </span>|<span style="color: #000000;">    
+    remove_wait_queue(</span>&amp;tty-&gt;write_wait, &amp;wait);                            |    
+    <span style="color: #0000ff;">if</span> (b - buf != nr &amp;&amp; tty-&gt;fasync)                                      |<span style="color: #000000;">    
+        set_bit(TTY_DO_WRITE_WAKEUP, </span>&amp;tty-&gt;flags);                         |    
+    <span style="color: #0000ff;">return</span> (b - buf) ? b - buf : retval;                                   |<span style="color: #000000;">    
+}                                                                          </span>|    
+<span style="color: #008000;">//</span><span style="color: #008000;"> kernel/drivers/tty/serial/imx.c                                         |    </span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span>                                                                |<span style="color: #000000;">    
+imx_console_write(</span><span style="color: #0000ff;">struct</span> console *co, <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">char</span> *s, unsigned <span style="color: #0000ff;">int</span> count) &lt;-+<span style="color: #000000;">
+{
+    </span><span style="color: #0000ff;">struct</span> imx_port *sport = imx_ports[co-&gt;<span style="color: #000000;">index];
+    </span><span style="color: #0000ff;">struct</span><span style="color: #000000;"> imx_port_ucrs old_ucr;
+    unsigned </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ucr1;
+    unsigned </span><span style="color: #0000ff;">long</span><span style="color: #000000;"> flags;
+    </span><span style="color: #0000ff;">int</span> locked = <span style="color: #800080;">1</span><span style="color: #000000;">;
+
+    local_irq_save(flags);
+    </span><span style="color: #0000ff;">if</span> (sport-&gt;<span style="color: #000000;">port.sysrq)
+        locked </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;">
+        spin_lock(</span>&amp;sport-&gt;port.<span style="color: #0000ff;">lock</span><span style="color: #000000;">);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     *    First, save UCR1/2/3 and then disable interrupts
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    imx_port_ucrs_save(</span>&amp;sport-&gt;port, &amp;<span style="color: #000000;">old_ucr);
+    ucr1 </span>=<span style="color: #000000;"> old_ucr.ucr1;
+
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (cpu_is_mx1())
+        ucr1 </span>|=<span style="color: #000000;"> MX1_UCR1_UARTCLKEN;
+    ucr1 </span>|=<span style="color: #000000;"> UCR1_UARTEN;
+    ucr1 </span>&amp;= ~(UCR1_TXMPTYEN | UCR1_RRDYEN |<span style="color: #000000;"> UCR1_RTSDEN);
+
+    writel(ucr1, sport</span>-&gt;port.membase +<span style="color: #000000;"> UCR1);
+
+    writel(old_ucr.ucr2 </span>| UCR2_TXEN, sport-&gt;port.membase +<span style="color: #000000;"> UCR2);
+
+    uart_console_write(</span>&amp;sport-&gt;<span style="color: #000000;">port, s, count, imx_console_putchar);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     *    Finally, wait for transmitter to become empty
+     *    and restore UCR1/2/3
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">while</span> (!(readl(sport-&gt;port.membase + USR2) &amp;<span style="color: #000000;"> USR2_TXDC));
+
+    imx_port_ucrs_restore(</span>&amp;sport-&gt;port, &amp;<span style="color: #000000;">old_ucr);
+
+    </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (locked)
+        spin_unlock(</span>&amp;sport-&gt;port.<span style="color: #0000ff;">lock</span><span style="color: #000000;">);
+    local_irq_restore(flags);
+}</span></pre>
+</div>
+<p>&nbsp;</p>

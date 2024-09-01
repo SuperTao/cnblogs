@@ -1,0 +1,130 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">**************************************************************************
+ * 　　　　　　　　imx6 ar8031 千兆网卡不能用
+ * imx6无论是运行linux还是android都无法ping通直连的pc，但是配置成dhcp却能够正常上网。
+ * 本文记录解决过程。
+ *
+ *　　　　　　　　　　　                          Tony Liu, 2016-4-19, Shenzhen　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
+ </span><span style="color: #008000;">***************************************************************************/<br /></span><span style="color: #000000;">参考：<br />　　交叉线，直通线区别：<br />　　http://www.admin10000.com/document/3946.html<br />　　nxp论坛中的讨论：<br />　　http://www.nxpic.org/module/forum/forum.php?mod=viewthread&amp;tid=595457&amp;extra=&amp;highlight=ping%2B%E4%B8%8D%E9%80%9A&amp;page=3<br />　　mac配置中的宏：<br />　　http://lists.infradead.org/pipermail/linux-arm-kernel/2014-July/270174.html
+一、ping不通
+　　进行如下尝试：
+
+</span><span style="color: #800080;">1</span><span style="color: #000000;">.首先关闭电脑和板子上的防火墙。
+    　　
+</span><span style="color: #800080;">2</span><span style="color: #000000;">.板子添加默认网关　　
+　　　　route add </span><span style="color: #0000ff;">default</span> gw <span style="color: #800080;">192.168</span>.<span style="color: #800080;">2.1</span> netmask <span style="color: #800080;">255.255</span>.<span style="color: #800080;">255.0</span> 
+ 　　   
+<span style="color: #800080;">3</span><span style="color: #000000;">.查看电脑上是否有到板子的arp表项。
+    arp </span>-<span style="color: #000000;">a
+    接口: </span><span style="color: #800080;">192.168</span>.<span style="color: #800080;">2.110</span> --- <span style="color: #800080;">0xb</span><span style="color: #000000;">
+    Internet 地址 物理地址 类型
+    </span><span style="color: #800080;">224.0</span>.<span style="color: #800080;">0.2</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-5e-<span style="color: #800080;">00</span>-<span style="color: #800080;">00</span>-<span style="color: #800080;">02</span><span style="color: #000000;"> 静态
+    </span><span style="color: #800080;">224.0</span>.<span style="color: #800080;">0.22</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-5e-<span style="color: #800080;">00</span>-<span style="color: #800080;">00</span>-<span style="color: #800080;">16</span><span style="color: #000000;"> 静态
+    </span><span style="color: #800080;">224.0</span>.<span style="color: #800080;">0.251</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-5e-<span style="color: #800080;">00</span>-<span style="color: #800080;">00</span>-<span style="color: #000000;">fb 静态
+    </span><span style="color: #800080;">224.0</span>.<span style="color: #800080;">0.252</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-5e-<span style="color: #800080;">00</span>-<span style="color: #800080;">00</span>-<span style="color: #000000;">fc 静态
+    </span><span style="color: #800080;">239.255</span>.<span style="color: #800080;">255.250</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-<span style="color: #800080;">5e-7f</span>-ff-<span style="color: #000000;">fa 静态
+
+　　如果没有，在windows上添加静态arp。
+　　使用 netsh i i show </span><span style="color: #0000ff;">in</span><span style="color: #000000;"> 命令 查看 本地连接的idx编号
+　　　　
+    C:\Windows\system32</span>&gt;netsh i i show <span style="color: #0000ff;">in</span><span style="color: #000000;">
+
+    Idx Met MTU 状态 名称
+    </span>--- ---------- ---------- ------------ ---------------------------
+    <span style="color: #800080;">1</span> <span style="color: #800080;">50</span> <span style="color: #800080;">4294967295</span> connected Loopback Pseudo-Interface <span style="color: #800080;">1</span>
+    <span style="color: #800080;">11</span> <span style="color: #800080;">10</span> <span style="color: #800080;">1500</span><span style="color: #000000;"> connected 本地连接
+    </span><span style="color: #800080;">13</span> <span style="color: #800080;">20</span> <span style="color: #800080;">1500</span> connected 本地连接 <span style="color: #800080;">2</span>
+    <span style="color: #800080;">14</span> <span style="color: #800080;">20</span> <span style="color: #800080;">1500</span><span style="color: #000000;"> connected VMware Network Adapter VMnet1
+    </span><span style="color: #800080;">15</span> <span style="color: #800080;">20</span> <span style="color: #800080;">1500</span><span style="color: #000000;"> connected VMware Network Adapter VMnet8
+　　使用 netsh </span>-c <span style="color: #800000;">"</span><span style="color: #800000;">i i</span><span style="color: #800000;">"</span><span style="color: #000000;"> add neighbors 本地连接的idx &ldquo;网关IP&rdquo; &ldquo;网关mac&rdquo; 命令绑定。
+　　　　网关mac是板子的mac。
+　　　　netsh </span>-c <span style="color: #800000;">"</span><span style="color: #800000;">i i</span><span style="color: #800000;">"</span> add neighbors <span style="color: #800080;">11</span> <span style="color: #800000;">"</span><span style="color: #800000;">192.168.2.1</span><span style="color: #800000;">"</span> <span style="color: #800000;">"</span><span style="color: #800000;">1e-ed-19-27-1a-b3</span><span style="color: #800000;">"</span><span style="color: #000000;">
+　  查看结果：
+    接口: </span><span style="color: #800080;">192.168</span>.<span style="color: #800080;">2.110</span> --- <span style="color: #800080;">0xb</span><span style="color: #000000;">
+    Internet 地址 物理地址 类型
+    </span><span style="color: #800080;">192.168</span>.<span style="color: #800080;">2.1</span> 1e-ed-<span style="color: #800080;">19</span>-<span style="color: #800080;">27</span>-1a-<span style="color: #000000;">b3 静态
+    </span><span style="color: #800080;">224.0</span>.<span style="color: #800080;">0.2</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-5e-<span style="color: #800080;">00</span>-<span style="color: #800080;">00</span>-<span style="color: #800080;">02</span><span style="color: #000000;"> 静态
+    </span><span style="color: #800080;">224.0</span>.<span style="color: #800080;">0.22</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-5e-<span style="color: #800080;">00</span>-<span style="color: #800080;">00</span>-<span style="color: #800080;">16</span><span style="color: #000000;"> 静态
+    </span><span style="color: #800080;">224.0</span>.<span style="color: #800080;">0.251</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-5e-<span style="color: #800080;">00</span>-<span style="color: #800080;">00</span>-<span style="color: #000000;">fb 静态
+    </span><span style="color: #800080;">224.0</span>.<span style="color: #800080;">0.252</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-5e-<span style="color: #800080;">00</span>-<span style="color: #800080;">00</span>-<span style="color: #000000;">fc 静态
+    </span><span style="color: #800080;">239.255</span>.<span style="color: #800080;">255.250</span> <span style="color: #800080;">01</span>-<span style="color: #800080;">00</span>-<span style="color: #800080;">5e-7f</span>-ff-<span style="color: #000000;">fa 静态
+
+
+二、板子通过交换机可以ping同电脑。
+
+</span><span style="color: #800080;">1</span><span style="color: #000000;">、板子的phy是ar8031，连接交换机之后，可以ping通电脑。怀疑可能线序有问题，所以采用交叉线进行直连，也不能ping通。
+</span><span style="color: #800080;">2</span>、交换机只支持10M/<span style="color: #000000;">100M，查看PC网卡属性，链接速度也自协商到100M，而此时板子上的网络也是100M，所以能够ping通。初步分析，直连情况下，电脑网卡和板子上phy自协商失败。
+</span><span style="color: #800080;">3</span>、直连情况下，将电脑的网卡速率强制设置为10M全双工/<span style="color: #000000;">半双工，板子网络也变为10M半双工，说明自协商成功，只是在1000M的状态被限制了。
+    更改电脑网卡速率，板子串口输出。
+    PHY: </span><span style="color: #800080;">1</span>:<span style="color: #800080;">01</span> - Link <span style="color: #0000ff;">is</span><span style="color: #000000;"> Down
+    PHY: </span><span style="color: #800080;">1</span>:<span style="color: #800080;">01</span> - Link <span style="color: #0000ff;">is</span> Up - <span style="color: #800080;">10</span>/Half<span style="color: #000000;">
+三、代码跟踪
+    </span><span style="color: #800080;">1</span><span style="color: #000000;">、可能是phy设置有误，上网查看，设置的内容都一样，更改phy设置没有生效。
+    </span><span style="color: #800080;">2</span>、查看驱动kernel/driver/net/<span style="color: #000000;">fec.c
+　　　　在驱动中进行调试。由于每次网络断开，直连的后都会有输出。<br /></span></pre>
+<p>static void&nbsp;<br />fec_restart(struct net_device *dev, int duplex）函数。</p>
+<pre><span style="color: #000000;">　　　　添加调试，发现板子自协商的时候，直连电脑的网卡是1G或者自协商时，都只进入10M/100M的配置。
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 10M or 100M </span><span style="color: #008000;">*/</span>
+        <span style="color: #0000ff;">if</span> (fep-&gt;phy_dev &amp;&amp; fep-&gt;phy_dev-&gt;speed ==<span style="color: #000000;"> SPEED_100) {
+            val </span>&amp;= ~(<span style="color: #800080;">1</span> &lt;&lt; <span style="color: #800080;">9</span><span style="color: #000000;">);
+        }
+        </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+            val </span>|= (<span style="color: #800080;">1</span> &lt;&lt; <span style="color: #800080;">9</span><span style="color: #000000;">);
+        }
+　　... ... ...</span><span style="color: #000000;">　　<br />　　//说明if的条件里面没有都满足。<br /></span><span style="color: #000000;">　　</span><span style="color: #008000;">/*</span><span style="color: #008000;"> if phy work at 1G mode, set ENET RGMII speed to 1G </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (fep-&gt;phy_dev &amp;&amp; (fep-&gt;phy_dev-&gt;supported &amp;<span style="color: #000000;">
+        (SUPPORTED_1000baseT_Half </span>| SUPPORTED_1000baseT_Full)) &amp;&amp;<span style="color: #000000;">
+        fep</span>-&gt;phy_interface == PHY_INTERFACE_MODE_RGMII &amp;&amp;<span style="color: #000000;">
+        fep</span>-&gt;phy_dev-&gt;speed ==<span style="color: #000000;"> SPEED_1000) {
+        val </span>|= (<span style="color: #800080;">0x1</span> &lt;&lt; <span style="color: #800080;">5</span>);      <span style="color: #008000;">//</span><span style="color: #008000;">使能1000M模式</span>
+<span style="color: #000000;">    }
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> RX FIFO threshold setting for ENET pause frame feature
+     * Only set the parameters after ticket TKT116501 fixed.
+     * The issue has been fixed on Rigel TO1.1 and Arik TO1.2
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> ((cpu_is_mx6q() &amp;&amp;<span style="color: #000000;">
+        (mx6q_revision() </span>&gt;= IMX_CHIP_REVISION_1_2)) ||<span style="color: #000000;">
+        (cpu_is_mx6dl() </span>&amp;&amp;<span style="color: #000000;">
+        (mx6dl_revision() </span>&gt;=<span style="color: #000000;"> IMX_CHIP_REVISION_1_1))) {
+        writel(FEC_ENET_RSEM_V, fep</span>-&gt;hwp +<span style="color: #000000;"> FEC_R_FIFO_RSEM);
+        writel(FEC_ENET_RSFL_V, fep</span>-&gt;hwp +<span style="color: #000000;"> FEC_R_FIFO_RSFL);
+        writel(FEC_ENET_RAEM_V, fep</span>-&gt;hwp +<span style="color: #000000;"> FEC_R_FIFO_RAEM);
+        writel(FEC_ENET_RAFL_V, fep</span>-&gt;hwp +<span style="color: #000000;"> FEC_R_FIFO_RAFL);
+
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> OPD </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        writel(FEC_ENET_OPD_V, fep</span>-&gt;hwp +<span style="color: #000000;"> FEC_OPD);
+    }
+
+    </span><span style="color: #0000ff;">if</span> (cpu_is_mx6q() ||<span style="color: #000000;"> cpu_is_mx6dl()) {
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> enable endian swap </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        val </span>|= (<span style="color: #800080;">0x1</span> &lt;&lt; <span style="color: #800080;">8</span><span style="color: #000000;">);
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> enable ENET store and forward mode </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+        writel(</span><span style="color: #800080;">0x1</span> &lt;&lt; <span style="color: #800080;">8</span>, fep-&gt;hwp +<span style="color: #000000;"> FEC_X_WMRK);
+    }
+    writel(val, fep</span>-&gt;hwp +<span style="color: #000000;"> FEC_ECNTRL);　　　　//使能Ethernet Control Register
+
+static int fec_enet_mii_probe(struct net_device *ndev)函数：
+    查看初始化,反向芯片选择这里只打开了10M/100M的支持，没有打开1000M支持。导致MAC寄存器没有使能1000M功能。<br />　　将PHY_BASIC_FEATURES更改为PHY_GBIT_FEATURES。问题解决。<br />　　如下所示。
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> mask with MAC supported features </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (cpu_is_mx6q() ||<span style="color: #000000;"> cpu_is_mx6dl())
+</span><span style="color: #008000;">//</span><span style="color: #008000;">        phy_dev-&gt;supported &amp;= PHY_BASIC_FEATURES;</span>
+        phy_dev-&gt;supported &amp;=<span style="color: #000000;"> PHY_GBIT_FEATURES;
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> 
+        phy_dev</span>-&gt;supported &amp;=<span style="color: #000000;"> PHY_BASIC_FEATURES;
+
+宏定义如下：
+</span><span style="color: #0000ff;">#define</span> PHY_BASIC_FEATURES  (SUPPORTED_10baseT_Half | \<span style="color: #000000;">
+                 SUPPORTED_10baseT_Full </span>|<span style="color: #000000;"> \
+                 SUPPORTED_100baseT_Half </span>|<span style="color: #000000;"> \
+                 SUPPORTED_100baseT_Full </span>|<span style="color: #000000;"> \
+                 SUPPORTED_Autoneg </span>|<span style="color: #000000;"> \
+                 SUPPORTED_TP </span>|<span style="color: #000000;"> \
+                 SUPPORTED_MII)
+
+</span><span style="color: #0000ff;">#define</span> PHY_GBIT_FEATURES   (PHY_BASIC_FEATURES | \<span style="color: #000000;">
+                 SUPPORTED_1000baseT_Half </span>|<span style="color: #000000;"> \
+                 SUPPORTED_1000baseT_Full)</span></pre>
+</div>
+<p>网卡速率调整：&nbsp;控制面板\网络和 Internet\网络连接。右键网卡，属性-&gt;配置-&gt;高级，如下图所示。</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201604/745188-20160419094838601-384159333.png" alt="" /></p>

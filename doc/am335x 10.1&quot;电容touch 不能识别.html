@@ -1,0 +1,27 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">***************************************************************
+ *                  am335x 10.1"电容touch 不能识别
+ *
+ *  am335x的电容touch使用的是EETI的芯片。7吋，8吋的touch都能识别，
+ *  而10.1吋的却不行。外观上发现，7吋，8吋的touch都使用了2颗芯片，
+ *  而10.1inch的只有一颗。可能是芯片的驱动不同导致的。同事定位到
+ *  官网驱动的问题，使用最新的驱动，问题便解决了。
+ *
+ *                                 Tony Liu, 2016-5-26, Shenzhen 
+ *************************************************************</span><span style="color: #008000;">*/</span>
+
+<span style="color: #800080;">1</span><span style="color: #000000;">. 重新从eGTouch的官网上下载驱动。
+        http:</span><span style="color: #008000;">//</span><span style="color: #008000;">www.eeti.com.tw/drivers.html</span>
+<span style="color: #000000;">   选择linux版本
+        eGTouch_v2.</span><span style="color: #800080;">5.5814</span>.L-<span style="color: #000000;">ma.tar
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">. 更新驱动到开发板中
+    更新下面2个文件到开发板中
+    eGTouchARMhf</span>/eGTouchARMhfnonX/<span style="color: #000000;">eGTouchD
+    eGTouchARMhf</span>/eGTouchARMhfnonX/<span style="color: #000000;">eGTouchL.ini
+    问题解决
+
+</span><span style="color: #800080;">3</span><span style="color: #000000;">. 如何移植，参考压缩包中的文档
+    EETI_eGTouch_Linux_Programming_Guide_v2.5h.pdf</span></pre>
+</div>
+<p>&nbsp;</p>

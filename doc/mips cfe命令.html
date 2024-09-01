@@ -1,0 +1,14 @@
+<div class="cnblogs_code">
+<pre>设置串口参数<br />　　setenv -p LINUX_CMDLINE <span style="color: #800000;">"</span><span style="color: #800000;">console=ttyS0,115200 root=mtd4 rw rootfstype=jffs2</span><span style="color: #800000;">"</span><span style="color: #000000;">
+内核启动参数
+　　setenv </span>-p STARTUP <span style="color: #800000;">"</span><span style="color: #800000;">boot -z -elf flash0.os:vmlinuz</span><span style="color: #800000;">"</span><span style="color: #000000;">
+dhcp获取ip，需要联网才能获得
+　　ifconfig eth0 </span>-<span style="color: #000000;">auto
+tftp更新cfe
+　　flash </span>-noheader <span style="color: #800080;">192.168</span>.<span style="color: #800080;">3.186</span><span style="color: #000000;">:cfe.bin flash0.boot
+tftp更新内核
+　　flash </span>-noheader <span style="color: #800080;">192.168</span>.<span style="color: #800080;">3.3</span><span style="color: #000000;">:vmlinuz flash0.os
+tftp更新文件系统
+　　flash </span>-noheader <span style="color: #800080;">192.168</span>.<span style="color: #800080;">3.3</span>:rootfs.jffs2 flash0.fs<br />boot上传文件，上传之后会自动运行<br />　　boot &ndash;elf host:bootprogs/os_startup<br />load上传文件到指定地址<br />　　load &ndash;raw &ndash;addr=80100000 host:data/my_data_file<br />到指定地址运行程序<br />　　go 0x80100000</pre>
+</div>
+<p>&nbsp;</p>

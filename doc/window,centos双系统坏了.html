@@ -1,0 +1,52 @@
+<p>在<span style="font-family: Times New Roman;">centos</span><span style="font-family: 宋体;">中格式化</span><span style="font-family: Times New Roman;">SD</span><span style="font-family: 宋体;">卡的时候，操作错误，误将</span><span style="font-family: Times New Roman;">windows</span><span style="font-family: 宋体;">系统</span><span style="font-family: Times New Roman;">C</span><span style="font-family: 宋体;">盘的给格式化了。</span><span style="font-family: Times New Roman;">C</span><span style="font-family: 宋体;">盘是</span><span style="font-family: Times New Roman;">ntf</span><span style="font-family: 宋体;">格式的，现在却变为了</span><span style="font-family: Times New Roman;">fat32</span><span style="font-family: 宋体;">的格式。</span></p>
+<p>重启系统，发现还是可以进入到<span style="font-family: Times New Roman;">centos</span><span style="font-family: 宋体;">，但是</span><span style="font-family: Times New Roman;">window</span><span style="font-family: 宋体;">进入不了。那么证明分区表没有改变，并且</span><span style="font-family: Times New Roman;">centos</span><span style="font-family: 宋体;">的</span><span style="font-family: Times New Roman;">grub</span><span style="font-family: 宋体;">也没有被破坏。</span></p>
+<p>使用<span style="font-family: Times New Roman;">pe</span><span style="font-family: 宋体;">进入系统，</span><span style="font-family: Times New Roman;">pe</span><span style="font-family: 宋体;">有很多，如大白菜，老毛桃，</span><span style="font-family: Times New Roman;">u</span><span style="font-family: 宋体;">启动等。都可以进入到预安装环境中。</span></p>
+<p>进入之后，将<span style="font-family: Times New Roman;">C</span><span style="font-family: 宋体;">盘格式化为</span><span style="font-family: Times New Roman;">NTFS</span><span style="font-family: 宋体;">，然后使用</span><span style="font-family: Times New Roman;">diskGenius</span><span style="font-family: 宋体;">进行数据恢复。将</span><span style="font-family: Times New Roman;">C</span><span style="font-family: 宋体;">盘数据都恢复了，但是却不能设置为主分区。</span></p>
+<p>&nbsp;</p>
+<p>1<span style="font-family: 宋体;">、</span><span style="font-family: Times New Roman;">windows</span></p>
+<p>由于不想重装系统，想通过修复<span style="font-family: Times New Roman;">MBR</span><span style="font-family: 宋体;">，</span><span style="font-family: Times New Roman;">GRUB</span><span style="font-family: 宋体;">，分区表等来修复系统，所以就一直在折腾。事实证明我还是太水，还把整个硬盘都各格式化了。</span><span style="font-family: Times New Roman;">500G</span><span style="font-family: 宋体;">的硬盘啊，里面还有数据啊。格式都没了，怎么办，而且重启之后在</span><span style="font-family: Times New Roman;">diskgenius</span><span style="font-family: 宋体;">中都找不到硬盘。</span></p>
+<p>在<span style="font-family: Times New Roman;">pe</span><span style="font-family: 宋体;">的右键计算机，选择管理。</span></p>
+<p><img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201511/745188-20151122183258343-1730770448.png" alt="" width="244" height="252" /></p>
+<p>再选择磁盘管理，如下所示，将500G<span style="font-family: 宋体;">的硬盘格式化为</span><span style="font-family: Times New Roman;">NTFS</span><span style="font-family: 宋体;">格式（下图的分区是我从装完之后的分区）。</span></p>
+<p><img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201511/745188-20151122183502874-2103359924.png" alt="" width="273" height="452" /></p>
+<p>然后在到<span style="font-family: Times New Roman;">diskgenius</span><span style="font-family: 宋体;">中进行查看，识别出</span><span style="font-family: Times New Roman;">500G</span><span style="font-family: 宋体;">的硬盘，格式为</span><span style="font-family: Times New Roman;">NTFS</span><span style="font-family: 宋体;">。</span></p>
+<p>1.1&nbsp;<span style="font-family: 宋体;">重建分区表</span></p>
+<p>在<span style="font-family: Times New Roman;">diskgenius</span><span style="font-family: 宋体;">选择如下，搜索的过程中会显示搜索出来的分区表，还可以查看到这个分区的数据。会需要你对搜索的结果进行选择，对这个分区进行保留，忽略或者退出搜索。查看搜索出来的分区中的数据，确认是否是之前自己的数据，是否是自己需要的分区。</span></p>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201511/745188-20151122183519905-1815055013.png" alt="" /></p>
+<p>1.2&nbsp;<span style="font-family: 宋体;">恢复</span><span style="font-family: Times New Roman;">C</span><span style="font-family: 宋体;">盘</span></p>
+<p>重建分区表之后，C<span style="font-family: 宋体;">盘以及</span><span style="font-family: Times New Roman;">D</span><span style="font-family: 宋体;">盘有从新出现了，然后里面的数据也都还在。只要把</span><span style="font-family: Times New Roman;">C</span><span style="font-family: 宋体;">盘：</span></p>
+<p>a<span style="font-family: 宋体;">、调整为主分区</span></p>
+<p>b<span style="font-family: 宋体;">、设置为活动分区</span></p>
+<p>c<span style="font-family: 宋体;">、修复</span><span style="font-family: Times New Roman;">MBR</span></p>
+<p>那么<span style="font-family: Times New Roman;">windows</span><span style="font-family: 宋体;">应该就可以启动了。但是当时忘记了</span><span style="font-family: Times New Roman;">MBR</span><span style="font-family: 宋体;">还需要修复。所以操作了前</span><span style="font-family: Times New Roman;">2</span><span style="font-family: 宋体;">步，也没什么用。</span></p>
+<p>如下图所示，在<span style="font-family: Times New Roman;">C</span><span style="font-family: 宋体;">盘右键，选择转换为主分区，以及激活当前分区。</span></p>
+<p><img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201511/745188-20151122183536936-974046063.png" alt="" /></p>
+<p>保存之后，重新启动，仍然进不了<span style="font-family: Times New Roman;">windows</span><span style="font-family: 宋体;">，并且原先的</span><span style="font-family: Times New Roman;">centos</span><span style="font-family: 宋体;">也不存在了，所在的盘格式为为</span><span style="font-family: Times New Roman;">ntfs</span><span style="font-family: 宋体;">格式。主引导信息记录被破坏了，所以不能进入，所以还是把</span><span style="font-family: Times New Roman;">windows</span><span style="font-family: 宋体;">重装了。</span></p>
+<p>修复<span style="font-family: Times New Roman;">MBR</span><span style="font-family: 宋体;">方式如下。</span></p>
+<p>选择硬盘，重建主引导记录(MBR)<span style="font-family: 宋体;">。</span></p>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201511/745188-20151122183546999-176617689.png" alt="" /></p>
+<p>2<span style="font-family: 宋体;">、</span><span style="font-family: Times New Roman;">centos</span></p>
+<p>当时一心想把centos<span style="font-family: 宋体;">恢复，不想重装。所以就先修复</span><span style="font-family: Times New Roman;">centos</span><span style="font-family: 宋体;">的</span><span style="font-family: Times New Roman;">grub</span><span style="font-family: 宋体;">。修复方式如下，使用软碟通</span><span style="font-family: Times New Roman;">UltraISO</span><span style="font-family: 宋体;">，将</span><span style="font-family: Times New Roman;">centos</span><span style="font-family: 宋体;">的光盘进行添加到</span><span style="font-family: Times New Roman;">u</span><span style="font-family: 宋体;">盘到。安装</span><span style="font-family: Times New Roman;">centos</span><span style="font-family: 宋体;">双系统也是通过</span><span style="font-family: Times New Roman;">U</span><span style="font-family: 宋体;">盘进行的。之后从</span><span style="font-family: Times New Roman;">U</span><span style="font-family: 宋体;">盘启动，就会进入到</span><span style="font-family: Times New Roman;">centos</span><span style="font-family: 宋体;">的安装界面。进入救援模式</span></p>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201511/745188-20151122183558093-420111616.png" alt="" /></p>
+<p>一路选择，最后进入到shell。由于系统所在的盘符已经被格式化，所以找不到盘符，但是在pe中搜索分却表的时候却搜索除了boot分区，所以可以修复。</p>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201511/745188-20151122183605749-876031340.png" alt="" width="700" height="350" /></p>
+<p>进入shell，查看分区。</p>
+<p>&nbsp;<img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201511/745188-20151122183615593-214667760.png" alt="" /></p>
+<p>id是0x83的就是linux的/boot分区。修复的时候也就是把这个分区写到grub中。</p>
+<p class="p">确定还/boot<span style="font-family: 宋体;">分区，就可以操作</span>GRUB<span style="font-family: 宋体;">了</span>。输入<span style="font-family: Times New Roman;">grub:</span></p>
+<p class="p">sh#grub</p>
+<p class="p">会出现这样的提示符<span style="font-family: Times New Roman;">:</span></p>
+<p class="p">grub&gt;</p>
+<p class="p">我们就可以在这样的字符后面，输入<span style="font-family: Times New Roman;">:</span></p>
+<p class="p">grub&gt;root&nbsp;(hdX,Y)</p>
+<p class="p">grub&gt;setup&nbsp;(hdX)</p>
+<p class="p">如果成功会有一个<span style="font-family: Times New Roman;">successful......</span></p>
+<p class="p">这里的<span style="font-family: Times New Roman;">X</span><span style="font-family: 宋体;">，如果是</span>第一个盘，就是<span style="font-family: Times New Roman;">0</span><span style="font-family: 宋体;">，如果你所</span>安装的<span style="font-family: Times New Roman;">linux</span><span style="font-family: 宋体;">的根分区在第二个硬盘上，那</span><span style="font-family: Times New Roman;">X</span><span style="font-family: 宋体;">就是</span><span style="font-family: Times New Roman;">1</span><span style="font-family: 宋体;">了；</span><span style="font-family: Times New Roman;">Y</span><span style="font-family: 宋体;">，就是装有</span><span style="font-family: Times New Roman;">linux</span><span style="font-family: 宋体;">系统所在的根分区。&nbsp;</span></p>
+<p class="p">并且在操作完<span style="font-family: Times New Roman;">root&nbsp;(hdX,Y</span><span style="font-family: 宋体;">）的时候，会有输出，提示是否正确，注意查看，正确了会说明盘符中系统的</span><span style="font-family: Times New Roman;">id</span><span style="font-family: 宋体;">是</span><span style="font-family: Times New Roman;">83</span><span style="font-family: 宋体;">，也就是</span><span style="font-family: Times New Roman;">linux</span><span style="font-family: 宋体;">，</span></p>
+<p class="p">setup&nbsp;(hdX)<span style="font-family: 宋体;">就是把</span><span style="font-family: Times New Roman;">GRUB</span><span style="font-family: 宋体;">写到硬盘的</span><span style="font-family: Times New Roman;">MBR</span><span style="font-family: 宋体;">上。</span>例如在/dev/sda1&nbsp;<span style="font-family: 宋体;">那么就应该输入&nbsp;&nbsp;</span><span style="font-family: Times New Roman;">hd0,0</span><span style="font-family: 宋体;">。</span></p>
+<p class="p">之后再操作<span style="font-family: Times New Roman;">setup&nbsp;(hdX</span><span style="font-family: 宋体;">）命令。</span></p>
+<p class="p">而我那时后是<span style="font-family: Times New Roman;">/dev/sdb6</span><span style="font-family: 宋体;">，所以就应该是</span></p>
+<p class="p">root&nbsp;(hd1,5)</p>
+<p class="p">setup&nbsp;(hd1)</p>
+<p class="p">&nbsp;</p>
+<p>从新启动，会出现centos的grub界面，但是由于根分区的盘符被格式化，所以进入不了系统。</p>

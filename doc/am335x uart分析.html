@@ -1,0 +1,369 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">***********************************************************
+ *                  am335x uart分析
+ *  本文记录am335x uart驱动的注册过程。
+ *  参考：
+ *          </span><span style="color: #008000; text-decoration: underline;">http://www.cnblogs.com/helloworldtoyou/p/5385595.html</span><span style="color: #008000;">
+ *  涉及文件：
+ *          arch/arm/mach-omap2/board-am335xevm.c
+ *          drivers/tty/serial/omap-serial.c
+ *
+ *                             Tony Liu, 2016-5-2, Shenzhen
+ **********************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+MACHINE_START(AM335XEVM, </span><span style="color: #800000;">"</span><span style="color: #800000;">am335xevm</span><span style="color: #800000;">"</span><span style="color: #000000;">)
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Maintainer: Texas Instruments </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    .atag_offset    </span>= <span style="color: #800080;">0x100</span><span style="color: #000000;">,
+    .map_io        </span>=<span style="color: #000000;"> am335x_evm_map_io,
+    .init_early    </span>=<span style="color: #000000;"> am33xx_init_early,
+    .init_irq    </span>=<span style="color: #000000;"> ti81xx_init_irq,
+    .handle_irq     </span>=<span style="color: #000000;"> omap3_intc_handle_irq,
+    .timer        </span>= &amp;<span style="color: #000000;">omap3_am33xx_timer,
+    .init_machine    </span>= am335x_evm_init,   ---+<span style="color: #000000;">
+MACHINE_END                                  </span>|
+                                             |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __init am335x_evm_init(<span style="color: #0000ff;">void</span>)  &lt;--+<span style="color: #000000;">
+{
+    am33xx_cpuidle_init();
+    am33xx_mux_init(board_mux);
+    omap_serial_init();
+    am335x_evm_i2c_init();
+    omap_sdrc_init(NULL, NULL);
+    usb_musb_init(</span>&amp;<span style="color: #000000;">musb_board_data);
+
+    omap_board_config </span>=<span style="color: #000000;"> am335x_evm_config;
+    omap_board_config_size </span>=<span style="color: #000000;"> ARRAY_SIZE(am335x_evm_config);
+
+    daughter_brd_detected </span>= <span style="color: #0000ff;">false</span><span style="color: #000000;">;
+    setup_xxx_xxxx();  </span>--+<span style="color: #000000;">
+    ......               </span>|<span style="color: #000000;">
+}                        </span>|
+                         |<span style="color: #000000;">
+                         V
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> setup_xxx_xxxx(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">which doesn't have Write Protect pin LAN8710A_PHY_ID </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    am335x_mmc[</span><span style="color: #800080;">0</span>].gpio_wp = -<span style="color: #000000;">EINVAL;
+
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;
+
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">配置引脚复用</span>
+    _configure_device(EVM_SK, xxx_xxxx_dev_cfg, PROFILE_NONE);         -----+
+             |                                                              |<span style="color: #000000;">
+}            </span>|                                                              |<span style="color: #000000;">
+             V                                                              </span>|
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> _configure_device(<span style="color: #0000ff;">int</span> evm_id, <span style="color: #0000ff;">struct</span> evm_dev_cfg *dev_cfg,      |
+    <span style="color: #0000ff;">int</span> profile)                                                            |<span style="color: #000000;">
+{                                                                           </span>|
+    <span style="color: #0000ff;">int</span> i;                                                                  |
+                                                                            |<span style="color: #000000;">
+    am335x_evm_set_id(evm_id);                                              </span>|
+                                                                            |
+    <span style="color: #0000ff;">if</span> (profile == PROFILE_NONE) {                                          |
+        <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; dev_cfg-&gt;device_init != NULL; dev_cfg++) {              |
+            <span style="color: #0000ff;">if</span> (dev_cfg-&gt;device_on == DEV_ON_BASEBOARD)                     |<span style="color: #000000;">
+                dev_cfg</span>-&gt;device_init(evm_id, profile);                      |
+            <span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span> (daughter_brd_detected == <span style="color: #0000ff;">true</span>)                         |<span style="color: #000000;">
+                dev_cfg</span>-&gt;device_init(evm_id, profile);                      |<span style="color: #000000;">
+        }                                                                   </span>|<span style="color: #000000;">
+    } </span><span style="color: #0000ff;">else</span> {                                                                |
+        <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; dev_cfg-&gt;device_init != NULL; dev_cfg++) {              |
+            <span style="color: #0000ff;">if</span> (dev_cfg-&gt;profile &amp; profile) {                               |
+                <span style="color: #0000ff;">if</span> (dev_cfg-&gt;device_on == DEV_ON_BASEBOARD)                 |<span style="color: #000000;">
+                    dev_cfg</span>-&gt;device_init(evm_id, profile);                  |
+                <span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span> (daughter_brd_detected == <span style="color: #0000ff;">true</span>)                     |<span style="color: #000000;">
+                    dev_cfg</span>-&gt;device_init(evm_id, profile);                  |<span style="color: #000000;">
+            }                                                               </span>|<span style="color: #000000;">
+        }                                                                   </span>|<span style="color: #000000;">
+    }                                                                       </span>|<span style="color: #000000;">
+}                                                                           </span>|
+                                                                            |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> evm_dev_cfg xxx_xxxx_dev_cfg[] = {                   &lt;--------+<span style="color: #000000;">
+    ......
+    {uart0_init, DEV_ON_BASEBOARD, PROFILE_ALL},</span><span style="color: #008000;">//</span><span style="color: #008000;">fixed     ---+</span>
+    {uart1_init, DEV_ON_BASEBOARD, PROFILE_ALL},<span style="color: #008000;">//</span><span style="color: #008000;">fixed        |</span>
+    {uart4_init, DEV_ON_BASEBOARD, PROFILE_ALL},<span style="color: #008000;">//</span><span style="color: #008000;">fixed        |</span>
+    ......                                                     |<span style="color: #000000;">
+    {NULL, </span><span style="color: #800080;">0</span>, <span style="color: #800080;">0</span>},                                              |<span style="color: #000000;">
+};                                                             </span>|
+                                                               |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> uart0_init(<span style="color: #0000ff;">int</span> evm_id, <span style="color: #0000ff;">int</span> profile)            &lt;---+<span style="color: #000000;">
+{
+    setup_pin_mux(uart0_pin_mux);                                  </span>------+
+    <span style="color: #0000ff;">return</span>;    |                                                         |<span style="color: #000000;">
+}              </span>|                                                         |<span style="color: #000000;">
+               V                                                         </span>|
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> setup_pin_mux(<span style="color: #0000ff;">struct</span> pinmux_config *pin_mux)                 |<span style="color: #000000;">
+{                                                                        </span>|
+    <span style="color: #0000ff;">int</span> i;                                                               |
+                                                                         |
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; pin_mux-&gt;string_name != NULL; pin_mux++)                 |<span style="color: #000000;">
+        omap_mux_init_signal(pin_mux</span>-&gt;string_name, pin_mux-&gt;val);        |<span style="color: #000000;">
+}                                                                        </span>|
+                                                                         |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> pinmux_config uart0_pin_mux[] = {                    &lt;-----+<span style="color: #000000;">
+    {</span><span style="color: #800000;">"</span><span style="color: #800000;">uart0_rxd.uart0_rxd</span><span style="color: #800000;">"</span>, OMAP_MUX_MODE0 |<span style="color: #000000;"> AM33XX_PIN_INPUT_PULLUP},
+    {</span><span style="color: #800000;">"</span><span style="color: #800000;">uart0_txd.uart0_txd</span><span style="color: #800000;">"</span>, OMAP_MUX_MODE0 |<span style="color: #000000;"> AM33XX_PULL_ENBL},
+    {</span><span style="color: #800000;">"</span><span style="color: #800000;">uart0_ctsn.uart0_ctsn</span><span style="color: #800000;">"</span>, OMAP_MUX_MODE0 |<span style="color: #000000;"> AM33XX_PULL_ENBL},
+    {NULL, </span><span style="color: #800080;">0</span><span style="color: #000000;">},
+};
+
+
+drivers</span>/tty/serial/omap-<span style="color: #000000;">serial.c
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init serial_omap_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> ret;
+
+    ret </span>= uart_register_driver(&amp;serial_omap_reg);              -------+
+    <span style="color: #0000ff;">if</span> (ret != <span style="color: #800080;">0</span>)                                                     |
+        <span style="color: #0000ff;">return</span> ret;                                                   |<span style="color: #000000;">
+    ret </span>= platform_driver_register(&amp;serial_omap_driver);  --+         |
+    <span style="color: #0000ff;">if</span> (ret != <span style="color: #800080;">0</span>)                                           |         |<span style="color: #000000;">
+        uart_unregister_driver(</span>&amp;serial_omap_reg);           |         |
+    <span style="color: #0000ff;">return</span> ret;                                             |         |<span style="color: #000000;">
+}                                                           </span>|         |
+                                                            |         |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> uart_driver serial_omap_reg = {               |         |<span style="color: #000000;">
+    .owner        </span>= THIS_MODULE,                            |         |<span style="color: #000000;">
+    .driver_name    </span>= <span style="color: #800000;">"</span><span style="color: #800000;">OMAP-SERIAL</span><span style="color: #800000;">"</span>,                        |         |<span style="color: #000000;">
+    .dev_name    </span>= OMAP_SERIAL_NAME,                        |         |<span style="color: #000000;">
+    .nr        </span>= OMAP_MAX_HSUART_PORTS,                     |         |<span style="color: #000000;">
+    .cons        </span>= OMAP_CONSOLE,                            |         |<span style="color: #000000;">
+};                                                          </span>|         |
+                                                            |         |
+<span style="color: #0000ff;">#define</span> OMAP_SERIAL_NAME    "ttyO"                          |         |
+<span style="color: #0000ff;">#define</span> OMAP_MAX_HSUART_PORTS    6                          |         |
+                                                            |         |
+<span style="color: #0000ff;">#define</span> OMAP_CONSOLE    (&amp;serial_omap_console)              |         |
+                                                            |         |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> console serial_omap_console = {               |  &lt;------+<span style="color: #000000;">
+    .name        </span>= OMAP_SERIAL_NAME,                        |<span style="color: #000000;">
+    .write        </span>= serial_omap_console_write,              |<span style="color: #000000;">
+    .device        </span>= uart_console_device,                   |<span style="color: #000000;">
+    .setup        </span>= serial_omap_console_setup,              |<span style="color: #000000;">
+    .flags        </span>= CON_PRINTBUFFER,                        |<span style="color: #000000;">
+    .index        </span>= -<span style="color: #800080;">1</span>,                                     |<span style="color: #000000;">
+    .data        </span>= &amp;serial_omap_reg,                        |<span style="color: #000000;">
+};                                                          </span>|
+                                                            |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_driver serial_omap_driver = {     &lt;--+<span style="color: #000000;">
+    .probe          </span>=<span style="color: #000000;"> serial_omap_probe,
+    .remove         </span>=<span style="color: #000000;"> serial_omap_remove,
+    .driver        </span>=<span style="color: #000000;"> {
+        .name    </span>=<span style="color: #000000;"> DRIVER_NAME,
+        .pm    </span>= &amp;<span style="color: #000000;">serial_omap_dev_pm_ops,
+        .of_match_table </span>=<span style="color: #000000;"> of_match_ptr(omap_serial_of_match),
+    },
+};
+
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> serial_omap_probe(<span style="color: #0000ff;">struct</span> platform_device *<span style="color: #000000;">pdev)
+{
+    </span><span style="color: #0000ff;">struct</span> uart_omap_port    *<span style="color: #000000;">up;
+    </span><span style="color: #0000ff;">struct</span> resource        *mem, *irq, *dma_tx, *<span style="color: #000000;">dma_rx;
+    </span><span style="color: #0000ff;">struct</span> omap_uart_port_info *omap_up_info = pdev-&gt;<span style="color: #000000;">dev.platform_data;
+    </span><span style="color: #0000ff;">int</span> ret = -<span style="color: #000000;">ENOSPC;
+
+    </span><span style="color: #0000ff;">if</span> (pdev-&gt;<span style="color: #000000;">dev.of_node)
+        omap_up_info </span>= of_get_uart_port_info(&amp;pdev-&gt;<span style="color: #000000;">dev);
+
+    ......
+    up</span>-&gt;pdev =<span style="color: #000000;"> pdev;
+    up</span>-&gt;port.dev = &amp;pdev-&gt;<span style="color: #000000;">dev;
+    up</span>-&gt;port.type =<span style="color: #000000;"> PORT_OMAP;
+    up</span>-&gt;port.iotype =<span style="color: #000000;"> UPIO_MEM;
+    up</span>-&gt;port.irq = irq-&gt;<span style="color: #000000;">start;
+
+    up</span>-&gt;port.regshift = <span style="color: #800080;">2</span><span style="color: #000000;">;
+    up</span>-&gt;port.fifosize = <span style="color: #800080;">64</span><span style="color: #000000;">;
+    up</span>-&gt;port.ops = &amp;serial_omap_pops;                                --------+
+                                                                             |
+    <span style="color: #0000ff;">if</span> (pdev-&gt;dev.of_node)                                                   |<span style="color: #000000;">
+        up</span>-&gt;port.line = of_alias_get_id(pdev-&gt;dev.of_node, <span style="color: #800000;">"</span><span style="color: #800000;">serial</span><span style="color: #800000;">"</span>);        |
+    <span style="color: #0000ff;">else</span>                                                                     |<span style="color: #000000;">
+        up</span>-&gt;port.line = pdev-&gt;id;                                            |
+                                                                             |
+    <span style="color: #0000ff;">if</span> (up-&gt;port.line &lt; <span style="color: #800080;">0</span>) {                                                 |<span style="color: #000000;">
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">failed to get alias/pdev id, errno %d\n</span><span style="color: #800000;">"</span>,       |<span style="color: #000000;">
+                                up</span>-&gt;port.line);                              |<span style="color: #000000;">
+        ret </span>= -ENODEV;                                                       |
+        <span style="color: #0000ff;">goto</span> err;                                                            |<span style="color: #000000;">
+    }                                                                        </span>|
+                                                                             |<span style="color: #000000;">
+    sprintf(up</span>-&gt;name, <span style="color: #800000;">"</span><span style="color: #800000;">OMAP UART%d</span><span style="color: #800000;">"</span>, up-&gt;port.line);                         |<span style="color: #000000;">
+    up</span>-&gt;port.mapbase = mem-&gt;start;                                           |<span style="color: #000000;">
+    up</span>-&gt;port.membase = ioremap(mem-&gt;start, resource_size(mem));              |
+    <span style="color: #0000ff;">if</span> (!up-&gt;port.membase) {                                                 |<span style="color: #000000;">
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't ioremap UART\n</span><span style="color: #800000;">"</span>);                         |<span style="color: #000000;">
+        ret </span>= -ENOMEM;                                                       |
+        <span style="color: #0000ff;">goto</span> err;                                                            |<span style="color: #000000;">
+    }                                                                        </span>|
+                                                                             |<span style="color: #000000;">
+    up</span>-&gt;port.flags = omap_up_info-&gt;flags;                                    |<span style="color: #000000;">
+    up</span>-&gt;port.uartclk = omap_up_info-&gt;uartclk;                                |
+    <span style="color: #0000ff;">if</span> (!up-&gt;port.uartclk) {                                                 |<span style="color: #000000;">
+        up</span>-&gt;port.uartclk = DEFAULT_CLK_SPEED;                                |<span style="color: #000000;">
+        dev_warn(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">No clock speed specified: using default:</span><span style="color: #800000;">"</span>      |
+                        <span style="color: #800000;">"</span><span style="color: #800000;">%d\n</span><span style="color: #800000;">"</span>, DEFAULT_CLK_SPEED);                          |<span style="color: #000000;">
+    }                                                                        </span>|<span style="color: #000000;">
+    up</span>-&gt;uart_dma.uart_base = mem-&gt;start;                                     |<span style="color: #000000;">
+    up</span>-&gt;errata = omap_up_info-&gt;errata;                                       |
+                                                                             |
+    <span style="color: #0000ff;">if</span> (omap_up_info-&gt;dma_enabled) {                                         |<span style="color: #000000;">
+        up</span>-&gt;uart_dma.uart_dma_tx = dma_tx-&gt;start;                            |<span style="color: #000000;">
+        up</span>-&gt;uart_dma.uart_dma_rx = dma_rx-&gt;start;                            |<span style="color: #000000;">
+        up</span>-&gt;use_dma = <span style="color: #800080;">1</span>;                                                     |<span style="color: #000000;">
+        up</span>-&gt;uart_dma.rx_buf_size = omap_up_info-&gt;dma_rx_buf_size;            |<span style="color: #000000;">
+        up</span>-&gt;uart_dma.rx_timeout = omap_up_info-&gt;dma_rx_timeout;              |<span style="color: #000000;">
+        up</span>-&gt;uart_dma.rx_poll_rate = omap_up_info-&gt;dma_rx_poll_rate;          |<span style="color: #000000;">
+        spin_lock_init(</span>&amp;(up-&gt;uart_dma.tx_lock));                             |<span style="color: #000000;">
+        spin_lock_init(</span>&amp;(up-&gt;uart_dma.rx_lock));                             |<span style="color: #000000;">
+        up</span>-&gt;uart_dma.tx_dma_channel = OMAP_UART_DMA_CH_FREE;                 |<span style="color: #000000;">
+        up</span>-&gt;uart_dma.rx_dma_channel = OMAP_UART_DMA_CH_FREE;                 |<span style="color: #000000;">
+    }                                                                        </span>|
+                                                                             |<span style="color: #000000;">
+    up</span>-&gt;latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;                          |<span style="color: #000000;">
+    up</span>-&gt;calc_latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;                     |<span style="color: #000000;">
+    pm_qos_add_request(</span>&amp;up-&gt;pm_qos_request,                                  |<span style="color: #000000;">
+        PM_QOS_CPU_DMA_LATENCY, up</span>-&gt;latency);                                |<span style="color: #000000;">
+    serial_omap_uart_wq </span>= create_singlethread_workqueue(up-&gt;name);           |<span style="color: #000000;">
+    INIT_WORK(</span>&amp;up-&gt;qos_work, serial_omap_uart_qos_work);                     |
+                                                                             |<span style="color: #000000;">
+    pm_runtime_use_autosuspend(</span>&amp;pdev-&gt;dev);                                  |<span style="color: #000000;">
+    pm_runtime_set_autosuspend_delay(</span>&amp;pdev-&gt;dev,                             |<span style="color: #000000;">
+            omap_up_info</span>-&gt;autosuspend_timeout);                              |
+                                                                             |<span style="color: #000000;">
+    pm_runtime_irq_safe(</span>&amp;pdev-&gt;dev);                                         |<span style="color: #000000;">
+    pm_runtime_enable(</span>&amp;pdev-&gt;dev);                                           |<span style="color: #000000;">
+    pm_runtime_get_sync(</span>&amp;pdev-&gt;dev);                                         |
+                                                                             |<span style="color: #000000;">
+    ui[up</span>-&gt;port.line] = up;                                                  |<span style="color: #000000;">
+    serial_omap_add_console_port(up);                                        </span>|
+                                                                             |<span style="color: #000000;">
+    ret </span>= uart_add_one_port(&amp;serial_omap_reg, &amp;up-&gt;port);   --------------+  |
+    <span style="color: #0000ff;">if</span> (ret != <span style="color: #800080;">0</span>)                                                         |  |
+        <span style="color: #0000ff;">goto</span> do_release_region;                                           |  |
+                                                                          |  |<span style="color: #000000;">
+    pm_runtime_put(</span>&amp;pdev-&gt;dev);                                           |  |<span style="color: #000000;">
+    platform_set_drvdata(pdev, up);                                       </span>|  |
+    <span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span>;                                                             |  |<span style="color: #000000;">
+err:                                                                      </span>|  |<span style="color: #000000;">
+    dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">[UART%d]: failure [%s]: %d\n</span><span style="color: #800000;">"</span>,                   |  |<span style="color: #000000;">
+                pdev</span>-&gt;id, __func__, ret);                                 |  |<span style="color: #000000;">
+do_release_region:                                                        </span>|  |<span style="color: #000000;">
+    release_mem_region(mem</span>-&gt;start, resource_size(mem));                   |  |
+    <span style="color: #0000ff;">return</span> ret;                                                           |  |<span style="color: #000000;">
+}                                                                         </span>|  |
+                                                                          |  |
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> uart_ops serial_omap_pops = {                      &lt;--------|--+<span style="color: #000000;">
+    .tx_empty    </span>= serial_omap_tx_empty,                                  |<span style="color: #000000;">
+    .set_mctrl    </span>= serial_omap_set_mctrl,                                |<span style="color: #000000;">
+    .get_mctrl    </span>= serial_omap_get_mctrl,                                |<span style="color: #000000;">
+    .stop_tx    </span>= serial_omap_stop_tx,                                    |<span style="color: #000000;">
+    .start_tx    </span>= serial_omap_start_tx,                                  |<span style="color: #000000;">
+    .stop_rx    </span>= serial_omap_stop_rx,                                    |<span style="color: #000000;">
+    .enable_ms    </span>= serial_omap_enable_ms,                                |<span style="color: #000000;">
+    .break_ctl    </span>= serial_omap_break_ctl,                                |<span style="color: #000000;">
+    .startup    </span>= serial_omap_startup,                                    |<span style="color: #000000;">
+    .shutdown    </span>= serial_omap_shutdown,                                  |<span style="color: #000000;">
+    .set_termios    </span>= serial_omap_set_termios,                            |<span style="color: #000000;">
+    .pm        </span>= serial_omap_pm,                                          |<span style="color: #000000;">
+    .type        </span>= serial_omap_type,                                      |<span style="color: #000000;">
+    .release_port    </span>= serial_omap_release_port,                          |<span style="color: #000000;">
+    .request_port    </span>= serial_omap_request_port,                          |<span style="color: #000000;">
+    .config_port    </span>= serial_omap_config_port,                            |<span style="color: #000000;">
+    .verify_port    </span>= serial_omap_verify_port,                            |<span style="color: #000000;">
+#ifdef CONFIG_CONSOLE_POLL                                                </span>|<span style="color: #000000;">
+    .poll_put_char  </span>= serial_omap_poll_put_char,                          |<span style="color: #000000;">
+    .poll_get_char  </span>= serial_omap_poll_get_char,                          |
+<span style="color: #0000ff;">#endif</span>                                                                    |<span style="color: #000000;">
+};                                                                        </span>|
+                                                                          |
+<span style="color: #0000ff;">int</span> uart_add_one_port(<span style="color: #0000ff;">struct</span> uart_driver *drv, <span style="color: #0000ff;">struct</span> uart_port *uport) &lt;-+<span style="color: #000000;">
+{
+    </span><span style="color: #0000ff;">struct</span> uart_state *<span style="color: #000000;">state;
+    </span><span style="color: #0000ff;">struct</span> tty_port *<span style="color: #000000;">port;
+    </span><span style="color: #0000ff;">int</span> ret = <span style="color: #800080;">0</span><span style="color: #000000;">;
+    </span><span style="color: #0000ff;">struct</span> device *<span style="color: #000000;">tty_dev;
+
+    BUG_ON(in_interrupt());
+
+    </span><span style="color: #0000ff;">if</span> (uport-&gt;line &gt;= drv-&gt;<span style="color: #000000;">nr)
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;
+
+    state </span>= drv-&gt;state + uport-&gt;<span style="color: #000000;">line;
+    port </span>= &amp;state-&gt;<span style="color: #000000;">port;
+
+    mutex_lock(</span>&amp;<span style="color: #000000;">port_mutex);
+    mutex_lock(</span>&amp;port-&gt;<span style="color: #000000;">mutex);
+    </span><span style="color: #0000ff;">if</span> (state-&gt;<span style="color: #000000;">uart_port) {
+        ret </span>= -<span style="color: #000000;">EINVAL;
+        </span><span style="color: #0000ff;">goto</span> <span style="color: #0000ff;">out</span><span style="color: #000000;">;
+    }
+
+    state</span>-&gt;uart_port =<span style="color: #000000;"> uport;
+    state</span>-&gt;pm_state = -<span style="color: #800080;">1</span><span style="color: #000000;">;
+
+    uport</span>-&gt;cons = drv-&gt;<span style="color: #000000;">cons;
+    uport</span>-&gt;state =<span style="color: #000000;"> state;
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * If this port is a console, then the spinlock is already
+     * initialised.
+     </span><span style="color: #008000;">*/</span>
+    <span style="color: #0000ff;">if</span> (!(uart_console(uport) &amp;&amp; (uport-&gt;cons-&gt;flags &amp;<span style="color: #000000;"> CON_ENABLED))) {
+        spin_lock_init(</span>&amp;uport-&gt;<span style="color: #0000ff;">lock</span><span style="color: #000000;">);
+        lockdep_set_class(</span>&amp;uport-&gt;<span style="color: #0000ff;">lock</span>, &amp;<span style="color: #000000;">port_lock_key);
+    }
+
+    uart_configure_port(drv, state, uport);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;">
+     * Register the port whether it's detected or not.  This allows
+     * setserial to be used to alter this ports parameters.
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    tty_dev </span>= tty_register_device(drv-&gt;tty_driver, uport-&gt;line, uport-&gt;dev);     -----+
+    <span style="color: #0000ff;">if</span> (likely(!IS_ERR(tty_dev))) {                                                   |<span style="color: #000000;">
+        device_init_wakeup(tty_dev, </span><span style="color: #800080;">1</span>);                                               |<span style="color: #000000;">
+        device_set_wakeup_enable(tty_dev, </span><span style="color: #800080;">0</span>);                                         |<span style="color: #000000;">
+    } </span><span style="color: #0000ff;">else</span>                                                                            |<span style="color: #000000;">
+        printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">Cannot register tty device on line %d\n</span><span style="color: #800000;">"</span>,                    |<span style="color: #000000;">
+               uport</span>-&gt;line);                                                          |
+                                                                                      |
+    <span style="color: #008000;">/*</span><span style="color: #008000;">                                                                                |
+     * Ensure UPF_DEAD is not set.                                                    |
+     </span><span style="color: #008000;">*/</span>                                                                               |<span style="color: #000000;">
+    uport</span>-&gt;flags &amp;= ~UPF_DEAD;                                                        |
+                                                                                      |
+ <span style="color: #0000ff;">out</span>:                                                                                 |<span style="color: #000000;">
+    mutex_unlock(</span>&amp;port-&gt;mutex);                                                       |<span style="color: #000000;">
+    mutex_unlock(</span>&amp;port_mutex);                                                        |
+                                                                                      |
+    <span style="color: #0000ff;">return</span> ret;                                                                       |<span style="color: #000000;">
+}                                                                                     </span>|
+                                                                                      |
+<span style="color: #0000ff;">struct</span> device *tty_register_device(<span style="color: #0000ff;">struct</span> tty_driver *driver, unsigned index,     &lt;---+
+                   <span style="color: #0000ff;">struct</span> device *<span style="color: #000000;">device)
+{
+    </span><span style="color: #0000ff;">char</span> name[<span style="color: #800080;">64</span><span style="color: #000000;">];
+    dev_t dev </span>= MKDEV(driver-&gt;major, driver-&gt;minor_start) +<span style="color: #000000;"> index;
+
+    </span><span style="color: #0000ff;">if</span> (index &gt;= driver-&gt;<span style="color: #000000;">num) {
+        printk(KERN_ERR </span><span style="color: #800000;">"</span><span style="color: #800000;">Attempt to register invalid tty line number </span><span style="color: #800000;">"</span>
+               <span style="color: #800000;">"</span><span style="color: #800000;"> (%d).\n</span><span style="color: #800000;">"</span><span style="color: #000000;">, index);
+        </span><span style="color: #0000ff;">return</span> ERR_PTR(-<span style="color: #000000;">EINVAL);
+    }
+
+    </span><span style="color: #0000ff;">if</span> (driver-&gt;type ==<span style="color: #000000;"> TTY_DRIVER_TYPE_PTY)
+        pty_line_name(driver, index, name);
+    </span><span style="color: #0000ff;">else</span><span style="color: #000000;">
+        tty_line_name(driver, index, name);                                </span>---+
+                                                                              |
+    <span style="color: #0000ff;">return</span> device_create(tty_class, device, dev, NULL, name);                 |<span style="color: #000000;">
+}                                                                             </span>|
+<span style="color: #008000;">//</span><span style="color: #008000;"> 设备名                                                                     |</span>
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> tty_line_name(<span style="color: #0000ff;">struct</span> tty_driver *driver, <span style="color: #0000ff;">int</span> index, <span style="color: #0000ff;">char</span> *p)   &lt;--+<span style="color: #000000;">
+{
+    sprintf(p, </span><span style="color: #800000;">"</span><span style="color: #800000;">%s%d</span><span style="color: #800000;">"</span>, driver-&gt;name, index + driver-&gt;<span style="color: #000000;">name_base);
+}</span></pre>
+</div>
+<p>&nbsp;</p>

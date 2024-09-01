@@ -1,0 +1,40 @@
+<p>3片74HC165进行级联，用于扩展IO口，读取外界设备的数据。</p>
+<div class="cnblogs_code">
+<pre>unsigned <span style="color: #0000ff;">int</span> read_74165(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    unsigned </span><span style="color: #0000ff;">int</span> val = <span style="color: #800080;">0</span><span style="color: #000000;">;
+    unsigned </span><span style="color: #0000ff;">int</span> count = <span style="color: #800080;">24</span>;        <span style="color: #008000;">//</span><span style="color: #008000;">三片74hc165,需要读24次</span>
+    unsigned <span style="color: #0000ff;">int</span><span style="color: #000000;"> i, tmp;
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">加载并行数据并锁存</span>
+<span style="color: #000000;">    gpio_set(PL, HIGH);
+    delay();
+    gpio_set(PL, LOW);
+    delay();
+    gpio_set(PL, HIGH);
+    delay();
+    gpio_set(CLK, HIGH);
+    delay();
+
+    </span><span style="color: #008000;">//gpio引脚与芯片数据脚直接相连，所以第一次不需要时钟就能读取到第一位数据。<br />    //下一个时钟将会得到第二位数据<br /></span><span style="color: #0000ff;">　　if</span><span style="color: #000000;"> (data_get())
+        val </span>+= <span style="color: #800080;">1</span><span style="color: #000000;">;
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">读取剩下的23位</span>
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; count - <span style="color: #800080;">1</span>; i++<span style="color: #000000;">) {
+        gpio_set(CLK, LOW);
+        delay();
+       gpio_set(CLK, HIGH);
+        delay();
+        val </span>&lt;&lt;= <span style="color: #800080;">1</span><span style="color: #000000;">;
+        </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (data_get())
+            val </span>+= <span style="color: #800080;">1</span><span style="color: #000000;">;
+    }
+
+    gpio_set(CLK, HIGH);
+    gpio_set(PL, HIGH);
+　　//根据硬件调整数据的位置
+    tmp </span>= ((val &amp; <span style="color: #800080;">0xff0000</span>) &gt;&gt; <span style="color: #800080;">16</span>) | (val &amp; <span style="color: #800080;">0xff00</span>) | ((val &amp; <span style="color: #800080;">0xff</span>) &lt;&lt; <span style="color: #800080;">16</span><span style="color: #000000;">);
+
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> tmp;
+}</span></pre>
+</div>
+<p>硬件原理图如下：</p>
+<p><img src="http://images2015.cnblogs.com/blog/745188/201601/745188-20160112225504866-1477329303.png" alt="" width="1028" height="290" /></p>

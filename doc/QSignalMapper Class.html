@@ -1,0 +1,130 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">*************************************************************************************
+ *                       QT QSignalMapper
+ *
+ *     QSignalMapper可以看做是一个信号的转发类。将多个信号作为一个集合，当接受到信号之后，
+ * 将信号转发出去，并且可以更改发送出去信号参数类型。进行映射之后，接受到信号将会发给
+ * map()函数，而map()函数又会发送mapped()信号。
+ *     Button是qt中常用到的控件，当使用多个Button时，如果每一个button都对应一个slot函数，
+ * 就会显得很多余，使用QSignalMapper类就能避免这种情况，提高不少效率。
+ * 参考：　　
+ *        </span><span style="color: #008000; text-decoration: underline;">http://doc.qt.io/qt-4.8/qsignalmapper.html</span><span style="color: #008000;">#setMapping
+ *　　　</span><span style="color: #008000; text-decoration: underline;">http://blog.csdn.net/cuteqt/article/details/4306900</span><span style="color: #008000;">
+ * 
+ *                                                        Tony Liu, 2016-5-20, Shenzhen
+*************************************************************************************</span><span style="color: #008000;">*/</span>
+<span style="color: #800080;">1</span><span style="color: #000000;">. 首先分析参考链接中，QT官网的例子。
+</span><span style="color: #0000ff;">class</span> ButtonWidget : <span style="color: #0000ff;">public</span><span style="color: #000000;"> QWidget
+{
+    Q_OBJECT
+
+</span><span style="color: #0000ff;">public</span><span style="color: #000000;">:
+    ButtonWidget(QStringList texts, QWidget </span>*parent = <span style="color: #800080;">0</span><span style="color: #000000;">);
+
+slots:
+    </span><span style="color: #0000ff;">void</span> doclicked(<span style="color: #0000ff;">const</span> QString &amp;<span style="color: #000000;">text);
+
+</span><span style="color: #0000ff;">private</span><span style="color: #000000;">:
+    QSignalMapper </span>*<span style="color: #000000;">signalMapper;
+};
+
+ButtonWidget::ButtonWidget(QStringList texts, QWidget </span>*<span style="color: #000000;">parent)
+    : QWidget(parent)
+{
+    signalMapper </span>= <span style="color: #0000ff;">new</span> QSignalMapper(<span style="color: #0000ff;">this</span><span style="color: #000000;">);
+
+    QGridLayout </span>*gridLayout = <span style="color: #0000ff;">new</span><span style="color: #000000;"> QGridLayout;
+    </span><span style="color: #0000ff;">for</span> (<span style="color: #0000ff;">int</span> i = <span style="color: #800080;">0</span>; i &lt; texts.size(); ++<span style="color: #000000;">i) {
+        QPushButton </span>*button = <span style="color: #0000ff;">new</span><span style="color: #000000;"> QPushButton(texts[i]);
+
+　　　　 </span><span style="color: #008000;">//</span><span style="color: #008000;">将信号发送给signalMapper对象的map()函数</span>
+<span style="color: #000000;">        connect(button, SIGNAL(clicked()), signalMapper, SLOT(map()));
+
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">进行映射，表示当button发送信号给map()函数，map()函数将会发出mapped(texts[i])信号，将texts[i]作为参数</span>
+　　　　 signalMapper-&gt;<span style="color: #000000;">setMapping(button, texts[i]);
+        gridLayout</span>-&gt;addWidget(button, i / <span style="color: #800080;">3</span>, i % <span style="color: #800080;">3</span><span style="color: #000000;">);
+    }
+　　 </span><span style="color: #008000;">//</span><span style="color: #008000;">发出的mapped()函数，由doclicked()函数接收</span>
+    connect(signalMapper, SIGNAL(mapped(<span style="color: #0000ff;">const</span> QString &amp;<span style="color: #000000;">)),
+            </span><span style="color: #0000ff;">this</span>, SLOT(doclicked(<span style="color: #0000ff;">const</span> QString &amp;<span style="color: #000000;">)));
+
+    setLayout(gridLayout);
+}
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">.自己实现
+</span><span style="color: #0000ff;">class</span> MainWindow : <span style="color: #0000ff;">public</span><span style="color: #000000;"> QMainWindow
+{
+    Q_OBJECT
+    
+</span><span style="color: #0000ff;">public</span><span style="color: #000000;">:
+    </span><span style="color: #0000ff;">explicit</span> MainWindow(QWidget *parent = <span style="color: #800080;">0</span><span style="color: #000000;">);
+    </span>~<span style="color: #000000;">MainWindow();
+
+</span><span style="color: #0000ff;">private</span><span style="color: #000000;"> slots:
+    </span><span style="color: #0000ff;">void</span> buttonClicked(QWidget *<span style="color: #000000;">w);
+
+
+</span><span style="color: #0000ff;">private</span><span style="color: #000000;">:
+    Ui::MainWindow </span>*<span style="color: #000000;">ui;
+
+    QSignalMapper signalMapper;
+};
+
+MainWindow::MainWindow(QWidget </span>*<span style="color: #000000;">parent) :
+    QMainWindow(parent),
+    ui(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> Ui::MainWindow)
+{
+    ui</span>-&gt;setupUi(<span style="color: #0000ff;">this</span><span style="color: #000000;">);
+
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_1, ui-&gt;<span style="color: #000000;">pushButton_O_1);
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_2, ui-&gt;<span style="color: #000000;">pushButton_O_2);
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_3, ui-&gt;<span style="color: #000000;">pushButton_O_3);
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_4, ui-&gt;<span style="color: #000000;">pushButton_O_4);
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_5, ui-&gt;<span style="color: #000000;">pushButton_O_5);
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_6, ui-&gt;<span style="color: #000000;">pushButton_O_6);
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_7, ui-&gt;<span style="color: #000000;">pushButton_O_7);
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_8, ui-&gt;<span style="color: #000000;">pushButton_O_8);
+    signalMapper.setMapping(ui</span>-&gt;pushButton_O_9, ui-&gt;<span style="color: #000000;">pushButton_O_9);
+
+    connect(ui</span>-&gt;pushButton_O_1, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    connect(ui</span>-&gt;pushButton_O_2, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    connect(ui</span>-&gt;pushButton_O_3, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    connect(ui</span>-&gt;pushButton_O_4, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    connect(ui</span>-&gt;pushButton_O_5, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    connect(ui</span>-&gt;pushButton_O_6, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    connect(ui</span>-&gt;pushButton_O_7, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    connect(ui</span>-&gt;pushButton_O_8, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    connect(ui</span>-&gt;pushButton_O_9, SIGNAL(clicked()), &amp;<span style="color: #000000;">signalMapper, SLOT(map()));
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">发送的参数只能使QString和QWidget,QObject等，而QPushButton继承了QWidget</span>
+    connect(&amp;signalMapper, SIGNAL(mapped(QWidget *)), <span style="color: #0000ff;">this</span>, SLOT(buttonClicked(QWidget *<span style="color: #000000;">)));
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> 给Button设置一个属性，并给属性添加值,如果一个按键带有多个参数的时候，
+     * 设置属性是个不错的方法，可以设置多个属性
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    ui</span>-&gt;pushButton_O_1-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">1</span><span style="color: #000000;">);
+    ui</span>-&gt;pushButton_O_2-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">2</span><span style="color: #000000;">);
+    ui</span>-&gt;pushButton_O_3-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">3</span><span style="color: #000000;">);
+    ui</span>-&gt;pushButton_O_4-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">4</span><span style="color: #000000;">);
+    ui</span>-&gt;pushButton_O_5-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">5</span><span style="color: #000000;">);
+    ui</span>-&gt;pushButton_O_6-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">6</span><span style="color: #000000;">);
+    ui</span>-&gt;pushButton_O_7-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">7</span><span style="color: #000000;">);
+    ui</span>-&gt;pushButton_O_8-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">8</span><span style="color: #000000;">);
+    ui</span>-&gt;pushButton_O_9-&gt;setProperty(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span>, <span style="color: #800080;">9</span><span style="color: #000000;">);
+
+}
+
+MainWindow::</span>~<span style="color: #000000;">MainWindow()
+{
+    ::close(gpio_fd);
+    delete ui;
+}
+
+</span><span style="color: #0000ff;">void</span> MainWindow::buttonClicked(QWidget *<span style="color: #000000;">w)
+{
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">获取属性,传入的参数使qvariant类型的，需要转化为int类型</span>
+    <span style="color: #0000ff;">int</span> gpioIndex = qvariant_cast&lt;<span style="color: #0000ff;">int</span>&gt;(w-&gt;property(<span style="color: #800000;">"</span><span style="color: #800000;">gpio</span><span style="color: #800000;">"</span><span style="color: #000000;">));
+    QString str </span>= QString::number(gpioIndex, <span style="color: #800080;">10</span><span style="color: #000000;">);
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">由于传入的参数使QWidget，如果要设置按键，需要转为QPushButton，才能操作button</span>
+    QString ioState = ((QPushButton *)w)-&gt;<span style="color: #000000;">text();
+}</span></pre>
+</div>
+<p>&nbsp;</p>

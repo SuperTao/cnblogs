@@ -1,0 +1,108 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">********************************************************************
+ *                  am335x 更改调试串口
+ *  
+ *  am335x的调试串口是uart0,uart硬件连接上与其他功能出现了冲突。
+ *  打算将其更改为uart1。本文并没有全部更改成功。
+ *  记录其过程，方便以后继续尝试。
+ *
+ *                              Tony Liu, 2016-4-47, Shenzhen
+ ********************************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+本文主要内容：
+        </span><span style="color: #800080;">1</span><span style="color: #000000;">. kernel调试串口更改
+        </span><span style="color: #800080;">2</span><span style="color: #000000;">. rootfs调试串口更改
+        </span><span style="color: #800080;">3</span><span style="color: #000000;">. uboot调试串口更改
+参考链接：
+        http:</span><span style="color: #008000;">//</span><span style="color: #008000;">bbs.ednchina.com/BLOG_ARTICLE_3003157.HTM        </span>
+        http:<span style="color: #008000;">//</span><span style="color: #008000;">www.cnblogs.com/zym0805/archive/2011/07/17/2108573.html</span>
+
+<span style="color: #800080;">1</span><span style="color: #000000;">. kernel
+</span><span style="color: #800080;">1.1</span><span style="color: #000000;"> 更改kernel调试串口
+    通过uboot传参数，更改内核的uart端口，默认是ttyO0,更改为ttyO1
+    uboot</span>/include/configs/<span style="color: #000000;">ok335x.h
+</span><span style="color: #0000ff;">#define</span> CON     \
+    <span style="color: #800000;">"</span><span style="color: #800000;">console=ttyO1,115200n8\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">optargs=\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">mmcroot=/dev/mmcblk0p2 ro\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">mmcrootfstype=ext3 rootwait\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">nandroot=ubi0:rootfs rw ubi.mtd=7,2048\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">nandrootfstype=ubifs rootwait=1\0</span><span style="color: #800000;">"</span> 
+<span style="color: #0000ff;">#endif</span>
+<span style="color: #800080;">1.2</span><span style="color: #000000;"> 关闭kernel的调试串口
+    include</span>/configs/<span style="color: #000000;">ok335x.h
+    通过uboot传参数，更改内核的uart端口，默认是ttyO0,更改为ttynull
+</span><span style="color: #0000ff;">#define</span> CON     \
+    <span style="color: #800000;">"</span><span style="color: #800000;">console=ttynull,115200n8\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">optargs=\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">mmcroot=/dev/mmcblk0p2 ro\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">mmcrootfstype=ext3 rootwait\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">nandroot=ubi0:rootfs rw ubi.mtd=7,2048\0</span><span style="color: #800000;">"</span><span style="color: #000000;"> \
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">nandrootfstype=ubifs rootwait=1\0</span><span style="color: #800000;">"</span> 
+<span style="color: #0000ff;">#endif</span>
+
+<span style="color: #800080;">2</span><span style="color: #000000;">. rootfs
+</span><span style="color: #800080;">2.1</span><span style="color: #000000;">  更改文件系统的调试端口
+    更改为ttyO1， getty命令用于设置uart的参数 
+    </span>/etc/<span style="color: #000000;">inittab
+    </span><span style="color: #800080;">0</span>:<span style="color: #800080;">2345</span>:respawn:/sbin/getty <span style="color: #800080;">115200</span><span style="color: #000000;"> ttyO1 
+
+</span><span style="color: #800080;">2.2</span><span style="color: #000000;"> 关闭rootfs调试串口  
+    将对应的行注释即可
+    </span>/etc/<span style="color: #000000;">inittab
+    #</span><span style="color: #800080;">0</span>:<span style="color: #800080;">2345</span>:respawn:/sbin/getty <span style="color: #800080;">115200</span><span style="color: #000000;"> ttyO0 
+
+</span><span style="color: #800080;">3</span><span style="color: #000000;">. uboot
+    uboot中更改没有成功，但也把过程记录，方便之后查看。
+    uboot</span>/include/configs/<span style="color: #000000;">ok335x.h
+
+    更改下面的宏，注释的时候使用</span><span style="color: #800000;">"</span><span style="color: #800000;">/* */</span><span style="color: #800000;">"</span>进行注释，用&ldquo;<span style="color: #008000;">//</span><span style="color: #008000;">&rdquo;注释，编译会出现问题。</span><span style="color: #008000;">
+/*</span><span style="color: #008000;"> tony </span><span style="color: #008000;">*/</span>
+<span style="color: #008000;">/*</span><span style="color: #008000;">#define CONFIG_SERIAL2            1       
+#define CONFIG_CONS_INDEX        2       
+</span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">#define</span> CONFIG_SERIAL1            1
+<span style="color: #0000ff;">#define</span> CONFIG_CONS_INDEX        1    
+
+<span style="color: #008000;">//</span><span style="color: #008000;">并添加下面两个宏, 定义UART1，UART2的寄存器地址</span><span style="color: #008000;">
+/*</span><span style="color: #008000;"> tony </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">#define</span> CONFIG_SYS_NS16550_COM2        0x48022000    /* UART1 */
+<span style="color: #0000ff;">#define</span> CONFIG_SYS_NS16550_COM3        0x48024000    /* UART2 */
+<span style="color: #008000;">/*</span><span style="color: #008000;">*****</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+board</span>/forlinx/ok335x/<span style="color: #000000;">pll.c
+添加使能uart1
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> per_clocks_enable(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    ......
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> UART0 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    __raw_writel(PRCM_MOD_EN, CM_WKUP_UART0_CLKCTRL);
+    </span><span style="color: #0000ff;">while</span> (__raw_readl(CM_WKUP_UART0_CLKCTRL) !=<span style="color: #000000;"> PRCM_MOD_EN);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> UART1, add by Tony </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    __raw_writel(PRCM_MOD_EN, CM_PER_UART1_CLKCTRL);
+    </span><span style="color: #0000ff;">while</span> (__raw_readl(CM_PER_UART1_CLKCTRL) !=<span style="color: #000000;"> PRCM_MOD_EN);
+
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> UART3 </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+    __raw_writel(PRCM_MOD_EN, CM_PER_UART3_CLKCTRL);
+    </span><span style="color: #0000ff;">while</span> (__raw_readl(CM_PER_UART3_CLKCTRL) !=<span style="color: #000000;"> PRCM_MOD_EN);
+    ......
+}
+
+</span><span style="color: #008000;">//</span><span style="color: #008000;">添加uart1的时能</span>
+board/forlinx/ok335x/<span style="color: #000000;">mux.c
+</span><span style="color: #0000ff;">void</span> enable_uart1_pin_mux(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    configure_module_pin_mux(uart1_pin_mux);
+}
+
+添加调用
+board</span>/forlinx/ok335x/<span style="color: #000000;">evm.c
+</span><span style="color: #0000ff;">void</span> s_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    ......
+    enable_uart0_pin_mux();
+    enable_uart1_pin_mux();
+    ......
+}</span></pre>
+</div>
+<p>&nbsp;</p>

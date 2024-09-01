@@ -1,0 +1,155 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">摘自：
+    http:</span><span style="color: #008000;">//</span><span style="color: #008000;">www.ntu.edu.sg/home/ehchua/programming/java/J4a_GUI.html</span>
+<span style="color: #000000;">
+Creating Your Own Event, Source and Listener：
+Suppose that we have a source called Light, with two states </span>-<span style="color: #000000;"> on and off. The source is capable of notifying its registered listener(s), whenever its state changes.
+
+    First, we define the LightEvent </span><span style="color: #0000ff;">class</span> (<span style="color: #0000ff;">extends</span><span style="color: #000000;"> from java.util.EventObject).
+    Next, we define a LightListener </span><span style="color: #0000ff;">interface</span> to bind the source and its listeners. This <span style="color: #0000ff;">interface</span><span style="color: #000000;"> specifies the signature of the handlers, lightOn(LightEvent) and lightOff(LightEvent).
+    In the source Light, we use an ArrayList to maintain its listeners, and create two methods: addLightListner(LightListener) and removeLightListener(LightListener). An method called notifyListener() is written to invoke the appropriate handlers of each of its registered listeners, whenever the state of the Light changes.
+    A listener </span><span style="color: #0000ff;">class</span> called LightWatcher is written, which <span style="color: #0000ff;">implements</span> the LightListener <span style="color: #0000ff;">interface</span> and provides implementation <span style="color: #0000ff;">for</span><span style="color: #000000;"> the handlers.
+
+Event: LightEvent.java
+</span><span style="color: #008000;">/**</span><span style="color: #008000;"> LightEvent </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">import</span><span style="color: #000000;"> java.util.EventObject;
+ 
+</span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> LightEvent <span style="color: #0000ff;">extends</span><span style="color: #000000;"> EventObject {
+   </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> LightEvent (Object src) {
+      </span><span style="color: #0000ff;">super</span><span style="color: #000000;">(src);
+   }
+}
+
+Listener Interface: LightListener.java
+</span><span style="color: #008000;">/**</span><span style="color: #008000;"> The LightListener interface </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">import</span><span style="color: #000000;"> java.util.EventListener;
+ 
+</span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">interface</span> LightListener <span style="color: #0000ff;">extends</span><span style="color: #000000;"> EventListener {
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span> lightOn(LightEvent evt);  <span style="color: #008000;">//</span><span style="color: #008000;"> called-back upon light on</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span> lightOff(LightEvent evt); <span style="color: #008000;">//</span><span style="color: #008000;"> called-back upon light off</span>
+<span style="color: #000000;">}
+
+Source: Light.java
+</span><span style="color: #008000;">/**</span><span style="color: #008000;"> The Light Source </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">import</span> java.util.*<span style="color: #000000;">;
+ 
+</span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span><span style="color: #000000;"> Light {
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> Status - on (true) or off (false)</span>
+   <span style="color: #0000ff;">private</span> <span style="color: #0000ff;">boolean</span><span style="color: #000000;"> on;
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> Listener list</span>
+   <span style="color: #0000ff;">private</span> List&lt;LightListener&gt; listeners = <span style="color: #0000ff;">new</span> ArrayList&lt;LightListener&gt;<span style="color: #000000;">();
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> Light() {
+      on </span>= <span style="color: #0000ff;">false</span><span style="color: #000000;">;
+      System.out.println(</span>"Light: constructed and off"<span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Add the given LightListener </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> addLightListener(LightListener listener) {
+      listeners.add(listener);
+      System.out.println(</span>"Light: added a listener"<span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Remove the given LightListener </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> removeLightListener(LightListener listener) {
+      listeners.remove(listener);
+      System.out.println(</span>"Light: removed a listener"<span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Turn on this light </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> turnOn() {
+      </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">on) {
+         on </span>= !<span style="color: #000000;">on;
+         System.out.println(</span>"Light: turn on"<span style="color: #000000;">);
+         notifyListener();
+      }
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Turn off this light </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> turnOff() {
+      </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (on) {
+         on </span>= !<span style="color: #000000;">on;
+         System.out.println(</span>"Light: turn off"<span style="color: #000000;">);
+         notifyListener();
+      }
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Construct an LightEvent and notify all its registered listeners </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">private</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> notifyListener() {
+      LightEvent evt </span>= <span style="color: #0000ff;">new</span> LightEvent(<span style="color: #0000ff;">this</span><span style="color: #000000;">);
+      </span><span style="color: #0000ff;">for</span><span style="color: #000000;"> (LightListener listener : listeners) {
+         </span><span style="color: #0000ff;">if</span><span style="color: #000000;"> (on) {
+            listener.lightOn(evt);
+         } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+            listener.lightOff(evt);
+         }
+      }
+   }
+}
+
+Listener: LightWatcher.java
+</span><span style="color: #008000;">/**</span><span style="color: #008000;"> An implementation of LightListener class </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> LightWatcher <span style="color: #0000ff;">implements</span><span style="color: #000000;"> LightListener {
+   </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> id;  <span style="color: #008000;">//</span><span style="color: #008000;"> ID of this listener</span>
+ 
+   <span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> LightWatcher(<span style="color: #0000ff;">int</span><span style="color: #000000;"> id) {
+      </span><span style="color: #0000ff;">this</span>.id =<span style="color: #000000;"> id;
+      System.out.println(</span>"LightWatcher-" + id + ": created"<span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Implementation of event handlers </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> lightOn(LightEvent evt) {
+      System.out.println(</span>"LightWatcher-" +<span style="color: #000000;"> id
+         </span>+ ": I am notified that light is on"<span style="color: #000000;">);
+   }
+ 
+   @Override
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> lightOff(LightEvent evt) {
+      System.out.println(</span>"LightWatcher-" +<span style="color: #000000;"> id
+         </span>+ ": I am notified that light is off"<span style="color: #000000;">);
+   }
+}
+
+A Test Driver: TestLight.java
+</span><span style="color: #008000;">/**</span><span style="color: #008000;"> A Test Driver </span><span style="color: #008000;">*/</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span><span style="color: #000000;"> TestLight {
+   </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      Light light </span>= <span style="color: #0000ff;">new</span><span style="color: #000000;"> Light();
+      LightWatcher lw1 </span>= <span style="color: #0000ff;">new</span> LightWatcher(1<span style="color: #000000;">);
+      LightWatcher lw2 </span>= <span style="color: #0000ff;">new</span> LightWatcher(2<span style="color: #000000;">);
+      LightWatcher lw3 </span>= <span style="color: #0000ff;">new</span> LightWatcher(3<span style="color: #000000;">);
+      light.addLightListener(lw1);
+      light.addLightListener(lw2);
+      light.turnOn();
+      light.addLightListener(lw3);
+      light.turnOff();
+      light.removeLightListener(lw1);
+      light.removeLightListener(lw3);
+      light.turnOn();
+   }
+}
+
+Below are the expected output:
+Light: constructed and off
+LightWatcher</span>-1<span style="color: #000000;">: created
+LightWatcher</span>-2<span style="color: #000000;">: created
+LightWatcher</span>-3<span style="color: #000000;">: created
+Light: added a listener
+Light: added a listener
+Light: turn on
+LightWatcher</span>-1<span style="color: #000000;">: I am notified that light is on
+LightWatcher</span>-2<span style="color: #000000;">: I am notified that light is on
+Light: added a listener
+Light: turn off
+LightWatcher</span>-1<span style="color: #000000;">: I am notified that light is off
+LightWatcher</span>-2<span style="color: #000000;">: I am notified that light is off
+LightWatcher</span>-3<span style="color: #000000;">: I am notified that light is off
+Light: removed a listener
+Light: removed a listener
+Light: turn on
+LightWatcher</span>-2: I am notified that light is on</pre>
+</div>
+<p>&nbsp;</p>

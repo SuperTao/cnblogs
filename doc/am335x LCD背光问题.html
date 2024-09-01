@@ -1,0 +1,68 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">***************************************************************
+ *              am335x backlight problem
+ *
+ * 本问记录am335x背光问题的解决过程。
+ *
+ *                          Tony Liu, 2016-4-21, Shenzhen
+ **************************************************************</span><span style="color: #008000;">*/</span>
+
+<span style="color: #800080;">1</span><span style="color: #000000;">.现象
+    在app中，根据QSlider的变化，调节背光的亮度。变化范围10</span>-<span style="color: #800080;">100</span><span style="color: #000000;">。
+    当QSlider调节到最低时，背光变量。
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;">.问题分析
+</span><span style="color: #800080;">2.1</span><span style="color: #000000;"> 查看QSlider的变化，此时的值其实是0,而不是label显示的10。
+    在串口中输入：
+       echo </span><span style="color: #800080;">100</span> &gt; /sys/<span style="color: #0000ff;">class</span>/backlight/pwm-backlight/<span style="color: #000000;">brightness 
+       echo </span><span style="color: #800080;">50</span> &gt; /sys/<span style="color: #0000ff;">class</span>/backlight/pwm-backlight/<span style="color: #000000;">brightness 
+    发现背光的亮度随着输入的值减小，逐渐变暗。
+    输入0,却发现背光变亮。
+       echo </span><span style="color: #800080;">0</span> &gt; /sys/<span style="color: #0000ff;">class</span>/backlight/pwm-backlight/<span style="color: #000000;">brightness 
+    进一步确定当出入参数为0时有问题。
+
+</span><span style="color: #800080;">2.2</span><span style="color: #000000;"> 驱动代码如下,目前只跟到这里，有时间再跟。
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">每次设置pwm都会调用下面的函数                                              </span>
+    kernel/driver/video/backlight/<span style="color: #000000;">pwm_bl.c                                                          
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> pwm_backlight_update_status(<span style="color: #0000ff;">struct</span> backlight_device *<span style="color: #000000;">bl)  
+{                                                                                                   
+    </span><span style="color: #0000ff;">struct</span> pwm_bl_data *pb = dev_get_drvdata(&amp;bl-&gt;<span style="color: #000000;">dev);                                             
+    </span><span style="color: #0000ff;">int</span> brightness = bl-&gt;<span style="color: #000000;">props.brightness;                                                          
+    </span><span style="color: #0000ff;">int</span> max = bl-&gt;<span style="color: #000000;">props.max_brightness;                                                             
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (bl-&gt;props.power !=<span style="color: #000000;"> FB_BLANK_UNBLANK)                                                        
+        brightness </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                             
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (bl-&gt;props.fb_blank !=<span style="color: #000000;"> FB_BLANK_UNBLANK)                                                     
+        brightness </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                             
+                                                                          
+    </span><span style="color: #0000ff;">if</span> (pb-&gt;<span style="color: #000000;">notify)                                                                                
+        brightness </span>= pb-&gt;notify(pb-&gt;<span style="color: #000000;">dev, brightness);                                              
+                                                                                                   
+    </span><span style="color: #0000ff;">if</span> (brightness == <span style="color: #800080;">0</span>) {              <span style="color: #008000;">//</span><span style="color: #008000;">当传入的参数为0时调用,问题就出在这里                                                     </span>
+        pwm_set_duty_ns(pb-&gt;pwm, <span style="color: #800080;">0</span><span style="color: #000000;">);                                   
+        pwm_stop(pb</span>-&gt;<span style="color: #000000;">pwm);                                                                          
+    } </span><span style="color: #0000ff;">else</span> {                            <span style="color: #008000;">//</span><span style="color: #008000;">传入参数是1-100时，调用                                     </span>
+        brightness = pb-&gt;lth_brightness +<span style="color: #000000;">                                                           
+            (brightness </span>* (pb-&gt;period - pb-&gt;lth_brightness) /<span style="color: #000000;"> max);                                 
+        pwm_set_period_ns(pb</span>-&gt;pwm, pb-&gt;<span style="color: #000000;">period);                                                     
+        pwm_set_duty_ns(pb</span>-&gt;<span style="color: #000000;">pwm, brightness);                                                       
+        pwm_start(pb</span>-&gt;<span style="color: #000000;">pwm);                                                                         
+    }                                                                                               
+                                                                                                    
+    </span><span style="color: #0000ff;">if</span> (pb-&gt;<span style="color: #000000;">notify_after)                                                                           
+        pb</span>-&gt;notify_after(pb-&gt;<span style="color: #000000;">dev, brightness);                                                      
+                                                                                                    
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                                       
+}                                                                                                   
+
+</span><span style="color: #800080;">3</span><span style="color: #000000;">.解决方法：
+  在QT中进行更改,设置slider的最大值和最小值，并更新到显示的label.
+        ui</span>-&gt;slider-&gt;setMaximum(<span style="color: #800080;">100</span><span style="color: #000000;">);
+        ui</span>-&gt;slider-&gt;setMinimum(<span style="color: #800080;">10</span><span style="color: #000000;">);
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">transform int to QString, base 10</span>
+        ui-&gt;label-&gt;setText(QString::number(ui-&gt;slider-&gt;minimum(), <span style="color: #800080;">10</span><span style="color: #000000;">));
+        ui</span>-&gt;label_2-&gt;setText(QString::number(ui-&gt;slider-&gt;maximum(), <span style="color: #800080;">10</span><span style="color: #000000;">));
+  这样一来，就不会出现QSlider的值是0的情况，传给底层的参数也不会为0。</span></pre>
+</div>
+<p>&nbsp;</p>

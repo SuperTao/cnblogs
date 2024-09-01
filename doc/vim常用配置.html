@@ -1,0 +1,15 @@
+<div class="cnblogs_code">
+<pre><span style="color: #0000ff;">set</span> wrap                       <span style="color: #800000;">"</span><span style="color: #800000;">设置自动换行</span>
+<span style="color: #0000ff;">set</span> tabstop=<span style="color: #800080;">4</span>                  <span style="color: #800000;">"</span><span style="color: #800000;">设置tab长度为4</span>
+<span style="color: #0000ff;">set</span> softtabstop=<span style="color: #800080;">4</span>              <span style="color: #800000;">"</span><span style="color: #800000;">使得按退格键时可以一次删除4个空格</span>
+<span style="color: #0000ff;">set</span> shiftwidth=<span style="color: #800080;">4</span>               <span style="color: #800000;">"</span><span style="color: #800000;">设定&gt;命令移动时宽度为4</span>
+<span style="color: #0000ff;">set</span> autoindent                 <span style="color: #800000;">"</span><span style="color: #800000;">自动缩进</span>
+<span style="color: #0000ff;">set</span> cindent                    <span style="color: #800000;">"</span><span style="color: #800000;">C语言缩进风格</span>
+<span style="color: #0000ff;">set</span> number                     <span style="color: #800000;">"</span><span style="color: #800000;">显示行号<br />colorscheme desert             "设置颜色方案<br /><br />set fileencodings=utf-8,gb2312,gbk,gb18030    "自动探测fileencoding的顺序列表<br />set termencoding=utf-8                        "vim终端的字符编码方式<br />set encoding=utf-8                            "vim内部使用的编码方式<br /><br /></span><span style="color: #0000ff;">set</span> tags+=~/.vim/systags <span style="color: #800000;">"</span><span style="color: #800000;">添加ctags路径</span></pre>
+<pre><em id="__mceDel"><span style="color: #800000;">
+"</span><span style="color: #800000;">恢复文件关闭之前光标位置</span>
+<span style="color: #0000ff;">if</span> has(<span style="color: #800000;">"</span><span style="color: #800000;">autocmd</span><span style="color: #800000;">"</span><span style="color: #000000;">)
+      au BufReadPost </span>* <span style="color: #0000ff;">if</span> line(<span style="color: #800000;">"</span><span style="color: #800000;">'\"</span><span style="color: #800000;">"</span>) &gt; <span style="color: #800080;">1</span> &amp;&amp; line(<span style="color: #800000;">"</span><span style="color: #800000;">'\"</span><span style="color: #800000;">"</span>) &lt;= line(<span style="color: #800000;">"</span><span style="color: #800000;">$</span><span style="color: #800000;">"</span>) | exe <span style="color: #800000;">"</span><span style="color: #800000;">normal! g'\"</span><span style="color: #800000;">"</span> |<span style="color: #000000;"> endif
+      endif     </span></em></pre>
+</div>
+<p>&nbsp;</p>

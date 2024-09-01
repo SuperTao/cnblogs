@@ -1,0 +1,60 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">摘自：
+    http:</span><span style="color: #008000;">//</span><span style="color: #008000;">www.ntu.edu.sg/home/ehchua/programming/java/J4a_GUI.html</span>
+<span style="color: #000000;">
+Refer to the WindowEventDemo, a WindowEvent listener is required to implement the WindowListener </span><span style="color: #0000ff;">interface</span>,<br />which declares 7 <span style="color: #0000ff;">abstract</span> methods. Although we are only interested in windowClosing(), we need to provide <br />an empty body to the other 6<span style="color: #000000;"> methods in order to compile the program. This is tedious. 
+　　当实现例如WindowListener接口的时候，虽然只需要用到其中的一个函数，但是却需要将其他的函数都写出，这样非常多余。
+An adapter </span><span style="color: #0000ff;">class</span> called WindowAdapter is therefore provided, which <span style="color: #0000ff;">implements</span> the WindowListener <span style="color: #0000ff;">interface</span> <br />and provides <span style="color: #0000ff;">default</span> implementations to all the 7 <span style="color: #0000ff;">abstract</span> methods. You can then derive a subclass from <br />WindowAdapter and override only methods of interest and leave the rest to their <span style="color: #0000ff;">default</span><span style="color: #000000;"> implementation.
+　　有了adapter类之后，就只需要写出需要实现的方法就行，其他不需要使用的函数就不用写出。<br />
+</span><span style="color: #0000ff;">import</span> java.awt.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span> java.awt.event.*<span style="color: #000000;">;
+ 
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> An AWT GUI program inherits the top-level container java.awt.Frame</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> WindowEventDemoAdapter <span style="color: #0000ff;">extends</span><span style="color: #000000;"> Frame {
+   </span><span style="color: #0000ff;">private</span><span style="color: #000000;"> TextField tfCount;
+   </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> count = 0<span style="color: #000000;">;
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to setup the GUI </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> WindowEventDemoAdapter () {
+      setLayout(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> FlowLayout());
+      add(</span><span style="color: #0000ff;">new</span> Label("Counter"<span style="color: #000000;">));
+      tfCount </span>= <span style="color: #0000ff;">new</span> TextField("0", 10<span style="color: #000000;">);
+      tfCount.setEditable(</span><span style="color: #0000ff;">false</span><span style="color: #000000;">);
+      add(tfCount);
+ 
+      Button btnCount </span>= <span style="color: #0000ff;">new</span> Button("Count"<span style="color: #000000;">);
+      add(btnCount);
+      btnCount.addActionListener(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> ActionListener() {
+         @Override
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent evt) {
+            </span>++<span style="color: #000000;">count;
+            tfCount.setText(count </span>+ ""<span style="color: #000000;">);
+         }
+      });
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Allocate an anonymous instance of an anonymous inner class
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> that extends WindowAdapter.
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> "this" Frame adds the instance as WindowEvent listener.</span>
+      addWindowListener(<span style="color: #0000ff;">new</span><span style="color: #000000;"> WindowAdapter() {
+         @Override
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> windowClosing(WindowEvent e) {
+            System.exit(</span>0);  <span style="color: #008000;">//</span><span style="color: #008000;"> Terminate the program</span>
+<span style="color: #000000;">         }
+      });
+ 
+      setTitle(</span>"WindowEvent Demo"<span style="color: #000000;">);
+      setSize(</span>250, 100<span style="color: #000000;">);
+      setVisible(</span><span style="color: #0000ff;">true</span><span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #0000ff;">new</span> WindowEventDemoAdapter();   <span style="color: #008000;">//</span><span style="color: #008000;"> Let the constructor do the job</span>
+<span style="color: #000000;">   }
+}
+
+Similarly, adapter classes such as MouseAdapter, MouseMotionAdapter, KeyAdapter, FocusAdapter are available </span><span style="color: #0000ff;">for</span><span style="color: #000000;"> <br />MouseListener, MouseMotionListener, KeyListener, and FocusListener, respectively.
+
+There is no ActionAdapter </span><span style="color: #0000ff;">for</span> ActionListener, because there is only one <span style="color: #0000ff;">abstract</span> method (i.e. actionPerformed()) <br />declared in the ActionListener <span style="color: #0000ff;">interface</span>. This method has to be overridden and there is no need <span style="color: #0000ff;">for</span> an adapter.</pre>
+</div>
+<p>&nbsp;</p>

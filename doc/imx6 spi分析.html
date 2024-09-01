@@ -1,0 +1,376 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">*************************************************************************
+ *本文主要跟踪imx6 spi设备和驱动的注册过程。
+ * 
+ *                                    Tony Liu, 2016-4-13, Shenzhen 
+ ************************************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                                
+                                                                                
+                                                                                
+kernel</span>/arch/arm/mach-mx6/board-<span style="color: #000000;">mx6q_sabresd.c                                   
+                                                                                
+MACHINE_START(MX6Q_SABRESD, </span><span style="color: #800000;">"</span><span style="color: #800000;">Freescale i.MX 6Quad/DualLite/Solo Sabre-SD Board</span><span style="color: #800000;">"</span><span style="color: #000000;">)
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Maintainer: Freescale Semiconductor, Inc. </span><span style="color: #008000;">*/</span><span style="color: #000000;">                             
+    .boot_params </span>= MX6_PHYS_OFFSET + <span style="color: #800080;">0x100</span><span style="color: #000000;">,                                     
+    .fixup </span>=<span style="color: #000000;"> fixup_mxc_board,                                                   
+    .map_io </span>=<span style="color: #000000;"> mx6_map_io,                                                       
+    .init_irq </span>=<span style="color: #000000;"> mx6_init_irq,                                                   
+    .init_machine </span>=<span style="color: #000000;"> mx6_sabresd_board_init,                                     
+    .timer </span>= &amp;mx6_sabresd_timer,         |<span style="color: #000000;">                                      
+    .reserve </span>= mx6q_sabresd_reserve,     |<span style="color: #000000;">                                      
+MACHINE_END                              </span>|<span style="color: #000000;">                                      
+                                         V                                      
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> __init mx6_sabresd_board_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)                                 
+{                                                                               
+    ... ...                                                                     
+    imx6q_add_ecspi(</span><span style="color: #800080;">0</span>, &amp;<span style="color: #000000;">mx6q_sabresd_spi_data);                                 
+    imx6q_add_ecspi(</span><span style="color: #800080;">1</span>, &amp;<span style="color: #000000;">mx6q_sabresd_spi2_data);                                
+    spi_device_init();        </span>--------------------------------------------+<span style="color: #000000;">     
+    ... ...                               </span>|                               |<span style="color: #000000;">     
+}                                         </span>|                               |<span style="color: #000000;">     
+                                          V                               </span>|     
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> spi_imx_master mx6q_sabresd_spi_data __initconst = {  |<span style="color: #000000;">     
+    .chipselect     </span>= mx6q_sabresd_spi_cs,        --------+               |<span style="color: #000000;">     
+    .num_chipselect </span>= ARRAY_SIZE(mx6q_sabresd_spi_cs),    |               |<span style="color: #000000;">     
+};                                                        </span>|               |     
+                                                          |               |     
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> mx6q_sabresd_spi_cs[] = {             &lt;--------+               |<span style="color: #000000;">     
+    SABRESD_ECSPI1_CS1,                                                   </span>|<span style="color: #000000;">     
+};                                                                        </span>|     
+<span style="color: #0000ff;">#define</span> SABRESD_ECSPI1_CS1     IMX_GPIO_NR(3, 19)                         |     
+                                                                          |     
+<span style="color: #008000;">//</span><span style="color: #008000;">注册平台设备                                                            |    </span>
+<span style="color: #0000ff;">#define</span> imx6q_add_ecspi(id, pdata)    \                                   |     <span style="color: #000000;">
+    imx_add_spi_imx(</span>&amp;imx6q_ecspi_data[id], pdata)  ----+                  |     
+                                                       |                  |     
+<span style="color: #0000ff;">struct</span> platform_device *__init imx_add_spi_imx(    &lt;---+                  |     
+        <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> imx_spi_imx_data *data,                              |     
+        <span style="color: #0000ff;">const</span> <span style="color: #0000ff;">struct</span> spi_imx_master *pdata)                               |<span style="color: #000000;">     
+{                                                                         </span>|     
+    <span style="color: #0000ff;">struct</span> resource res[] = {                                             |<span style="color: #000000;">     
+        {                                                                 </span>|<span style="color: #000000;">     
+            .start </span>= data-&gt;iobase,                                        |<span style="color: #000000;">     
+            .end </span>= data-&gt;iobase + data-&gt;iosize - <span style="color: #800080;">1</span>,                       |<span style="color: #000000;">     
+            .flags </span>= IORESOURCE_MEM,                                      |<span style="color: #000000;">     
+        }, {                                                              </span>|<span style="color: #000000;">     
+            .start </span>= data-&gt;irq,                                           |<span style="color: #000000;">     
+            .end </span>= data-&gt;irq,                                             |<span style="color: #000000;">     
+            .flags </span>= IORESOURCE_IRQ,                                      |<span style="color: #000000;">     
+        },                                                                </span>|<span style="color: #000000;">     
+    };                                                                    </span>|     
+    <span style="color: #0000ff;">return</span> imx_add_platform_device(data-&gt;devid, data-&gt;id,                 |<span style="color: #000000;">     
+            res, ARRAY_SIZE(res), pdata, </span><span style="color: #0000ff;">sizeof</span>(*pdata));                 |<span style="color: #000000;">     
+}                                                                         </span>|     
+                                                                          |     
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span> spi_device_init(<span style="color: #0000ff;">void</span>)                &lt;------------------------+<span style="color: #000000;">     
+{                                                                               
+    spi_register_board_info(imx6_sabresd_spi_nor_device,     </span>-------------+<span style="color: #000000;">     
+                ARRAY_SIZE(imx6_sabresd_spi_nor_device));                 </span>|<span style="color: #000000;">     
+}                                            </span>|                            |<span style="color: #000000;">     
+                                             V                            </span>|     
+<span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> spi_board_info imx6_sabresd_spi_nor_device[] __initdata = { |     
+<span style="color: #0000ff;">#if</span> 0                                                                     |     
+<span style="color: #0000ff;">#if</span> defined(CONFIG_MTD_M25P80)                                            |     <span style="color: #000000;">
+    {                                                                     </span>|<span style="color: #000000;">     
+        .modalias </span>= <span style="color: #800000;">"</span><span style="color: #800000;">m25p80</span><span style="color: #800000;">"</span>,                                             |<span style="color: #000000;">     
+        .max_speed_hz </span>= <span style="color: #800080;">20000000</span>, <span style="color: #008000;">/*</span><span style="color: #008000;"> max spi clock (SCK) speed in HZ </span><span style="color: #008000;">*/</span>   |<span style="color: #000000;">     
+        .bus_num </span>= <span style="color: #800080;">0</span>,                                                     |<span style="color: #000000;">     
+        .chip_select </span>= <span style="color: #800080;">0</span>,                                                 |<span style="color: #000000;">     
+        .platform_data </span>= &amp;imx6_sabresd__spi_flash_data,                   |<span style="color: #000000;">     
+    },                                                                    </span>|     
+<span style="color: #0000ff;">#endif</span>                                                                    |     
+<span style="color: #0000ff;">#endif</span>                                                                    |     <span style="color: #000000;">
+    {                                                                     </span>|<span style="color: #000000;">     
+        .modalias </span>= <span style="color: #800000;">"</span><span style="color: #800000;">ar1020-spi</span><span style="color: #800000;">"</span>,                                         |<span style="color: #000000;">     
+        .max_speed_hz </span>= <span style="color: #800080;">50000</span>, <span style="color: #008000;">/*</span><span style="color: #008000;"> max spi clock (SCK) speed in HZ </span><span style="color: #008000;">*/</span>      |<span style="color: #000000;">     
+        .bus_num </span>= <span style="color: #800080;">1</span>,                                                     |<span style="color: #000000;">     
+        .chip_select </span>= <span style="color: #800080;">0</span>,                                                 |<span style="color: #000000;">     
+        .mode </span>= SPI_MODE_1,                                               |<span style="color: #000000;">     
+        .irq </span>= gpio_to_irq(SABRESD_AR1020_INT),                           |     
+                                                                          |     
+        <span style="color: #008000;">//</span><span style="color: #008000;">.platform_data = &amp;imx6_sabresd__spi_flash_data,                 |     </span>
+    },                                                                    |     
+                                                                          |<span style="color: #000000;">     
+};                                                                        </span>|     
+                                                                          |     
+<span style="color: #0000ff;">int</span> __init                                                                |<span style="color: #000000;">     
+spi_register_board_info(</span><span style="color: #0000ff;">struct</span> spi_board_info <span style="color: #0000ff;">const</span> *info, unsigned n) &lt;--+<span style="color: #000000;">     
+{                                                                               
+    </span><span style="color: #0000ff;">struct</span> boardinfo *<span style="color: #000000;">bi;                                                       
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> i;                                                                      
+                                                                                
+    bi </span>= kzalloc(n * <span style="color: #0000ff;">sizeof</span>(*<span style="color: #000000;">bi), GFP_KERNEL);                                  
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">bi)                                                                    
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENOMEM;                                                         
+                                                                                
+    </span><span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; n; i++, bi++, info++<span style="color: #000000;">) {                                     
+        </span><span style="color: #0000ff;">struct</span> spi_master *<span style="color: #000000;">master;                                              
+                                                                                
+        memcpy(</span>&amp;bi-&gt;board_info, info, <span style="color: #0000ff;">sizeof</span>(*<span style="color: #000000;">info));                           
+        mutex_lock(</span>&amp;<span style="color: #000000;">board_lock);                                                
+        </span><span style="color: #008000;">//</span><span style="color: #008000;">将所有的spi设备添加到链表中                               </span>
+        list_add_tail(&amp;bi-&gt;list, &amp;<span style="color: #000000;">board_list);                                  
+        list_for_each_entry(master, </span>&amp;<span style="color: #000000;">spi_master_list, list)                     
+            spi_match_master_to_boardinfo(master, </span>&amp;bi-&gt;<span style="color: #000000;">board_info);             
+        mutex_unlock(</span>&amp;<span style="color: #000000;">board_lock);                                              
+    }                                                                           
+                                                                                
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                   
+}                                                                               
+                                                                                
+kernel</span>/drivers/spi/<span style="color: #000000;">spi_imx.c                                                    
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __init spi_imx_init(<span style="color: #0000ff;">void</span><span style="color: #000000;">)                                            
+{                                                                               
+    </span><span style="color: #0000ff;">return</span> platform_driver_register(&amp;<span style="color: #000000;">spi_imx_driver);                           
+}                                     </span>|<span style="color: #000000;">                                         
+                                      V                                         
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">struct</span> platform_driver spi_imx_driver =<span style="color: #000000;"> {                                
+    .driver </span>=<span style="color: #000000;"> {                                                                 
+           .name </span>= DRIVER_NAME,            <span style="color: #008000;">//</span><span style="color: #008000;"> "spi_imx"                         </span>
+           .owner =<span style="color: #000000;"> THIS_MODULE,                                                
+           },                                                                   
+    .id_table </span>=<span style="color: #000000;"> spi_imx_devtype,                                                
+    .probe </span>= spi_imx_probe,                 -------+<span style="color: #000000;">                            
+    .remove </span>= __devexit_p(spi_imx_remove),         |<span style="color: #000000;">                            
+};                                                 </span>|<span style="color: #000000;">                            
+                                                   V                            
+</span><span style="color: #0000ff;">static</span> <span style="color: #0000ff;">int</span> __devinit spi_imx_probe(<span style="color: #0000ff;">struct</span> platform_device *<span style="color: #000000;">pdev)                
+{                                                                               
+    </span><span style="color: #0000ff;">struct</span> spi_imx_master *<span style="color: #000000;">mxc_platform_info;                                   
+    </span><span style="color: #0000ff;">struct</span> spi_master *<span style="color: #000000;">master;                                                  
+    </span><span style="color: #0000ff;">struct</span> spi_imx_data *<span style="color: #000000;">spi_imx;                                               
+    </span><span style="color: #0000ff;">struct</span> resource *<span style="color: #000000;">res;                                                       
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;"> i, ret;                                                                 
+                                                                                
+    mxc_platform_info </span>= dev_get_platdata(&amp;pdev-&gt;<span style="color: #000000;">dev);                           
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">mxc_platform_info) {                                                   
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't get the platform data\n</span><span style="color: #800000;">"</span><span style="color: #000000;">);                   
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;                                                         
+    }                                                                           
+                                                                                
+    master </span>= spi_alloc_master(&amp;pdev-&gt;dev, <span style="color: #0000ff;">sizeof</span>(<span style="color: #0000ff;">struct</span><span style="color: #000000;"> spi_imx_data));         
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">master)                                                                
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENOMEM;                                                         
+                                                                                
+    platform_set_drvdata(pdev, master);                                         
+                                                                                
+    master</span>-&gt;bus_num = pdev-&gt;<span style="color: #000000;">id;                                                 
+    master</span>-&gt;num_chipselect = mxc_platform_info-&gt;<span style="color: #000000;">num_chipselect;                 
+                                                                                
+    spi_imx </span>=<span style="color: #000000;"> spi_master_get_devdata(master);                                   
+    spi_imx</span>-&gt;bitbang.master = spi_master_get(master);     ---------------------+<span style="color: #000000;">
+    spi_imx</span>-&gt;chipselect = mxc_platform_info-&gt;chipselect;                       |
+    <span style="color: #008000;">//</span><span style="color: #008000;">控制spi的chipselect引脚                                                    |  </span>
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; master-&gt;num_chipselect; i++) {                             |
+        <span style="color: #0000ff;">if</span> (spi_imx-&gt;chipselect[i] &lt; <span style="color: #800080;">0</span>)                                        |
+            <span style="color: #0000ff;">continue</span>;                                                          |<span style="color: #000000;">
+        ret </span>= gpio_request(spi_imx-&gt;chipselect[i], DRIVER_NAME);               |
+        <span style="color: #0000ff;">if</span> (ret) {                                                             |
+            <span style="color: #0000ff;">while</span> (i &gt; <span style="color: #800080;">0</span>) {                                                    |<span style="color: #000000;">
+                i</span>--;                                                           |
+                <span style="color: #0000ff;">if</span> (spi_imx-&gt;chipselect[i] &gt;= <span style="color: #800080;">0</span>)                               |<span style="color: #000000;">
+                    gpio_free(spi_imx</span>-&gt;chipselect[i]);                         |<span style="color: #000000;">
+            }                                                                  </span>|<span style="color: #000000;">
+            dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't get cs gpios\n</span><span style="color: #800000;">"</span>);                       |
+            <span style="color: #0000ff;">goto</span> out_master_put;                                               |<span style="color: #000000;">
+        }                                                                      </span>|<span style="color: #000000;">
+    }                                                                          </span>|
+    <span style="color: #008000;">//</span><span style="color: #008000;"> spi 对应的操作函数                                                      |  </span>
+    spi_imx-&gt;bitbang.chipselect = spi_imx_chipselect;                          |<span style="color: #000000;">
+    spi_imx</span>-&gt;bitbang.setup_transfer = spi_imx_setupxfer;                       |<span style="color: #000000;">
+    spi_imx</span>-&gt;bitbang.txrx_bufs = spi_imx_transfer;                             |<span style="color: #000000;">
+    spi_imx</span>-&gt;bitbang.master-&gt;setup = spi_imx_setup;                            |<span style="color: #000000;">
+    spi_imx</span>-&gt;bitbang.master-&gt;cleanup = spi_imx_cleanup;                        |<span style="color: #000000;">
+    spi_imx</span>-&gt;bitbang.master-&gt;mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;    |
+                                                                               |<span style="color: #000000;">
+    init_completion(</span>&amp;spi_imx-&gt;xfer_done);                                      |
+                                                                               |<span style="color: #000000;">
+    spi_imx</span>-&gt;devtype_data =                                                    |<span style="color: #000000;">
+        spi_imx_devtype_data[pdev</span>-&gt;id_entry-&gt;driver_data];                     |
+                                                                               |<span style="color: #000000;">
+    res </span>= platform_get_resource(pdev, IORESOURCE_MEM, <span style="color: #800080;">0</span>);                      |
+    <span style="color: #0000ff;">if</span> (!res) {                                                                |<span style="color: #000000;">
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't get platform resource\n</span><span style="color: #800000;">"</span>);                  |<span style="color: #000000;">
+        ret </span>= -ENOMEM;                                                         |
+        <span style="color: #0000ff;">goto</span> out_gpio_free;                                                    |<span style="color: #000000;">
+    }                                                                          </span>|
+                                                                               |
+    <span style="color: #0000ff;">if</span> (!request_mem_region(res-&gt;start, resource_size(res), pdev-&gt;name)) {     |<span style="color: #000000;">
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">request_mem_region failed\n</span><span style="color: #800000;">"</span>);                    |<span style="color: #000000;">
+        ret </span>= -EBUSY;                                                          |
+        <span style="color: #0000ff;">goto</span> out_gpio_free;                                                    |<span style="color: #000000;">
+    }                                                                          </span>|
+                                                                               |<span style="color: #000000;">
+    spi_imx</span>-&gt;<span style="color: #0000ff;">base</span> = ioremap(res-&gt;start, resource_size(res));                   |
+    <span style="color: #0000ff;">if</span> (!spi_imx-&gt;<span style="color: #0000ff;">base</span>) {                                                      |<span style="color: #000000;">
+        ret </span>= -EINVAL;                                                         |
+        <span style="color: #0000ff;">goto</span> out_release_mem;                                                  |<span style="color: #000000;">
+    }                                                                          </span>|
+                                                                               |<span style="color: #000000;">
+    spi_imx</span>-&gt;irq = platform_get_irq(pdev, <span style="color: #800080;">0</span>);                                  |
+    <span style="color: #0000ff;">if</span> (spi_imx-&gt;irq &lt; <span style="color: #800080;">0</span>) {                                                    |<span style="color: #000000;">
+        ret </span>= -EINVAL;                                                         |
+        <span style="color: #0000ff;">goto</span> out_iounmap;                                                      |<span style="color: #000000;">
+    }                                                                          </span>|
+                                                                               |<span style="color: #000000;">
+    ret </span>= request_irq(spi_imx-&gt;irq, spi_imx_isr, <span style="color: #800080;">0</span>, DRIVER_NAME, spi_imx);     |
+    <span style="color: #0000ff;">if</span> (ret) {                                                                 |<span style="color: #000000;">
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">can't get irq%d: %d\n</span><span style="color: #800000;">"</span>, spi_imx-&gt;irq, ret);       |
+        <span style="color: #0000ff;">goto</span> out_iounmap;                                                      |<span style="color: #000000;">
+    }                                                                          </span>|
+                                                                               |<span style="color: #000000;">
+    spi_imx</span>-&gt;clk = clk_get(&amp;pdev-&gt;dev, NULL);                                  |
+    <span style="color: #0000ff;">if</span> (IS_ERR(spi_imx-&gt;clk)) {                                                |<span style="color: #000000;">
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">unable to get clock\n</span><span style="color: #800000;">"</span>);                          |<span style="color: #000000;">
+        ret </span>= PTR_ERR(spi_imx-&gt;clk);                                           |
+        <span style="color: #0000ff;">goto</span> out_free_irq;                                                     |<span style="color: #000000;">
+    }                                                                          </span>|
+                                                                               |<span style="color: #000000;">
+    clk_enable(spi_imx</span>-&gt;clk);                                                  |<span style="color: #000000;">
+    spi_imx</span>-&gt;spi_clk = clk_get_rate(spi_imx-&gt;clk);                             |
+                                                                               |<span style="color: #000000;">
+    spi_imx</span>-&gt;devtype_data.reset(spi_imx);                                      |
+                                                                               |<span style="color: #000000;">
+    spi_imx</span>-&gt;devtype_data.intctrl(spi_imx, <span style="color: #800080;">0</span>);                                 |<span style="color: #000000;">
+    ret </span>= spi_bitbang_start(&amp;spi_imx-&gt;bitbang);                                |
+    <span style="color: #0000ff;">if</span> (ret) {                                                                 |<span style="color: #000000;">
+        dev_err(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">bitbang start failed with %d\n</span><span style="color: #800000;">"</span>, ret);            |
+        <span style="color: #0000ff;">goto</span> out_clk_put;                                                      |<span style="color: #000000;">
+    }                                                                          </span>|<span style="color: #000000;">
+    clk_disable(spi_imx</span>-&gt;clk);                                                 |
+                                                                               |<span style="color: #000000;">
+    dev_info(</span>&amp;pdev-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">probed\n</span><span style="color: #800000;">"</span>);                                          |
+                                                                               |
+    <span style="color: #0000ff;">return</span> ret;                                                                |
+                                                                               |<span style="color: #000000;">
+out_clk_put:                                                                   </span>|<span style="color: #000000;">
+    clk_disable(spi_imx</span>-&gt;clk);                                                 |<span style="color: #000000;">
+    clk_put(spi_imx</span>-&gt;clk);                                                     |<span style="color: #000000;">
+out_free_irq:                                                                  </span>|<span style="color: #000000;">
+    free_irq(spi_imx</span>-&gt;irq, spi_imx);                                           |<span style="color: #000000;">
+out_iounmap:                                                                   </span>|<span style="color: #000000;">
+    iounmap(spi_imx</span>-&gt;<span style="color: #0000ff;">base</span>);                                                    |<span style="color: #000000;">
+out_release_mem:                                                               </span>|<span style="color: #000000;">
+    release_mem_region(res</span>-&gt;start, resource_size(res));                        |<span style="color: #000000;">
+out_gpio_free:                                                                 </span>|
+    <span style="color: #0000ff;">for</span> (i = <span style="color: #800080;">0</span>; i &lt; master-&gt;num_chipselect; i++)                               |
+        <span style="color: #0000ff;">if</span> (spi_imx-&gt;chipselect[i] &gt;= <span style="color: #800080;">0</span>)                                       |<span style="color: #000000;">
+            gpio_free(spi_imx</span>-&gt;chipselect[i]);                                 |<span style="color: #000000;">
+out_master_put:                                                                </span>|<span style="color: #000000;">
+    spi_master_put(master);                                                    </span>|<span style="color: #000000;">
+    kfree(master);                                                             </span>|<span style="color: #000000;">
+    platform_set_drvdata(pdev, NULL);                                          </span>|
+    <span style="color: #0000ff;">return</span> ret;                                                                |<span style="color: #000000;">
+}                                                                              </span>|
+                                                                               |
+<span style="color: #0000ff;">int</span> spi_bitbang_start(<span style="color: #0000ff;">struct</span> spi_bitbang *bitbang)           &lt;-----------------+<span style="color: #000000;">
+{                                                                               
+    </span><span style="color: #0000ff;">int</span><span style="color: #000000;">    status;                                                              
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (!bitbang-&gt;master || !bitbang-&gt;<span style="color: #000000;">chipselect)                               
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;                                                         
+                                                                                
+    INIT_WORK(</span>&amp;bitbang-&gt;<span style="color: #000000;">work, bitbang_work);                                    
+    spin_lock_init(</span>&amp;bitbang-&gt;<span style="color: #0000ff;">lock</span><span style="color: #000000;">);                                             
+    INIT_LIST_HEAD(</span>&amp;bitbang-&gt;<span style="color: #000000;">queue);                                            
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (!bitbang-&gt;master-&gt;<span style="color: #000000;">mode_bits)                                            
+        bitbang</span>-&gt;master-&gt;mode_bits = SPI_CPOL | SPI_CPHA | bitbang-&gt;<span style="color: #000000;">flags;      
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (!bitbang-&gt;master-&gt;<span style="color: #000000;">transfer)                                             
+        bitbang</span>-&gt;master-&gt;transfer =<span style="color: #000000;"> spi_bitbang_transfer;                       
+    </span><span style="color: #0000ff;">if</span> (!bitbang-&gt;<span style="color: #000000;">txrx_bufs) {                                                  
+        bitbang</span>-&gt;use_dma = <span style="color: #800080;">0</span><span style="color: #000000;">;                                                   
+        bitbang</span>-&gt;txrx_bufs =<span style="color: #000000;"> spi_bitbang_bufs;                                  
+        </span><span style="color: #0000ff;">if</span> (!bitbang-&gt;master-&gt;<span style="color: #000000;">setup) {                                          
+            </span><span style="color: #0000ff;">if</span> (!bitbang-&gt;<span style="color: #000000;">setup_transfer)                                       
+                bitbang</span>-&gt;setup_transfer =<span style="color: #000000;">                                       
+                     spi_bitbang_setup_transfer;                                
+            bitbang</span>-&gt;master-&gt;setup =<span style="color: #000000;"> spi_bitbang_setup;                         
+            bitbang</span>-&gt;master-&gt;cleanup =<span style="color: #000000;"> spi_bitbang_cleanup;                     
+        }                                                                       
+    } </span><span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span> (!bitbang-&gt;master-&gt;<span style="color: #000000;">setup)                                         
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;                                                         
+    </span><span style="color: #0000ff;">if</span> (bitbang-&gt;master-&gt;transfer == spi_bitbang_transfer &amp;&amp;                    
+            !bitbang-&gt;<span style="color: #000000;">setup_transfer)                                           
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;                                                         
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> this task is the only thing to touch the SPI bits </span><span style="color: #008000;">*/</span><span style="color: #000000;">                     
+    bitbang</span>-&gt;busy = <span style="color: #800080;">0</span><span style="color: #000000;">;                                                          
+    bitbang</span>-&gt;workqueue =<span style="color: #000000;"> create_singlethread_workqueue(                         
+            dev_name(bitbang</span>-&gt;master-&gt;<span style="color: #000000;">dev.parent));                             
+    </span><span style="color: #0000ff;">if</span> (bitbang-&gt;workqueue ==<span style="color: #000000;"> NULL) {                                           
+        status </span>= -<span style="color: #000000;">EBUSY;                                                        
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> err1;                                                              
+    }                                                                           
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> driver may get busy before register() returns, especially                
+     * if someone registered boardinfo for devices                              
+     </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                         
+    status </span>= spi_register_master(bitbang-&gt;master);  -----+                      
+    <span style="color: #0000ff;">if</span> (status &lt; <span style="color: #800080;">0</span>)                                      |                      
+        <span style="color: #0000ff;">goto</span> err2;                                       |                      
+                                                         |                      
+    <span style="color: #0000ff;">return</span> status;                                       |                      
+                                                         |<span style="color: #000000;">                      
+err2:                                                    </span>|<span style="color: #000000;">                      
+    destroy_workqueue(bitbang</span>-&gt;workqueue);               |<span style="color: #000000;">                      
+err1:                                                    </span>|                      
+    <span style="color: #0000ff;">return</span> status;                                       |<span style="color: #000000;">                      
+}                                                        </span>|                      
+                                                         |                      
+<span style="color: #0000ff;">int</span> spi_register_master(<span style="color: #0000ff;">struct</span> spi_master *master) &lt;-----+<span style="color: #000000;">                      
+{                                                                               
+    </span><span style="color: #0000ff;">static</span> atomic_t        dyn_bus_id = ATOMIC_INIT((<span style="color: #800080;">1</span>&lt;&lt;<span style="color: #800080;">15</span>) - <span style="color: #800080;">1</span><span style="color: #000000;">);               
+    </span><span style="color: #0000ff;">struct</span> device        *dev = master-&gt;<span style="color: #000000;">dev.parent;                             
+    </span><span style="color: #0000ff;">struct</span> boardinfo    *<span style="color: #000000;">bi;                                                    
+    </span><span style="color: #0000ff;">int</span>            status = -<span style="color: #000000;">ENODEV;                                            
+    </span><span style="color: #0000ff;">int</span>            dynamic = <span style="color: #800080;">0</span><span style="color: #000000;">;                                                 
+                                                                                
+    </span><span style="color: #0000ff;">if</span> (!<span style="color: #000000;">dev)                                                                   
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">ENODEV;                                                         
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> even if it's just one always-selected device, there must                 
+     * be at least one chipselect                                               
+     </span><span style="color: #008000;">*/</span>                                                                         
+    <span style="color: #0000ff;">if</span> (master-&gt;num_chipselect == <span style="color: #800080;">0</span><span style="color: #000000;">)                                            
+        </span><span style="color: #0000ff;">return</span> -<span style="color: #000000;">EINVAL;                                                         
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> convention:  dynamically assigned bus IDs count down from the max </span><span style="color: #008000;">*/</span>     
+    <span style="color: #0000ff;">if</span> (master-&gt;bus_num &lt; <span style="color: #800080;">0</span><span style="color: #000000;">) {                                                  
+        </span><span style="color: #008000;">/*</span><span style="color: #008000;"> FIXME switch to an IDR based scheme, something like                  
+         * I2C now uses, so we can't run out of "dynamic" IDs                   
+         </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                                                     
+        master</span>-&gt;bus_num = atomic_dec_return(&amp;<span style="color: #000000;">dyn_bus_id);                       
+        dynamic </span>= <span style="color: #800080;">1</span><span style="color: #000000;">;                                                            
+    }                                                                           
+                                                                                
+    spin_lock_init(</span>&amp;master-&gt;<span style="color: #000000;">bus_lock_spinlock);                                 
+    mutex_init(</span>&amp;master-&gt;<span style="color: #000000;">bus_lock_mutex);                                        
+    master</span>-&gt;bus_lock_flag = <span style="color: #800080;">0</span><span style="color: #000000;">;                                                  
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> register the device, then userspace will see it.                         
+     * registration fails if the bus ID is in use.                              
+     </span><span style="color: #008000;">*/</span>                                                                         
+    <span style="color: #008000;">//</span><span style="color: #008000;">设置设备节点的设备名 /dev/spi0, /dev/spi1                       </span>
+    dev_set_name(&amp;master-&gt;dev, <span style="color: #800000;">"</span><span style="color: #800000;">spi%u</span><span style="color: #800000;">"</span>, master-&gt;<span style="color: #000000;">bus_num);                       
+    status </span>= device_add(&amp;master-&gt;<span style="color: #000000;">dev);                                          
+    </span><span style="color: #0000ff;">if</span> (status &lt; <span style="color: #800080;">0</span><span style="color: #000000;">)                                                             
+        </span><span style="color: #0000ff;">goto</span><span style="color: #000000;"> done;                                                              
+    dev_dbg(dev, </span><span style="color: #800000;">"</span><span style="color: #800000;">registered master %s%s\n</span><span style="color: #800000;">"</span>, dev_name(&amp;master-&gt;<span style="color: #000000;">dev),            
+            dynamic </span>? <span style="color: #800000;">"</span><span style="color: #800000;"> (dynamic)</span><span style="color: #800000;">"</span> : <span style="color: #800000;">""</span><span style="color: #000000;">);                                       
+                                                                                
+    mutex_lock(</span>&amp;<span style="color: #000000;">board_lock);                                                    
+    list_add_tail(</span>&amp;master-&gt;list, &amp;<span style="color: #000000;">spi_master_list);                             
+    list_for_each_entry(bi, </span>&amp;<span style="color: #000000;">board_list, list)                                  
+        spi_match_master_to_boardinfo(master, </span>&amp;bi-&gt;<span style="color: #000000;">board_info);                 
+    mutex_unlock(</span>&amp;<span style="color: #000000;">board_lock);                                                  
+                                                                                
+    status </span>= <span style="color: #800080;">0</span><span style="color: #000000;">;                                                                 
+                                                                                
+    </span><span style="color: #008000;">/*</span><span style="color: #008000;"> Register devices from the device tree </span><span style="color: #008000;">*/</span><span style="color: #000000;">                                 
+    of_register_spi_devices(master);                                            
+done:                                                                           
+    </span><span style="color: #0000ff;">return</span><span style="color: #000000;"> status;                                                              
+}                                                                               </span></pre>
+</div>
+<p>&nbsp;</p>

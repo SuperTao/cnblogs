@@ -1,0 +1,114 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">嵌套类，摘自：
+        http:</span><span style="color: #008000;">//</span><span style="color: #008000;">www.ntu.edu.sg/home/ehchua/programmin/java/J4a_GUI.html</span></pre>
+<p>A nested class has these properties:</p>
+<ol>
+<li>A nested class is a proper class. That is, it could contain constructors, member variables and member methods. You can create an instance of a nested class via the <code>new</code> operator and constructor.</li>
+<li>A nested class is a <em>member</em> of the outer class, just like any member variables and methods defined inside a class.</li>
+<li>Most importantly, a nested class can access the <code>private</code> members (variables/methods) of the enclosing outer class, as it is at the <em>same level</em> as these <code>private</code> members. This is the property that makes inner class useful.</li>
+<li>A nested class can have <code>private</code>, <code>public</code>, <code>protected</code>, or the <em>default</em> access, just like any member variables and methods defined inside a class. A <code>private</code> inner class is only accessible by the enclosing outer class, and is not accessible by any other classes. [An top-level outer class cannot be declared <code>private</code>, as no one can use a <code>private</code> outer class.]</li>
+<li>A nested class can also be declared <code>static</code>, <code>final</code> or <code>abstract</code>, just like any ordinary class.</li>
+<li>A nested class is NOT a <em>subclass</em> of the outer class. That is, the nested class does not inherit the variables and methods of the outer class. It is an <em>ordinary</em> self-contained class. [Nonetheless, you could declare it as a subclass of the outer class, via keyword "<code>extends <em>OuterClassName</em></code>", in the nested class's definition.]</li>
+</ol>
+<p>The usages of nested class are:</p>
+<ol>
+<li>To control visibilities (of the member variables and methods) between inner/outer class. The nested class, being defined inside an outer class, can access <code>private</code> members of the outer class.</li>
+<li>To place a piece of class definition codes <em>closer</em> to where it is going to be used, to make the program clearer and easier to understand.</li>
+<li>For namespace management.</li>
+</ol>
+<pre>1<span style="color: #000000;">.
+</span><span style="color: #0000ff;">import</span> java.awt.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span> java.awt.event.*<span style="color: #000000;">;
+ 
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> An AWT GUI program inherits from the top-level container java.awt.Frame</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> AWTCounterNamedInnerClass <span style="color: #0000ff;">extends</span><span style="color: #000000;"> Frame {
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> This class is NOT a ActionListener, hence, it does not implement ActionListener
+ 
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> The event-handler actionPerformed() needs to access these "private" variables</span>
+   <span style="color: #0000ff;">private</span><span style="color: #000000;"> TextField tfCount;
+   </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> count = 0<span style="color: #000000;">;
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to setup the GUI </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> AWTCounterNamedInnerClass () {
+      setLayout(</span><span style="color: #0000ff;">new</span> FlowLayout());  <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets to FlowLayout</span>
+      add(<span style="color: #0000ff;">new</span> Label("Counter"));    <span style="color: #008000;">//</span><span style="color: #008000;"> anonymous instance of Label</span>
+      tfCount = <span style="color: #0000ff;">new</span> TextField("0", 10<span style="color: #000000;">);
+      tfCount.setEditable(</span><span style="color: #0000ff;">false</span>);   <span style="color: #008000;">//</span><span style="color: #008000;"> read-only</span>
+      add(tfCount);                 <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds tfCount</span>
+<span style="color: #000000;"> 
+      Button btnCount </span>= <span style="color: #0000ff;">new</span> Button("Count"<span style="color: #000000;">);
+      add(btnCount);                </span><span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds btnCount
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Construct an anonymous instance of BtnCountListener (a named inner class).
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> btnCount adds this instance as a ActionListener.</span>
+      btnCount.addActionListener(<span style="color: #0000ff;">new</span><span style="color: #000000;"> BtnCountListener());
+ 
+      setTitle(</span>"AWT Counter"<span style="color: #000000;">);
+      setSize(</span>250, 100<span style="color: #000000;">);
+      setVisible(</span><span style="color: #0000ff;">true</span><span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #0000ff;">new</span> AWTCounterNamedInnerClass(); <span style="color: #008000;">//</span><span style="color: #008000;"> Let the constructor do the job</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;">
+    * BtnCountListener is a "named inner class" used as ActionListener.
+    * This inner class can access private variables of the outer class.
+    </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">private</span> <span style="color: #0000ff;">class</span> BtnCountListener <span style="color: #0000ff;">implements</span><span style="color: #000000;"> ActionListener {
+      @Override
+      </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent e) {
+         </span>++<span style="color: #000000;">count;
+         tfCount.setText(count </span>+ ""<span style="color: #000000;">);
+      }
+   }
+}
+
+</span>2<span style="color: #000000;">.
+
+</span><span style="color: #0000ff;">import</span> java.awt.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span> java.awt.event.*<span style="color: #000000;">;
+ 
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> An AWT GUI program inherits from the top-level container java.awt.Frame</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> AWTCounterAnonymousInnerClass <span style="color: #0000ff;">extends</span><span style="color: #000000;"> Frame {
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> This class is NOT a ActionListener, hence, it does not implement ActionListener
+ 
+   </span><span style="color: #008000;">//</span><span style="color: #008000;"> The event-handler actionPerformed() needs to access these private variables</span>
+   <span style="color: #0000ff;">private</span><span style="color: #000000;"> TextField tfCount;
+   </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> count = 0<span style="color: #000000;">;
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to setup the GUI </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> AWTCounterAnonymousInnerClass () {
+      setLayout(</span><span style="color: #0000ff;">new</span> FlowLayout());  <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame sets to FlowLayout</span>
+      add(<span style="color: #0000ff;">new</span> Label("Counter"));    <span style="color: #008000;">//</span><span style="color: #008000;"> an anonymous instance of Label</span>
+      tfCount = <span style="color: #0000ff;">new</span> TextField("0", 10<span style="color: #000000;">);
+      tfCount.setEditable(</span><span style="color: #0000ff;">false</span>);   <span style="color: #008000;">//</span><span style="color: #008000;"> read-only</span>
+      add(tfCount);                 <span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds tfCount</span>
+<span style="color: #000000;"> 
+      Button btnCount </span>= <span style="color: #0000ff;">new</span> Button("Count"<span style="color: #000000;">);
+      add(btnCount);                </span><span style="color: #008000;">//</span><span style="color: #008000;"> "super" Frame adds btnCount
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Construct an anonymous instance of an anonymous class.
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> btnCount adds this instance as a ActionListener.</span>
+      btnCount.addActionListener(<span style="color: #0000ff;">new</span><span style="color: #000000;"> ActionListener() {
+         @Override
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent e) {
+            </span>++<span style="color: #000000;">count;
+            tfCount.setText(count </span>+ ""<span style="color: #000000;">);
+         }
+      });
+ 
+      setTitle(</span>"AWT Counter"<span style="color: #000000;">);
+      setSize(</span>250, 100<span style="color: #000000;">);
+      setVisible(</span><span style="color: #0000ff;">true</span><span style="color: #000000;">);
+   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #0000ff;">new</span> AWTCounterAnonymousInnerClass(); <span style="color: #008000;">//</span><span style="color: #008000;"> Let the constructor do the job</span>
+<span style="color: #000000;">   }
+}</span></pre>
+</div>
+<p>&nbsp;</p>

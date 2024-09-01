@@ -1,0 +1,60 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">********************************************
+ *                dhcpc
+ * dhcpc是dhcp的客户端，在busybox中实现。今天正好了解一下。
+ *                    Tony, 2016-5-20, Shenzhen
+ *******************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+
+udhcpc </span>-b -i eth0 -p /<span style="color: #0000ff;">var</span>/run/udhcpc.pid -R &amp;
+-<span style="color: #000000;">b:后台运行
+</span>-<span style="color: #000000;">i:指定接口
+</span>-<span style="color: #000000;">p:pid文件
+</span>-<span style="color: #000000;">R:关闭udhcpc时，可以向dhcpserver发送release取消租约
+
+　　Usage: udhcpc [</span>-Cfbnqtvo] [-c CID] [-V VCLS] [-H HOSTNAME] [-<span style="color: #000000;">i INTERFACE]
+
+　　[</span>-p pidfile] [-r IP] [-s script] [-O dhcp-option]... [-<span style="color: #000000;">P N]
+
+　　</span>-V CLASSID      Vendor <span style="color: #0000ff;">class</span><span style="color: #000000;"> identifier
+
+　　</span>-i INTERFACE    Interface to use (<span style="color: #0000ff;">default</span><span style="color: #000000;">: eth0)
+
+　　</span>-H,-<span style="color: #000000;">h HOSTNAME  Client hostname
+
+　　</span>-<span style="color: #000000;">c CLIENTID     Client identifier
+
+　　</span>-C              Suppress <span style="color: #0000ff;">default</span><span style="color: #000000;"> client identifier
+
+　　</span>-<span style="color: #000000;">p file         Create pidfile
+
+　　</span>-<span style="color: #000000;">r IP           IP address to request
+
+　　</span>-s file         Run file at DHCP events (<span style="color: #0000ff;">default</span> /usr/share/udhcpc/<span style="color: #0000ff;">default</span><span style="color: #000000;">.script)
+
+　　</span>-<span style="color: #000000;">t N            Send up to N request packets
+
+　　</span>-T N            Try to <span style="color: #0000ff;">get</span> a lease <span style="color: #0000ff;">for</span> N seconds (<span style="color: #0000ff;">default</span> <span style="color: #800080;">3</span><span style="color: #000000;">)
+
+　　</span>-A N            Wait N seconds (<span style="color: #0000ff;">default</span> <span style="color: #800080;">20</span><span style="color: #000000;">) after failure
+
+　　</span>-<span style="color: #000000;">O OPT          Request DHCP option OPT (cumulative)
+
+　　</span>-o              Do not request any options (unless -O <span style="color: #0000ff;">is</span><span style="color: #000000;"> also given)
+
+　　</span>-f              Run <span style="color: #0000ff;">in</span><span style="color: #000000;"> foreground
+
+　　</span>-b              Background <span style="color: #0000ff;">if</span> lease <span style="color: #0000ff;">is</span><span style="color: #000000;"> not immediately obtained
+
+　　</span>-<span style="color: #000000;">S              Log to syslog too
+
+　　</span>-n              Exit with failure <span style="color: #0000ff;">if</span> lease <span style="color: #0000ff;">is</span><span style="color: #000000;"> not immediately obtained
+
+　　</span>-<span style="color: #000000;">q              Quit after obtaining lease
+
+　　</span>-<span style="color: #000000;">R              Release IP on quit
+
+　　</span>-P N            Use port N instead of <span style="color: #0000ff;">default</span> <span style="color: #800080;">68</span>
+
+　　-a              Use arping to validate offered address</pre>
+</div>
+<p>&nbsp;</p>

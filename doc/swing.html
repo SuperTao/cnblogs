@@ -1,0 +1,184 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">摘自：
+    http:</span><span style="color: #008000;">//</span><span style="color: #008000;">www.ntu.edu.sg/home/ehchua/programming/java/J4a_GUI.html</span>
+<span style="color: #000000;">
+Writing Swing Applications
+
+In summary, to write a Swing application, you have:
+
+    Use the Swing components with prefix </span>"J" in <span style="color: #0000ff;">package</span><span style="color: #000000;"> javax.swing, e.g., JFrame, JButton, JTextField, JLabel, etc.
+    A top</span>-level container (such as JFrame or JApplet) is needed. The JComponents should be added directly onto the top-<span style="color: #000000;">level container. 
+They shall be added onto the content</span>-pane of the top-level container. You can retrieve a reference to the content-<span style="color: #000000;">pane by invoking method 
+getContentPane() from the top</span>-level container, or set the content-<span style="color: #000000;">pane to the main JPanel created in your program.
+    Swing applications uses AWT event</span>-handling classes, e.g., ActionEvent/ActionListener, MouseEvent/<span style="color: #000000;">MouseListener, etc.
+    Run the constructor in the Event Dispatcher Thread (instead of Main thread) </span><span style="color: #0000ff;">for</span><span style="color: #000000;"> thread safety, as shown in the following program template.
+
+</span>1<span style="color: #000000;">、
+</span><span style="color: #0000ff;">import</span> java.awt.*;       <span style="color: #008000;">//</span><span style="color: #008000;"> Using AWT containers and components</span>
+<span style="color: #0000ff;">import</span> java.awt.event.*; <span style="color: #008000;">//</span><span style="color: #008000;"> Using AWT events and listener interfaces</span>
+<span style="color: #0000ff;">import</span> javax.swing.*;    <span style="color: #008000;">//</span><span style="color: #008000;"> Using Swing components and containers
+ 
+</span><span style="color: #008000;">//</span><span style="color: #008000;"> A Swing GUI application inherits from top-level container javax.swing.JFrame</span>
+<span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> SwingCounter <span style="color: #0000ff;">extends</span><span style="color: #000000;"> JFrame {
+   </span><span style="color: #0000ff;">private</span> JTextField tfCount;  <span style="color: #008000;">//</span><span style="color: #008000;"> Use Swing's JTextField instead of AWT's TextField</span>
+   <span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> count = 0<span style="color: #000000;">;
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> Constructor to setup the GUI </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span><span style="color: #000000;"> SwingCounter () {
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Retrieve the content-pane of the top-level container JFrame
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> All operations done on the content-pane</span>
+      Container cp =<span style="color: #000000;"> getContentPane();
+      cp.setLayout(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> FlowLayout());
+ 
+      cp.add(</span><span style="color: #0000ff;">new</span> JLabel("Counter"<span style="color: #000000;">));
+      tfCount </span>= <span style="color: #0000ff;">new</span> JTextField("0", 10<span style="color: #000000;">);
+      tfCount.setEditable(</span><span style="color: #0000ff;">false</span><span style="color: #000000;">);
+      cp.add(tfCount);
+ 
+      JButton btnCount </span>= <span style="color: #0000ff;">new</span> JButton("Count"<span style="color: #000000;">);
+      cp.add(btnCount);
+ 
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Allocate an anonymous instance of an anonymous inner class that
+      </span><span style="color: #008000;">//</span><span style="color: #008000;">  implements ActionListener as ActionEvent listener</span>
+      btnCount.addActionListener(<span style="color: #0000ff;">new</span><span style="color: #000000;"> ActionListener() {
+         @Override
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent e) {
+            </span>++<span style="color: #000000;">count;
+            tfCount.setText(count </span>+ ""<span style="color: #000000;">);
+         }
+      });
+ 
+      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);  </span><span style="color: #008000;">//</span><span style="color: #008000;"> Exit program if close-window button clicked</span>
+      setTitle("Swing Counter"); <span style="color: #008000;">//</span><span style="color: #008000;"> "this" JFrame sets title</span>
+      setSize(300, 100);         <span style="color: #008000;">//</span><span style="color: #008000;"> "this" JFrame sets initial size</span>
+      setVisible(<span style="color: #0000ff;">true</span>);          <span style="color: #008000;">//</span><span style="color: #008000;"> "this" JFrame shows</span>
+<span style="color: #000000;">   }
+ 
+   </span><span style="color: #008000;">/**</span><span style="color: #008000;"> The entry main() method </span><span style="color: #008000;">*/</span>
+   <span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+      </span><span style="color: #008000;">//</span><span style="color: #008000;"> Run the GUI construction in the Event-Dispatching thread for thread-safety</span>
+      SwingUtilities.invokeLater(<span style="color: #0000ff;">new</span><span style="color: #000000;"> Runnable() {
+         @Override
+         </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> run() {
+            </span><span style="color: #0000ff;">new</span> SwingCounter(); <span style="color: #008000;">//</span><span style="color: #008000;"> Let the constructor do the job</span>
+<span style="color: #000000;">         }
+      });
+   }
+}
+</span>2<span style="color: #000000;">、练习
+</span><span style="color: #0000ff;">import</span> java.awt.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span> java.awt.event.*<span style="color: #000000;">;
+</span><span style="color: #0000ff;">import</span> javax.swing.*<span style="color: #000000;">;
+
+</span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">class</span> SwingCalculator <span style="color: #0000ff;">extends</span><span style="color: #000000;"> JFrame {
+
+    </span><span style="color: #0000ff;">private</span><span style="color: #000000;"> JTextField tfDisplay;
+    </span><span style="color: #0000ff;">private</span> String numberInStr = ""<span style="color: #000000;">;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">char</span> previousOpr = ' '<span style="color: #000000;">;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">char</span> currentOpr = ' '<span style="color: #000000;">;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> previousNum = 0<span style="color: #000000;">;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> currentNum = 0<span style="color: #000000;">;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">int</span> result = 0<span style="color: #000000;">; 
+
+    </span><span style="color: #0000ff;">private</span><span style="color: #000000;"> JButton[] btns;
+    </span><span style="color: #0000ff;">private</span> <span style="color: #0000ff;">char</span>[] btnsText =<span style="color: #000000;"> { 
+            </span>'7', '8', '9', '+'<span style="color: #000000;">, 
+            </span>'4', '5', '6', '-'<span style="color: #000000;">, 
+            </span>'1', '2', '3', '*'<span style="color: #000000;">, 
+            </span>'C', '0', '=', '/'<span style="color: #000000;"> 
+        };
+
+    
+    </span><span style="color: #0000ff;">public</span><span style="color: #000000;"> SwingCalculator() {
+        tfDisplay </span>= <span style="color: #0000ff;">new</span> JTextField("0"<span style="color: #000000;">);
+        tfDisplay.setEditable(</span><span style="color: #0000ff;">false</span><span style="color: #000000;">);
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> 设置内容右对齐</span>
+<span style="color: #000000;">        tfDisplay.setHorizontalAlignment(JTextField.RIGHT);
+        JPanel btnPanel </span>= <span style="color: #0000ff;">new</span><span style="color: #000000;"> JPanel();
+        btnPanel.setLayout(</span><span style="color: #0000ff;">new</span> GridLayout(4, 4, 4, 4<span style="color: #000000;">));
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> btns只是引用，并没有内存空间</span>
+        btns = <span style="color: #0000ff;">new</span> JButton[16<span style="color: #000000;">];
+        </span><span style="color: #0000ff;">for</span> (<span style="color: #0000ff;">int</span> i = 0; i &lt; btns.length; ++<span style="color: #000000;">i) {
+            </span><span style="color: #008000;">//使用引用的对象时，需要</span><span style="color: #008000;">为每个对象引用申请空间
+            </span><span style="color: #008000;">//</span><span style="color: #008000;">将char转为String</span>
+            btns[i] = <span style="color: #0000ff;">new</span> JButton(btnsText[i] + ""<span style="color: #000000;">);
+            </span><span style="color: #0000ff;">if</span>(btnsText[i] &gt;= '0' &amp;&amp; btnsText[i] &lt;= '9'<span style="color: #000000;">)
+                btns[i].addActionListener(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> NumberBtnListener());
+            </span><span style="color: #0000ff;">else</span><span style="color: #000000;">
+                btns[i].addActionListener(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> OprBtnListener());
+            btnPanel.add(btns[i]);
+        }
+
+        Container cp </span>=<span style="color: #000000;"> getContentPane();
+        cp.setLayout(</span><span style="color: #0000ff;">new</span><span style="color: #000000;"> BorderLayout());
+        cp.add(tfDisplay, BorderLayout.NORTH);
+        cp.add(btnPanel, BorderLayout.CENTER);
+　　　　 
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        pack();　　　　　　//将所有component打包成一块
+        setTitle(</span>"calculator"<span style="color: #000000;">);
+        setVisible(</span><span style="color: #0000ff;">true</span><span style="color: #000000;">);
+        requestFocus();　　//聚焦
+    }
+
+    </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">static</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> main(String[] args) {
+        </span><span style="color: #008000;">//</span><span style="color: #008000;"> TODO Auto-generated method stub</span>
+        SwingUtilities.invokeLater(<span style="color: #0000ff;">new</span><span style="color: #000000;"> Runnable() {
+            @Override
+            </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> run() {
+                </span><span style="color: #0000ff;">new</span><span style="color: #000000;"> SwingCalculator();
+            }
+        });
+    }
+
+    </span><span style="color: #0000ff;">class</span> NumberBtnListener <span style="color: #0000ff;">implements</span><span style="color: #000000;"> ActionListener {
+        @Override
+        </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent evt) {
+            numberInStr </span>+=<span style="color: #000000;"> evt.getActionCommand();
+            //保存第一次输入的数字<br />　　　　　　　previousNum </span>=<span style="color: #000000;"> currentNum;<br />　　　　　　  //获取输入的数字
+            currentNum </span>= evt.getActionCommand().charAt(0) - '0'<span style="color: #000000;">;
+            tfDisplay.setText(numberInStr);
+        }
+    }
+
+    </span><span style="color: #008000;">//</span><span style="color: #008000;"> Operator buttons listener (inner class)</span>
+    <span style="color: #0000ff;">class</span> OprBtnListener <span style="color: #0000ff;">implements</span><span style="color: #000000;"> ActionListener {
+        @Override
+        </span><span style="color: #0000ff;">public</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> actionPerformed(ActionEvent evt) {
+            previousOpr </span>= currentOpr; <span style="color: #008000;">//</span><span style="color: #008000;"> save</span>
+            currentOpr = evt.getActionCommand().charAt(0<span style="color: #000000;">);<br />　　　　　　  //字符'C&rsquo;，清空所有内容
+            </span><span style="color: #0000ff;">if</span> (currentOpr == 'C'<span style="color: #000000;">) {
+                numberInStr </span>= ""<span style="color: #000000;">;
+                previousOpr </span>= ' '<span style="color: #000000;">;
+                currentOpr </span>= ' '<span style="color: #000000;">;
+                previousNum </span>= 0<span style="color: #000000;">;
+                currentNum </span>= 0<span style="color: #000000;">;
+                result </span>= 0<span style="color: #000000;">; 
+                tfDisplay.setText(</span>"0"<span style="color: #000000;">);
+            } </span><span style="color: #0000ff;">else</span> <span style="color: #0000ff;">if</span> (currentOpr == '='<span style="color: #000000;">) {
+                </span><span style="color: #0000ff;">switch</span><span style="color: #000000;"> (previousOpr) {
+                </span><span style="color: #0000ff;">case</span> '+'<span style="color: #000000;">:
+                    result </span>= previousNum +<span style="color: #000000;"> currentNum;
+                    </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+                </span><span style="color: #0000ff;">case</span> '-'<span style="color: #000000;">:
+                    result </span>= previousNum -<span style="color: #000000;"> currentNum;
+                    </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+                </span><span style="color: #0000ff;">case</span> '*'<span style="color: #000000;">:
+                    result </span>= previousNum *<span style="color: #000000;"> currentNum;
+                    </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+                </span><span style="color: #0000ff;">case</span> '/'<span style="color: #000000;">:
+                    result </span>= previousNum /<span style="color: #000000;"> currentNum;
+                    </span><span style="color: #0000ff;">break</span><span style="color: #000000;">;
+                }<br />　　　　　　　　　 //计算结果保存为第一个数字，可以继续作为后面的被除数使用
+                currentNum </span>=<span style="color: #000000;"> result;
+                numberInStr </span>= result + ""<span style="color: #000000;">;
+                tfDisplay.setText(result </span>+ ""<span style="color: #000000;">);
+            } </span><span style="color: #0000ff;">else</span><span style="color: #000000;"> {
+                numberInStr </span>+=<span style="color: #000000;"> evt.getActionCommand();
+                tfDisplay.setText(numberInStr);
+            }
+        }
+    }
+}</span></pre>
+</div>
+<p><img style="display: block; margin-left: auto; margin-right: auto;" src="http://images2015.cnblogs.com/blog/745188/201602/745188-20160221181602483-491483484.png" alt="" /></p>

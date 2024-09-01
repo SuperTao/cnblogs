@@ -1,0 +1,21 @@
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">******************************************************************
+ *                    qt 编译的文件没有生效
+ *    qt交叉编译时,生成的可执行文件更新到目标板上，没有达到预期的效果。
+ *    主要原因：<br /> *　　　　　 1.在编译的时候没有clean<br /> *　　　　　 2.选取新生成文件的目录有误。
+ *
+ *                                            Tony, 2016-5-21, Shenzhen
+*******************************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+1、qt编译的时候可以选择编译成Debug或者Release的版本,编译生成的可执行文件的目录也不同。
+例如一个项目名称为io_test,编译之后的结果，不同编译方式的文件所在目录。
+Qt@tony:</span>~/Qtproject/<span style="color: #000000;">gui$ ll
+total </span><span style="color: #800080;">132</span><span style="color: #000000;">
+drwxrwxr</span>-x  <span style="color: #800080;">2</span> Qt Qt  <span style="color: #800080;">4096</span> May <span style="color: #800080;">18</span> <span style="color: #800080;">15</span>:<span style="color: #800080;">54</span> build-io_test-Desktop-Debug/<span style="color: #000000;">         #x86,Debug编译生成文件位置
+drwxrwxr</span>-x  <span style="color: #800080;">2</span> Qt Qt  <span style="color: #800080;">4096</span> May <span style="color: #800080;">21</span> <span style="color: #800080;">11</span>:<span style="color: #800080;">08</span> build-io_test-Qt_for_arm-Debug/<span style="color: #000000;">      #arm,Debug编译生成文件位置
+drwxrwxr</span>-x  <span style="color: #800080;">2</span> Qt Qt  <span style="color: #800080;">4096</span> May <span style="color: #800080;">21</span> <span style="color: #800080;">11</span>:<span style="color: #800080;">07</span> build-io_test-Qt_for_arm-Release/<span style="color: #000000;">    #arm,Release编译生成文件位置
+
+出现生成的镜像不如预期，在编译编译之前应该： 1.clean  2.build<br />由于不同的编译方式生成的目录不同，选取可执行文件时，应该选取正确的目录。<br /><br />2、另外一种方法，<br />参考链接：<br />http://www.cnblogs.com/zengjfgit/p/4898121.html<br /></span></pre>
+<pre>使用uic命令更新ui_mainwindow.h文件。<br />uic mainwindow.ui &gt; ui_mainwindow.h</pre>
+</div>
+<p>在qt界面左下角选择Debug/Release编译，如下图所示：</p>
+<p><img style="line-height: 1.5;" src="http://images2015.cnblogs.com/blog/745188/201605/745188-20160521113753763-733201032.png" alt="" /></p>

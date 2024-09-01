@@ -1,0 +1,168 @@
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">最近正在了解mysql的知识。将其记录在博客上，方便以后对其进行查阅和更改。
+如果有不合理以及错误之处，欢迎指正。
+</span><span style="color: #000000;">
+notice:
+        mysql环境中的命令，都是用分号作为命令的结尾
+        在使用数据库之前，需要启动sql服务：
+        #   service mysqld start
+
+Now, Let</span><span style="color: #800000;">'</span><span style="color: #800000;">s begin!</span>
+
+<span style="color: #800080;">1</span><span style="color: #000000;"> 启动
+</span><span style="color: #800080;">1.1</span><span style="color: #000000;"> 刚开始安装的mysql是没有密码的，在终端输入就可以启动
+#   mysql
+</span><span style="color: #800080;">1.2</span><span style="color: #000000;"> 添加用户和密码
+    mysql </span>-<span style="color: #000000;">u 用户名 password 新密码
+#   mysql </span>-<span style="color: #000000;">u root password helloworld
+</span><span style="color: #800080;">1.3</span><span style="color: #000000;"> 修改密码：
+#   mysqladmin </span>-u 用户名 -<span style="color: #000000;">p password 新密码
+    输入旧密码之后就会完成更改
+
+</span><span style="color: #800080;">2</span><span style="color: #000000;"> 显示数据库列表,通常中会有多个database
+#   show databases;
+        mysql</span>&gt;<span style="color: #000000;"> show databases;
+        </span>+--------------------+
+        | Database           |
+        +--------------------+
+        | information_schema |
+        | mysql              |
+        +--------------------+
+
+<span style="color: #800080;">3</span><span style="color: #000000;"> 显示指定库中的数据表
+#   use mysql;      </span><span style="color: #008000;">//</span><span style="color: #008000;">打开名为mysql的数据库</span>
+#   show tables;    <span style="color: #008000;">//</span><span style="color: #008000;">显示数据库中的表</span>
+        +---------------------------+
+        | Tables_in_mysql           |
+        +---------------------------+
+        | columns_priv              |
+        | db                        |
+        | <span style="color: #0000ff;">event</span>                     |
+        | func                      |
+        | general_log               |
+        | help_category             |
+        | help_keyword              |
+        | help_relation             |
+        | help_topic                |
+        | host                      |
+        | ndb_binlog_index          |
+        | plugin                    |
+        | proc                      |
+        | procs_priv                |
+        | servers                   |
+        | slow_log                  |
+        | tables_priv               |
+        | time_zone                 |
+        | time_zone_leap_second     |
+        | time_zone_name            |
+        | time_zone_transition      |
+        | time_zone_transition_type |
+        | user                      |
+        +---------------------------+
+        <span style="color: #800080;">23</span> rows <span style="color: #0000ff;">in</span> <span style="color: #0000ff;">set</span> (<span style="color: #800080;">0.00</span><span style="color: #000000;"> sec)
+
+</span><span style="color: #800080;">4</span><span style="color: #000000;"> 显示数据表的结构
+    describe 表名;
+#   describe user; </span><span style="color: #008000;">//</span><span style="color: #008000;">显示名为user的表的结构</span>
+
+<span style="color: #800080;">5</span><span style="color: #000000;"> 显示表中的记录
+#   </span><span style="color: #0000ff;">select</span> * <span style="color: #0000ff;">from</span><span style="color: #000000;"> 表名;
+
+</span><span style="color: #800080;">6</span><span style="color: #000000;"> 创建一个数据库
+    create database 数据库名;
+#   create database school;  </span><span style="color: #008000;">//</span><span style="color: #008000;">创建一个名为school的数据库</span>
+#   show databases;          <span style="color: #008000;">//</span><span style="color: #008000;">查看数据库是否创建</span>
+        +--------------------+
+        | Database           |
+        +--------------------+
+        | information_schema |
+        | mysql              |
+        | school             |
+        | test               |
+        +--------------------+
+        <span style="color: #800080;">4</span> rows <span style="color: #0000ff;">in</span> <span style="color: #0000ff;">set</span> (<span style="color: #800080;">0.00</span><span style="color: #000000;"> sec)
+
+
+</span><span style="color: #800080;">7</span><span style="color: #000000;"> 在指定的数据库中创建表
+</span><span style="color: #800080;">7.1</span><span style="color: #000000;"> 创建
+#   use mysql;     </span><span style="color: #008000;">//</span><span style="color: #008000;">打开名为mysql的数据库</span>
+<span style="color: #000000;">    create table 表名（字段设定列表）
+#   create table student (id </span><span style="color: #0000ff;">int</span>(<span style="color: #800080;">3</span>) auto_increment not <span style="color: #0000ff;">null</span><span style="color: #000000;"> primary key,
+                          name </span><span style="color: #0000ff;">char</span>(<span style="color: #800080;">10</span>),sex <span style="color: #0000ff;">char</span>(<span style="color: #800080;">6</span>),age <span style="color: #0000ff;">int</span>(<span style="color: #800080;">3</span><span style="color: #000000;">));
+    建立表name,表中有id（序号，自动增长）,name（姓名）,xb（性别),年龄 (出生年月）四个字段
+    类型后面的数字表示占用的位数，如int(</span><span style="color: #800080;">3</span><span style="color: #000000;">),这列数字为占用3个字节，24位；
+    </span><span style="color: #0000ff;">char</span>(<span style="color: #800080;">10</span>),varchar(<span style="color: #800080;">10</span><span style="color: #000000;">)表示占用字符个数为10;
+</span><span style="color: #800080;">7.2</span><span style="color: #000000;"> 查看建立表格的结构:
+    describe name;
+#   describe student;
+       </span>+-------+----------+------+-----+---------+----------------+
+        | Field | Type     | Null | Key | Default | Extra          |
+        +-------+----------+------+-----+---------+----------------+
+        | id        | <span style="color: #0000ff;">int</span>(<span style="color: #800080;">3</span>)   | NO   | PRI | NULL    | auto_increment |
+        | name  | <span style="color: #0000ff;">char</span>(<span style="color: #800080;">10</span>) | YES  |     | NULL    |                |
+        | sex     | <span style="color: #0000ff;">char</span>(<span style="color: #800080;">6</span>)  | YES  |     | NULL    |                |
+        | age   | <span style="color: #0000ff;">int</span>(<span style="color: #800080;">3</span>)   | YES  |     | NULL    |                |
+        +-------+----------+------+-----+---------+----------------+
+        <span style="color: #800080;">4</span> rows <span style="color: #0000ff;">in</span> <span style="color: #0000ff;">set</span> (<span style="color: #800080;">0.00</span><span style="color: #000000;"> sec)
+</span><span style="color: #800080;">7.3</span><span style="color: #000000;"> 增加几条记录;
+#   insert into student values(</span><span style="color: #800000;">''</span>,<span style="color: #800000;">'</span><span style="color: #800000;">tony</span><span style="color: #800000;">'</span>,<span style="color: #800000;">'</span><span style="color: #800000;">male</span><span style="color: #800000;">'</span>,<span style="color: #800000;">'</span><span style="color: #800000;">23</span><span style="color: #800000;">'</span><span style="color: #000000;">);
+#   insert into student values(</span><span style="color: #800000;">''</span>,<span style="color: #800000;">'</span><span style="color: #800000;">Jone</span><span style="color: #800000;">'</span>,<span style="color: #800000;">'</span><span style="color: #800000;">male</span><span style="color: #800000;">'</span>,<span style="color: #800000;">'</span><span style="color: #800000;">22</span><span style="color: #800000;">'</span><span style="color: #000000;">);
+
+</span><span style="color: #800080;">7.4</span><span style="color: #000000;"> 使用select命令验证结果；
+#   </span><span style="color: #0000ff;">select</span> * <span style="color: #0000ff;">from</span><span style="color: #000000;"> student;
+        mysql</span>&gt; <span style="color: #0000ff;">select</span> * <span style="color: #0000ff;">from</span><span style="color: #000000;"> student;
+        </span>+----+------+--------+------+
+        | id | name | sex    | age  |
+        +----+------+--------+------+
+        |  <span style="color: #800080;">1</span> | tony | male   |   <span style="color: #800080;">23</span> |
+        |  <span style="color: #800080;">2</span> | Jone | female |   <span style="color: #800080;">22</span> |
+        +----+------+--------+------+
+        <span style="color: #800080;">2</span> rows <span style="color: #0000ff;">in</span> <span style="color: #0000ff;">set</span> (<span style="color: #800080;">0.00</span><span style="color: #000000;"> sec)
+</span><span style="color: #800080;">7.5</span><span style="color: #000000;"> 修改记录
+    </span><span style="color: #0000ff;">where</span><span style="color: #000000;"> 后天的是条件
+#   update student </span><span style="color: #0000ff;">set</span> name=<span style="color: #800000;">'</span><span style="color: #800000;">Tony</span><span style="color: #800000;">'</span> <span style="color: #0000ff;">where</span> age=<span style="color: #800080;">23</span><span style="color: #000000;">;
+</span><span style="color: #800080;">7.6</span><span style="color: #000000;"> 删除记录
+#   delete </span><span style="color: #0000ff;">from</span> student <span style="color: #0000ff;">where</span> name=<span style="color: #800000;">'</span><span style="color: #800000;">Jone</span><span style="color: #800000;">'</span><span style="color: #000000;">;
+
+</span><span style="color: #800080;">8</span><span style="color: #000000;"> 将表中记录清空
+#   delete </span><span style="color: #0000ff;">from</span><span style="color: #000000;"> 表名；
+
+</span><span style="color: #800080;">9</span><span style="color: #000000;"> 删库和删表
+#   drop database 库名；
+#   drop table 表名；
+
+</span><span style="color: #800080;">10</span><span style="color: #000000;"> 修改数据库结构
+</span><span style="color: #800080;">10.1</span><span style="color: #000000;"> 增减字段
+    alter table 表名 add column </span>&lt;字段名&gt;&lt;字段选项&gt;<span style="color: #000000;">
+#   alter table student add column birth </span><span style="color: #0000ff;">char</span><span style="color: #000000;">;
+    </span><span style="color: #008000;">//</span><span style="color: #008000;">给表student增加一个名为birth的列。</span>
+        mysql&gt; <span style="color: #0000ff;">select</span> * <span style="color: #0000ff;">from</span><span style="color: #000000;"> student;
+        </span>+----+------+------+------+-------+
+        | id | name | sex  | age  | birth |
+        +----+------+------+------+-------+
+        |  <span style="color: #800080;">3</span> | Tony | male |   <span style="color: #800080;">23</span> | NULL  |
+        +----+------+------+------+-------+
+        <span style="color: #800080;">1</span> row <span style="color: #0000ff;">in</span> <span style="color: #0000ff;">set</span> (<span style="color: #800080;">0.00</span><span style="color: #000000;"> sec)
+
+</span><span style="color: #800080;">10.2</span><span style="color: #000000;"> 修改字段
+    alter table 表名 change </span>&lt;旧字段名&gt;&lt;新字段名&gt;&lt;选项&gt;<span style="color: #000000;">
+#   alter table school change birth born </span><span style="color: #0000ff;">char</span><span style="color: #000000;">;
+        mysql</span>&gt; <span style="color: #0000ff;">select</span> * <span style="color: #0000ff;">from</span><span style="color: #000000;"> student;
+        </span>+----+------+------+------+------+
+        | id | name | sex  | age  | born |
+        +----+------+------+------+------+
+        |  <span style="color: #800080;">3</span> | Tony | male |   <span style="color: #800080;">23</span> | NULL |
+        +----+------+------+------+------+
+        <span style="color: #800080;">1</span> row <span style="color: #0000ff;">in</span> <span style="color: #0000ff;">set</span> (<span style="color: #800080;">0.00</span><span style="color: #000000;"> sec)
+
+</span><span style="color: #800080;">10.3</span><span style="color: #000000;"> 删除字段
+    alter table 表名 drop column </span>&lt;字段名&gt;<span style="color: #000000;">
+#   alter table student drop column birth;
+
+</span><span style="color: #800080;">11</span><span style="color: #000000;"> 数据库备份与导入
+</span><span style="color: #800080;">11.1</span><span style="color: #000000;"> 备份
+#   mysqldump </span>-u root -p school &gt;<span style="color: #000000;"> hello.sql
+
+</span><span style="color: #800080;">11.2</span><span style="color: #000000;"> 导入
+#   mysql </span>-u root -p school &lt; hello.sql</pre>
+</div>

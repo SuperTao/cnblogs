@@ -1,0 +1,133 @@
+<pre><span style="color: #008000;">在写内核驱动的时候，最好先在uboot上，进行裸板测试，验证寄存器，再移植到内核中，这样可以熟悉寄存器，也排除内核中的一些干扰。</span></pre>
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;">**********************************************************
+ * led.c<br />&nbsp;* 53344中有16个GPIO，但是却不是在统一个GPIO寄存器中设置的，
+ * GPIO0-GPIO3是以CMIC开头的寄存器，
+ * GPIO4-GPIO16才是以GPIO开头的寄存器。
+ ********************************************************</span><span style="color: #008000;">*/</span><span style="color: #000000;">
+typedef     </span><span style="color: #0000ff;">volatile</span> unsigned <span style="color: #0000ff;">int</span><span style="color: #000000;"> U32;
+
+</span><span style="color: #0000ff;">#define</span>     GPIO_INPUT    *(U32 *)0x18000060
+<span style="color: #0000ff;">#define</span>     GPIO_OUT      *(U32 *)0x18000064
+<span style="color: #0000ff;">#define</span>     GPIO_OUT_EN   *(U32 *)0x18000068
+
+<span style="color: #0000ff;">#define</span>     CMIC_GP_DATA_IN    *(U32 *)0x48002000
+<span style="color: #0000ff;">#define</span>     CMIC_GP_DATA_OUT   *(U32 *)0x48002004
+<span style="color: #0000ff;">#define</span>     CMIC_GP_OUT_EN     *(U32 *)0x48002008
+<span style="color: #0000ff;">#define</span>     CMIC_GP_INT_TYPE   *(U32 *)0x4800200c
+
+<span style="color: #0000ff;">void</span> configure_output(<span style="color: #0000ff;">int</span><span style="color: #000000;"> gpio);
+</span><span style="color: #0000ff;">void</span> configure_input(<span style="color: #0000ff;">int</span><span style="color: #000000;"> gpio);
+</span><span style="color: #0000ff;">void</span> led_on(<span style="color: #0000ff;">int</span><span style="color: #000000;"> gpio);
+</span><span style="color: #0000ff;">void</span> led_off(<span style="color: #0000ff;">int</span><span style="color: #000000;"> gpio);
+</span><span style="color: #0000ff;">void</span> delay(<span style="color: #0000ff;">void</span><span style="color: #000000;">);
+</span><span style="color: #0000ff;">void</span> delays(<span style="color: #0000ff;">int</span><span style="color: #000000;"> count);
+
+</span><span style="color: #0000ff;">int</span> _start(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    configure_output(</span><span style="color: #800080;">0</span><span style="color: #000000;">);
+    configure_output(</span><span style="color: #800080;">1</span><span style="color: #000000;">);
+    configure_output(</span><span style="color: #800080;">2</span><span style="color: #000000;">);
+
+    CMIC_GP_OUT_EN </span>|= <span style="color: #800080;">0xf</span><span style="color: #000000;">;
+    CMIC_GP_DATA_OUT </span>&amp;= ~<span style="color: #800080;">0xf</span><span style="color: #000000;">;
+
+    </span><span style="color: #0000ff;">while</span> (<span style="color: #800080;">1</span><span style="color: #000000;">) {
+        led_on(</span><span style="color: #800080;">0</span><span style="color: #000000;">);
+        led_on(</span><span style="color: #800080;">1</span><span style="color: #000000;">);
+        led_on(</span><span style="color: #800080;">2</span><span style="color: #000000;">);
+        delay();
+        led_off(</span><span style="color: #800080;">0</span><span style="color: #000000;">);
+        led_off(</span><span style="color: #800080;">1</span><span style="color: #000000;">);
+        led_off(</span><span style="color: #800080;">2</span><span style="color: #000000;">);
+        delay();
+    }
+
+    </span><span style="color: #0000ff;">return</span> <span style="color: #800080;">0</span><span style="color: #000000;">;
+}
+</span><span style="color: #0000ff;">void</span> configure_output(<span style="color: #0000ff;">int</span><span style="color: #000000;"> gpio)
+{
+    GPIO_OUT_EN </span>|= (<span style="color: #800080;">1</span> &lt;&lt;<span style="color: #000000;"> gpio);
+}
+
+</span><span style="color: #0000ff;">void</span> configure_input(<span style="color: #0000ff;">int</span><span style="color: #000000;"> gpio)
+{
+    GPIO_OUT_EN </span>&amp;= ~(<span style="color: #800080;">1</span> &lt;&lt;<span style="color: #000000;"> gpio);
+}
+
+</span><span style="color: #0000ff;">void</span> led_on(<span style="color: #0000ff;">int</span><span style="color: #000000;"> gpio)
+{
+    GPIO_OUT </span>&amp;= ~(<span style="color: #800080;">1</span> &lt;&lt;<span style="color: #000000;"> gpio);
+}
+
+</span><span style="color: #0000ff;">void</span> led_off(<span style="color: #0000ff;">int</span><span style="color: #000000;"> gpio)
+{
+    GPIO_OUT </span>|= (<span style="color: #800080;">1</span> &lt;&lt;<span style="color: #000000;"> gpio);
+}
+
+</span><span style="color: #0000ff;">void</span> delay(<span style="color: #0000ff;">void</span><span style="color: #000000;">)
+{
+    __asm__ __volatile__ (
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">ldr    r0 , =0x4ffffff \n</span><span style="color: #800000;">"</span>
+    <span style="color: #800000;">"</span><span style="color: #800000;">delayloop:    \n</span><span style="color: #800000;">"</span>
+    <span style="color: #800000;">"</span><span style="color: #800000;">subs r0 , r0 , #1      \n</span><span style="color: #800000;">"</span>
+    <span style="color: #800000;">"</span><span style="color: #800000;">bne    delayloop     \n</span><span style="color: #800000;">"</span><span style="color: #000000;">
+    :::</span><span style="color: #800000;">"</span><span style="color: #800000;">r0</span><span style="color: #800000;">"</span><span style="color: #000000;">
+    );
+}
+
+</span><span style="color: #0000ff;">void</span> delays(<span style="color: #0000ff;">int</span><span style="color: #000000;"> count)
+{
+    __asm__ __volatile__ (
+    </span><span style="color: #800000;">"</span><span style="color: #800000;">mov    r0 , %0         \n</span><span style="color: #800000;">"</span>
+    <span style="color: #800000;">"</span><span style="color: #800000;">delaysloop:    \n</span><span style="color: #800000;">"</span>
+    <span style="color: #800000;">"</span><span style="color: #800000;">subs r0 , r0 , #1      \n</span><span style="color: #800000;">"</span>
+    <span style="color: #800000;">"</span><span style="color: #800000;">bne    delaysloop     \n</span><span style="color: #800000;">"</span><span style="color: #000000;">
+    ::</span><span style="color: #800000;">"</span><span style="color: #800000;">r</span><span style="color: #800000;">"</span><span style="color: #000000;">(count)
+    :</span><span style="color: #800000;">"</span><span style="color: #800000;">r0</span><span style="color: #800000;">"</span><span style="color: #000000;">
+    );</span></pre>
+</div>
+<p>Makefile， 链接脚本led.lds用于指定代码运行的位子</p>
+<div class="cnblogs_code">
+<pre><span style="color: #000000;">all:
+    arm</span>-linux-gcc -c  led.c  -o  led.o -fno-<span style="color: #000000;">builtin
+    arm</span>-linux-ld  -T led.lds  led.o  -<span style="color: #000000;">o  led
+    arm</span>-linux-objcopy -<span style="color: #000000;">O binary led  led.bin
+clean:
+    rm </span>-rf led  led.bin   *.o  </pre>
+</div>
+<p>&nbsp;链接脚本led.lds，用于指定代码运行的地址，以及编译的时候，如果有多个文件，每个文件存放在内存中的位置。</p>
+<p>&nbsp;当一个文件的时候，上面中间一条，也可以直接写成如下的写法，用于指定起始地址。</p>
+<div class="cnblogs_code">
+<pre>arm-linux-ld  -T0x61000000  led.o  -o  led</pre>
+</div>
+<pre></pre>
+<p>链接脚本，生成方法</p>
+<div class="cnblogs_code">
+<pre>arm-linux-ld --verbose &gt; led.lds</pre>
+</div>
+<p>再根据实际修改生成的文件。</p>
+<div class="cnblogs_code">
+<pre><span style="color: #008000;">/*</span><span style="color: #008000;"> Script for -z combreloc: combine and sort reloc sections </span><span style="color: #008000;">*/</span><span style="color: #000000;">
+OUTPUT_FORMAT(</span><span style="color: #800000;">"</span><span style="color: #800000;">elf32-littlearm</span><span style="color: #800000;">"</span>, <span style="color: #800000;">"</span><span style="color: #800000;">elf32-bigarm</span><span style="color: #800000;">"</span><span style="color: #000000;">,
+          </span><span style="color: #800000;">"</span><span style="color: #800000;">elf32-littlearm</span><span style="color: #800000;">"</span><span style="color: #000000;">)
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+SEARCH_DIR(</span><span style="color: #800000;">"</span><span style="color: #800000;">=/usr/local/lib</span><span style="color: #800000;">"</span>); SEARCH_DIR(<span style="color: #800000;">"</span><span style="color: #800000;">=/lib</span><span style="color: #800000;">"</span>); SEARCH_DIR(<span style="color: #800000;">"</span><span style="color: #800000;">=/usr/lib</span><span style="color: #800000;">"</span><span style="color: #000000;">);
+SECTIONS
+{
+    . </span>= <span style="color: #800080;">0x61000000</span><span style="color: #000000;"> ; 　　/* &nbsp;程序的起始地址 */
+    
+    .text :
+    {   
+        led.o(.text) ; 
+        </span>*<span style="color: #000000;">(.text) ; 
+    }   
+    align </span>= <span style="color: #800080;">4</span><span style="color: #000000;"> ; 
+}</span></pre>
+</div>
+<p>将生成的led.bin下载到板中，然后</p>
+<div class="cnblogs_code">
+<pre>go <span style="color: #800080;">0x61000000</span></pre>
+</div>
+<p>&nbsp;</p>
