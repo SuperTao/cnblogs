@@ -17,6 +17,10 @@ make menuconfig
 
 make
 
+保存配置
+
+make savedefconfig  
+
 # 编译busybox
 
 sudo make busybox-menuconfig
